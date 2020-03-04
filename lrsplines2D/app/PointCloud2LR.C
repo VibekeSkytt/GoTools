@@ -86,7 +86,10 @@ void print_help_text()
   std::cout << "-reltol <0/1>: Apply relative tolerance flag. Default false \n";
   std::cout << "-tolfac1: Factor for modification of tolerance, positive heights. Default 0.0 \n";
   std::cout << "-tolfac2: Factor for modification of tolerance, negative heights. Default 0.0 \n";
+<<<<<<< HEAD
   std::cout << "-minsize <length>: Minimum element size (both directions) \n";
+=======
+>>>>>>> origin/master
   std::cout << "-signpoints: Filename significant points, same formats as point cloud \n";
   std::cout << "-signtol: Tolerance for significant points, default 0.5*tolerance \n";
   std::cout << "-signpost: Flag for post prossessing significant points outside tolerance (0=false, 1=true). Default false \n";
@@ -165,7 +168,11 @@ int main(int argc, char *argv[])
   double AEPSGE = 0.5;     // Requested accuracy
   int max_iter = 6;        // Maximum number of iterations in adaptive alogrithm
   char *field_out = 0;     // Distance field output file
+<<<<<<< HEAD
   double smoothwg = 1.0e-10; 
+=======
+  double smoothwg = 1.0e-9; 
+>>>>>>> origin/master
   int initmba = 0; //1;  // Initiate surface using the mba method
   int mba = 0;      // Use least squares approximation
   int tomba = std::min(5, max_iter-1);    // Turn to the mba method at 
@@ -176,7 +183,10 @@ int main(int argc, char *argv[])
   char *signpointfile = 0;  // Input significant points
   double signtol = -1.0;  // Tolerance for significant points
   int signpost = 0;  // Flag for post procession of significant points
+<<<<<<< HEAD
   double minsize = -1.0;
+=======
+>>>>>>> origin/master
 
   int ki, kj;
   vector<bool> par_read(argc-1, false);
@@ -270,6 +280,7 @@ int main(int argc, char *argv[])
 	  if (stat < 0)
 	    return 1;
 	}
+<<<<<<< HEAD
       else if (arg == "-minsize")
 	{
 	  int stat = fetchDoubleParameter(argc, argv, ki, minsize, 
@@ -278,6 +289,9 @@ int main(int argc, char *argv[])
 	    return 1;
 	}
        else if (arg == "-signpoints")
+=======
+      else if (arg == "-signpoints")
+>>>>>>> origin/master
 	{
 	  int stat = fetchCharParameter(argc, argv, ki, signpointfile, 
 					nmb_par, par_read);
@@ -415,7 +429,11 @@ int main(int argc, char *argv[])
 	  Point low = box.low();
 	  Point high = box.high();
 	  nmb_sign = points.numPoints();
+<<<<<<< HEAD
 	  sign_data.insert(data.end(), points.rawData(), points.rawData()+3*nmb_sign);
+=======
+	  sign_data.insert(sign_data.end(), points.rawData(), points.rawData()+3*nmb_sign);
+>>>>>>> origin/master
 	  for (int ki=0; ki<3; ++ki)
 	    {
 	      sign_extent[2*ki] = low[ki];
@@ -571,9 +589,12 @@ int main(int argc, char *argv[])
   if (reltol > 0)
     approx.setVarTol(tolfac1, tolfac2);
 
+<<<<<<< HEAD
   if (minsize > 0)
     approx.setMinimumElementSize(minsize, minsize);
   
+=======
+>>>>>>> origin/master
   if (sign_data.size() > 0)
     {
       approx.addSignificantPoints(sign_data, signtol);
@@ -586,9 +607,12 @@ int main(int argc, char *argv[])
   
   approx.setVerbose(true);
 
+<<<<<<< HEAD
   // Feature output
   approx.setFeatureOut(224);
 
+=======
+>>>>>>> origin/master
   if (del == 3)
     {
       double zrange = extent[5] - extent[4];

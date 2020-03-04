@@ -1034,7 +1034,11 @@ void LRSplineSurface::refine(Direction2D d, double fixed_val, double start,
 	    it2->second->getOutsidePoints(data_points, d, sort_in_u);
 	    it2->second->getOutsideSignificantPoints(significant_points, 
 						     d, sort_in_u_significant);
+<<<<<<< HEAD
 	    it2->second->getOutsideGhostPoints(ghost_points, d, 
+=======
+ 	    it2->second->getOutsideGhostPoints(ghost_points, d, 
+>>>>>>> origin/master
 					       sort_in_u_ghost);
 	    pt_del = it2->second->getNmbValPrPoint();
 	    // it2->second->getAccuracyInfo(averr, maxerr, nmbout);
@@ -1089,11 +1093,18 @@ void LRSplineSurface::refine(Direction2D d, double fixed_val, double start,
 	    if (data_points.size() > 0)
 	      elem->addDataPoints(data_points.begin(), data_points.end(),
 				  sort_in_u, pt_del);
+<<<<<<< HEAD
 	    if (significant_points.size() > 0)
 	      elem->addSignificantPoints(significant_points.begin(), 
 					 significant_points.end(),
 					 sort_in_u_significant, pt_del);
 	      
+=======
+           if (significant_points.size() > 0)
+             elem->addSignificantPoints(significant_points.begin(), 
+                                        significant_points.end(),
+                                        sort_in_u_significant, pt_del);
+>>>>>>> origin/master
 	    if (ghost_points.size() > 0)
 	      elem->addGhostPoints(ghost_points.begin(), ghost_points.end(),
 				   sort_in_u_ghost, pt_del);

@@ -97,11 +97,16 @@ class BSplineUniLR : public Streamable
   // --- EVALUATION FUNCTION ---
   // ---------------------------
 
+  /// Evaluate value of basis function in the parameter par
   double evalBasisFunc(double par) const;
 
+  /// Evaluate one specified derivate in the parameter par
   double evalBasisFunction(double par, int deriv = 0,
 			   bool at_end = false) const;
 
+  /// Evaluate value and a number of derivatives in the parameter par.
+  /// Note that the function is tested only up to and including deriv=3.
+  /// For higher order derivatives use evalBasisFunction
   void evalBasisFunctions(double par, int deriv, double der[],
 			  bool at_end = false) const;
 

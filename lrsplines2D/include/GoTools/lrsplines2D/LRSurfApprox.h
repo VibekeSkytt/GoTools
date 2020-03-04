@@ -464,6 +464,7 @@ class LRSurfApprox
       average_outside = avout_;
     }
 
+<<<<<<< HEAD
      /// Feature output
     void setFeatureOut(int ncell)
     {
@@ -476,6 +477,8 @@ class LRSurfApprox
       write_feature_ = false;
     }
 
+=======
+>>>>>>> origin/master
 private:
     shared_ptr<LRSplineSurface> srf_;
     shared_ptr<Eval1D3DSurf> evalsrf_;
@@ -488,8 +491,11 @@ private:
     std::vector<int> coef_known_;
     shared_ptr<LRSplineSurface> prev_;  // Previous surface, no point information
     // in elements
+<<<<<<< HEAD
     //  Element accuracy history information
     std::unique_ptr<Element2DAccuracyHistory> element_accuracy_;  
+=======
+>>>>>>> origin/master
 
     bool useMBA_;    // Only LR-MBA
     int toMBA_;      // Start with LR-MBA at the given iteration step
@@ -552,10 +558,13 @@ private:
     double mintol_;
     bool has_var_tol_sign_;
     std::vector<TolBox> tolerances_;
+<<<<<<< HEAD
 
     // Features output
     bool write_feature_;
     int ncell_;
+=======
+>>>>>>> origin/master
 
     void initDefaultParams();
 
@@ -587,9 +596,14 @@ private:
 
     //double density);
     /// Refine surface
+<<<<<<< HEAD
     int refineSurf(int iter);
     int refineSurf2();
     int refineSurf3();
+=======
+    int refineSurf();
+    int refineSurf2();
+>>>>>>> origin/master
 
     /// Create initial LR B-spline surface
     void makeInitSurf(int dim);
@@ -617,10 +631,16 @@ private:
     void defineRefs(LRBSpline2D* bspline, double average_out,
 		    std::vector<LRSplineSurface::Refinement2D>& refs_x,
 		    std::vector<LRSplineSurface::Refinement2D>& refs_y,
+<<<<<<< HEAD
 		    int choice,
 		    std::vector<std::pair<Element2D*,double> >& elem_out);
 
     void checkFeasibleRef(Element2D* elem, int iter,
+=======
+		    std::vector<std::pair<Element2D*,double> >& elem_out);
+
+    void checkFeasibleRef(Element2D* elem, 
+>>>>>>> origin/master
 			  std::vector<LRSplineSurface::Refinement2D>& refs_x,
 			  std::vector<LRSplineSurface::Refinement2D>& refs_y,
 			  std::vector<Element2D*>& affected);

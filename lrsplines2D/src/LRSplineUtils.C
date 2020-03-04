@@ -1206,7 +1206,11 @@ void LRSplineUtils::iteratively_split2 (vector<LRBSpline2D*>& bsplines,
 
   tuple<int, int, int, int>
 LRSplineUtils::refine_mesh(Direction2D d, double fixed_val, double start, 
+<<<<<<< HEAD
 			   double end, int mult, int generation, 
+=======
+			   double end, int mult, 
+>>>>>>> origin/master
 			   bool absolute, int spline_degree, 
 			   double knot_tol, Mesh2D& mesh,  
 			   vector<unique_ptr<BSplineUniLR> >& bsplines)
@@ -1417,9 +1421,15 @@ bool LRSplineUtils::elementOK(const Element2D* elem, const Mesh2D& m)
 	      buni.push_back(unique_ptr<BSplineUniLR>(bsplit[kh]));
 	      last_ix = (int)buni.size() - 1;
 	    }
+<<<<<<< HEAD
 	  else
 	    delete bsplit[kh];
 	}
+=======
+         else
+           delete bsplit[kh];
+ 	}
+>>>>>>> origin/master
       buni.push_back(std::move(bsplines[kj]));
     }
   for (; kh<bsplit.size(); ++kh)
