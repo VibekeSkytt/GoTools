@@ -152,8 +152,10 @@ namespace Go
     for (size_t i = 0; i < surfaces.size(); ++i)
       {
 	// Check if the surface is likely to be closed. In that case split the surface
-	vector<shared_ptr<ParamSurface> > surface_pieces = 
-	  SurfaceModelUtils::checkClosedFaces(surfaces[i], neighbour);
+	// vector<shared_ptr<ParamSurface> > surface_pieces = 
+	//   SurfaceModelUtils::checkClosedFaces(surfaces[i], neighbour);
+	vector<shared_ptr<ParamSurface> > surface_pieces(1);
+	surface_pieces[0] = surfaces[i];
 	for (size_t j=0; j<surface_pieces.size(); ++j)
 	  {
 	    shared_ptr<ftSurface> newSurf;
