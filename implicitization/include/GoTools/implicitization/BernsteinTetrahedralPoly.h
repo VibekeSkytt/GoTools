@@ -140,6 +140,39 @@ public:
         return tmp[0];
     }
 
+  /// Evaluate specified combination of basis functions
+  /// \param u parameter point given in barycentric coordinates
+  /// \param i, j, k, l the indices of the specified basis functions, i+j+k+l=degree+1
+  /// \return the value of product of basis functions at u
+  template <typename T>
+  T evalBasis(const Array<T, 4>& u, int i, int j, int k, int l)
+  {
+    ASSERT(deg_ >= 0);
+    int sz = (int)coefs_.size();
+    if (i+j+k+l != deg_)
+      THROW("Illegal combination of B-splines");
+    
+    T B1 = 1.0;
+    for (int i1=1; i1<=i; i1++)
+      B1 *= (u[0]/T(i1));
+    T B2 = 1.0;
+    for (int j1=1; j1<=j; j1++)
+      B2 *= (u[1]/T(j1));
+    T B3 = 1.0;
+    for (int k1=1; k1<=k; k1++)
+      B3 *= (u[2]/T(k1));
+    T B4 = 1.0;
+    for (int l1=1; l1<=l; l1++)
+      B4 *= (u[3]/T(l1));
+
+    int nom = 1;
+    for (int n1=1; n1<=deg_; ++n1)
+      nom *= n1;
+    
+    T res = nom*B1*B2*B3*B4;
+    return res;
+  }
+
     /// Calculates the norm of the polynomial, defined as the sum of
     /// absolute values of the coefficients divided by the number of
     /// coefficients. This norm is not the same as the L1 norm of the

@@ -51,6 +51,7 @@
 #include "newmatap.h"
 //#include "newmatio.h"
 
+//#define DEBUG
 
 using namespace std;
 using namespace NEWMAT;
@@ -360,8 +361,9 @@ void make_matrix(const SplineCurve& curve, int deg,
  	}
     }
     norm = sqrt(norm);
+#ifdef DEBUG
     cout << "Frobenius norm = " << norm << endl;
-
+#endif
     return;
 }
 
@@ -440,8 +442,9 @@ void make_matrix(const SplineSurface& surf, int deg,
  	}
     }
     norm = sqrt(norm);
+#ifdef DEBUG
     cout << "Frobenius norm = " << norm << endl;
-
+#endif
     return;
 }
 
@@ -535,6 +538,7 @@ void make_implicit_svd(vector<vector<double> >& mat,
     }
 
     // Write out singular values.
+#ifdef DEBUG
     cout << "Singular values:" << endl;
     for (int ik = 0; ik < cols; ik++)
  	cout << ik << "\t" << diag.element(ik, ik) << endl;
@@ -546,14 +550,15 @@ void make_implicit_svd(vector<vector<double> >& mat,
 	 << "s_min = " << s_min << endl
 	 << "s_max = " << s_max << endl
 	 << "Ratio of s_min/s_max = " << s_min/s_max << endl;
-
+#endif
     // Find square sum of singular values
     double sum = 0.0;
     for (int i = 0; i < cols; i++)
  	sum += diag.element(i, i) * diag.element(i, i);
     sum = sqrt(sum);
+#ifdef DEBUG
     cout << "Square sum = " << sum << endl;
-
+#endif
     // Get the appropriate null-vector and corresponding singular value
     const double eps = 1.0e-15;
     double tol = cols * fabs(diag.element(0, 0)) * eps;
@@ -564,9 +569,10 @@ void make_implicit_svd(vector<vector<double> >& mat,
 	}
     }
     sigma_min = diag.element(nullvec, nullvec);
+#ifdef DEBUG
     cout << "Null-vector: " << nullvec << endl
 	 << "sigma_min = " << sigma_min << endl;
-
+#endif
     // Set the coefficients
     b.resize(cols);
     for (int jk = 0; jk < cols; ++jk)
@@ -683,9 +689,10 @@ void make_implicit_gauss(vector<vector<double> >& mat, vector<double>& b)
 	    bmax = fabs(b[i]);
     }
     norm /= cols;
+#ifdef DEBUG
     cout << "Max-norm of b = " << norm << endl
 	 << "bmin / bmax = " << bmin / bmax << endl;
-
+#endif
     return;
 }
 
