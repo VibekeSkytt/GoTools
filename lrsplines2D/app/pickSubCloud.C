@@ -70,6 +70,16 @@ int compare_v_par(const void* el1, const void* el2)
     return 0;
 }
 
+int compare_w_par(const void* el1, const void* el2)
+{
+  if (((double*)el1)[2] < ((double*)el2)[2])
+    return -1;
+  else if (((double*)el1)[2] > ((double*)el2)[2])
+    return 1;
+  else
+    return 0;
+}
+
 int main(int argc, char *argv[])
 {
   if (argc != 4) {
@@ -87,8 +97,8 @@ int main(int argc, char *argv[])
   points.read(filein);
 
   BoundingBox box0 = points.boundingBox();
-  printf("Domain: [ %13.3f , %13.3f ] x [ %13.3f , %13.3f ] \n",
-	 box0.low()[0], box0.high()[0], box0.low()[1] ,box0.high()[1]);
+  printf("Domain: [ %13.3f , %13.3f ] x [ %13.3f , %13.3f ]  x [ %13.3f , %13.3f ] \n",
+	 box0.low()[0], box0.high()[0], box0.low()[1] ,box0.high()[1], box0.low()[2] ,box0.high()[2]);
 
   Vector3D vec1, vec2;
   if (rotate)
@@ -113,14 +123,16 @@ int main(int argc, char *argv[])
   points.write(of);
 
   BoundingBox box = points.boundingBox();
-  printf("Domain: [ %13.3f , %13.3f ] x [ %13.3f , %13.3f ] \n",
-	 box.low()[0], box.high()[0], box.low()[1] ,box.high()[1]);
+  printf("Domain: [ %13.3f , %13.3f ] x [ %13.3f , %13.3f ] x [ %13.3f , %13.3f ] \n",
+	 box.low()[0], box.high()[0], box.low()[1] ,box.high()[1], box.low()[2] ,box.high()[2]);
   printf("New domain: \n");
-double u1, u2, v1, v2;
+  double u1, u2, v1, v2, w1, w2;
   std::cin >> u1;  
   std::cin >> u2;  
   std::cin >> v1;  
   std::cin >> v2;
+  std::cin >> w1;  
+  std::cin >> w2;
 
   int nmb_pts = points.numPoints();
   vector<double> data(points.rawData(), points.rawData()+3*nmb_pts);
@@ -141,8 +153,16 @@ double u1, u2, v1, v2;
   for (pp2=pp0; pp2<pp1 && data[pp2+1]<v1; pp2+=3);
   for (pp3=pp2; pp3<pp1 && data[pp3+1]<v2; pp3+=3);
 
+  // Sort the current sub set of points according to the w-parameter
+  qsort(&data[0]+pp0, (pp1-pp0)/3, 3*sizeof(double), compare_w_par);
+
+  // Traverse sub set of points
+  int pp4, pp5;
+  for (pp4=pp2; pp4<pp3 && data[pp4+2]<w1; pp4+=3);
+  for (pp5=pp4; pp5<pp3 && data[pp5+2]<w2; pp5+=3);
+
   // Collect output
-  PointCloud3D points2(data.begin()+pp2, (pp3-pp2)/3);
+  PointCloud3D points2(data.begin()+pp4, (pp5-pp4)/3);
 
   if (rotate)
     {

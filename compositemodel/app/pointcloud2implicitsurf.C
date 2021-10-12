@@ -87,29 +87,6 @@ int main(int argc, char* argv[])
     double sigma_min;
     implicitize.getResultData(implicit, bc, sigma_min);
 
-    // Check accuracy
-    double avdist = 0.0;
-    double maxdist = 0.0;
-    int dim = 3;
-    int numpt = cloud.numPoints();
-    for (int ki=0; ki<numpt; ++ki)
-      {
-	Vector3D curr = cloud.point(ki);
-	Vector4D bary = bc.cartToBary(curr);
-	double dist = implicit(bary);
-	maxdist = std::max(maxdist, fabs(dist));
-	avdist += dist;
-      }
-    avdist /= (double)numpt;
-    std::cout << "Maximum distance: " << maxdist << std::endl;
-    std::cout << "Average distance: " << avdist << std::endl;
-
-    // Write out implicit function
-    std::cout << "Sigma_min: " << sigma_min << std::endl;
-    output << implicit << endl
-	   << bc << endl;
-    cout << "Data written to output" << endl;
-
     // Differentiate
     Vector4D bdir1(1.0, 0.0, 0.0, 0.0);
     Vector4D bdir2(0.0, 1.0, 0.0, 0.0);
@@ -126,6 +103,42 @@ int main(int argc, char* argv[])
     implicit.deriv(2, bdir3, deriv2_3);
     implicit.deriv(2, bdir4, deriv2_4);
     
+    // Check accuracy
+    double avdist = 0.0;
+    double maxdist = 0.0;
+    int dim = 3;
+    int numpt = cloud.numPoints();
+    vector<Vector3D> ptvecs;
+    for (int ki=0; ki<numpt; ++ki)
+      {
+	Vector3D curr = cloud.point(ki);
+	Vector4D bary = bc.cartToBary(curr);
+	double dist = implicit(bary);
+	maxdist = std::max(maxdist, fabs(dist));
+	avdist += dist;
+	double d1 = deriv1(bary);
+	double d2 = deriv2(bary);
+	double d3 = deriv3(bary);
+	double d4 = deriv4(bary);
+	Vector4D dv(d1,d2,d3,d4);
+	Vector4D bary2 = bary+dv;
+	Vector3D currpt2 = bc.baryToCart(bary2);
+	Vector3D norm = currpt2 - curr;
+	double len = norm.length();
+	if (len > 1.0e-10)
+	  norm /= len;
+	ptvecs.push_back(norm);
+      }
+    avdist /= (double)numpt;
+    std::cout << "Maximum distance: " << maxdist << std::endl;
+    std::cout << "Average distance: " << avdist << std::endl;
+
+    // Write out implicit function
+    std::cout << "Sigma_min: " << sigma_min << std::endl;
+    output << implicit << endl
+	   << bc << endl;
+    cout << "Data written to output" << endl;
+
     // Fetch points on the implicit surface, fetch also points where the gradient vanishes
     BoundingBox ptbox = cloud.boundingBox();
     Point low = ptbox.low();
@@ -198,6 +211,7 @@ int main(int argc, char* argv[])
       et[ik+ki] = 1.0;
 
     vector<double> points;
+    vector<double> vecs;
     vector<double> linesegs;
     vector<double> der;
     vector<double> der2;
@@ -253,8 +267,22 @@ int main(int argc, char* argv[])
 		    break;
 		if (kb < 4)
 		  continue;
+		
 		Vector3D pos = bc.baryToCart(barypt);
+		double d1 = deriv1(barypt);
+		double d2 = deriv2(barypt);
+		double d3 = deriv3(barypt);
+		double d4 = deriv4(barypt);
+		Vector4D dv(d1,d2,d3,d4);
+		Vector3D dv2 = bc.baryToCart(dv);
+		Vector4D barypt2 = barypt+dv;
+		Vector3D currpt2 = bc.baryToCart(barypt2);
+		Vector3D norm = currpt2 - pos;
+		double len = norm.length();
+		if (len > 1.0e-10)
+		  norm /= len;
 		points.insert(points.end(), pos.begin(), pos.end());
+		vecs.insert(vecs.end(), norm.begin(), norm.end());
 
 		// Check
 		Vector4D bary = bc.cartToBary(pos);
@@ -368,12 +396,33 @@ int main(int argc, char* argv[])
 	  }
       }
 
+    outviz << "410 1 0 4 155 0 100 255" << std::endl;
+    outviz << numpt << std::endl;
+    for (int ki=0; ki<numpt; ++ki)
+      {
+	Vector3D curr = cloud.point(ki);
+	outviz << curr << " " << curr+0.2*ptvecs[ki] << std::endl;
+      }
+    
     // Output
     if (points.size() > 0)
       {
 	PointCloud3D ptcloud(&points[0], points.size()/3);
 	outviz << "400 1 0 4 255 0 0 255" << std::endl;
 	ptcloud.write(outviz);
+      }
+    if (vecs.size() > 0)
+      {
+	outviz << "410 1 0 4 55 0 200 255" << std::endl;
+	outviz << vecs.size()/3 << std::endl;
+	for (int kb=0; kb<(int)vecs.size(); kb+=3)
+	  {
+	    for (int ka=0; ka<3; ++ka)
+	      outviz << points[kb+ka] << " ";
+	    for (int ka=0; ka<3; ++ka)
+	      outviz << points[kb+ka]+vecs[kb+ka] << " ";
+	    outviz << std::endl;
+	  }
       }
     if (linesegs.size() > 0)
       {

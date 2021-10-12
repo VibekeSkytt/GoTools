@@ -51,7 +51,7 @@
 #include "newmatap.h"
 //#include "newmatio.h"
 
-//#define DEBUG
+#define DEBUG
 
 using namespace std;
 using namespace NEWMAT;
@@ -550,6 +550,7 @@ void make_implicit_svd(vector<vector<double> >& mat,
 	 << "s_min = " << s_min << endl
 	 << "s_max = " << s_max << endl
 	 << "Ratio of s_min/s_max = " << s_min/s_max << endl;
+    cout << "Ratio s_min/s_next_min = " << diag.element(cols-1, cols-1)/diag.element(cols-2, cols-2) << endl;
 #endif
     // Find square sum of singular values
     double sum = 0.0;
