@@ -64,7 +64,7 @@
 //#define DEBUG2
 //#define DEBUG_SURF
 //#define DEBUG_DIST
-//#define DEBUG_REFINE
+#define DEBUG_REFINE
 
 using std::vector;
 using std::set;
@@ -497,12 +497,14 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   // Initial approximation of LR B-spline surface
   if (initMBA_)
     {
+      std::cout << "Run MBA" << std::endl;
       runMBAUpdate(false);
       LSapprox.setInitSf(srf_, coef_known_);
       updateCoefKnown();
     }
   else if (!(initial_surface_ && useMBA_))
     {
+      std::cout << "Run LS" << std::endl;
      LSapprox.setInitSf(srf_, coef_known_);
       LSapprox.updateLocals();
       //performSmooth(&LSapprox);
@@ -747,16 +749,16 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
        // Update surface
       if (useMBA_ || ki >= toMBA_)
       {
-#ifdef DEBUG
+	//#ifdef DEBUG
 	std::cout << "Using MBA" << std::endl;
-#endif
+	//#endif
 	runMBAUpdate(true);
       }
       else
 	{
-#ifdef DEBUG
+	  //#ifdef DEBUG
 	  std::cout << "Using LS" << std::endl;
-#endif
+	  //#endif
 	  try {
 	    LSapprox.updateLocals();
 	    performSmooth(&LSapprox);
@@ -765,9 +767,9 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 	  }
 	  catch (...)
 	    {
-#ifdef DEBUG
+	      //#ifdef DEBUG
 	      std::cout << "Switch to MBA" << std::endl;
-#endif
+	      //#endif
 	      useMBA_ = true;
 	      runMBAUpdate(true);
 	    }
@@ -888,7 +890,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
       av_inner /= (double)(nmbcoef+nmbcoef);
 
       double outfac = (double)(outsideeps_prev-outsideeps_)/(double)(nmbcoef-prevcoef);
-#ifdef TEST_REFINE
+#ifdef DEBUG_REFINE
       fprintf(fp,"%3d \t %9.3f \t %9.3f \t %9d \t %9d \t %9.3f \t %9d \t %9.3f \t %9.3f \t %9.3f \t %9d \t %9.3f \t %9.3f \t %9d \n",
 	      (ki+1)/div, maxdist_, avdist_all_, outsideeps_, nmbcoef,
 	      outfac, nmb_pts_-outsideeps_,
@@ -1045,7 +1047,7 @@ void LRSurfApprox::performSmooth(LRSurfSmoothLS *LSapprox)
 
   //std::cout << "Smoothing weight: " << smoothweight_ << std::endl;
   double wgt1 = 0.0;//0.8*smoothweight_;
-  double wgt3 = 0.8*smoothweight_;//0.0; //0.1*smoothweight_; //0.9*smoothweight_; // 0.5*smoothweight_;
+  double wgt3 = 0.5*smoothweight_; //0.8*smoothweight_;//0.0; //0.1*smoothweight_; //0.9*smoothweight_; // 0.5*smoothweight_;
   double wgt2 = (1.0 - wgt3 -wgt1)*smoothweight_;
   double fac = 100.0;
 
@@ -4395,7 +4397,7 @@ void LRSurfApprox::initDefaultParams()
   avout_ = 0.0;
   smoothweight_ = 1.0e-3;
   significant_fac_ = 5.0;
-  maxLScoef_ = 25000; // 46340; Memory management to costly for large surfaces
+  maxLScoef_ = 46340; //25000;  Memory management too costly for large surfaces
   smoothbd_ = false;
   fix_corner_ = false;
   to3D_ = -1;

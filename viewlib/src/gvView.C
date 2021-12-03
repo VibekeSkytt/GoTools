@@ -279,7 +279,8 @@ void gvView::saveSnapshot(int w, int h, const QString &filename)
     glEnable(GL_LIGHT0);
     glEnable(GL_LIGHTING);
 
-    glLineWidth(2.0);
+    //glLineWidth(2.0);
+    glLineWidth(1.0);
     glPointSize(2.0);
 
     glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 1); // Default value = 0.

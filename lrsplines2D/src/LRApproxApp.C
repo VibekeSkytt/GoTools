@@ -420,7 +420,9 @@ void LRApproxApp::computeDistPointSpline(vector<double>& points,
   vector<Element2D*> elements;
   surf->constructElementMesh(elements);
 
-  max_above = max_below = avdist = 0.0;
+  max_above = std::numeric_limits<double>::lowest();
+  max_below = std::numeric_limits<double>::max();
+  avdist = 0.0;
   nmb_points = 0;
 
   // For each point, classify according to distance

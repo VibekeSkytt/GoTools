@@ -62,9 +62,9 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-  if (argc != 5)
+  if (argc != 6)
     {
-    std::cout << "Input parameters : Input file, output file, output file viz, degree"  << std::endl;
+    std::cout << "Input parameters : Input file, output file, output file viz, degree, dv lim"  << std::endl;
     exit(-1);
   }
   
@@ -73,6 +73,7 @@ int main(int argc, char* argv[])
     ofstream output(argv[2]);
     ofstream outviz(argv[3]);
     int degree = atoi(argv[4]);
+    double dvlim = atof(argv[5]);
     ObjectHeader header;
     PointCloud3D cloud;
     input >> header >> cloud;
@@ -103,12 +104,22 @@ int main(int argc, char* argv[])
     implicit.deriv(2, bdir3, deriv2_3);
     implicit.deriv(2, bdir4, deriv2_4);
     
+    int ik = degree + 1;
+    vector<double> et(2*ik, 0.0);  // Knot vector of line curve
+    for (int ki=0; ki<ik; ++ki)
+      et[ik+ki] = 1.0;
+
     // Check accuracy
     double avdist = 0.0;
     double maxdist = 0.0;
+    double avdist0 = 0.0;
+    double maxdist0 = 0.0;
+    int nmb0 = 0;
     int dim = 3;
     int numpt = cloud.numPoints();
     vector<Vector3D> ptvecs;
+    vector<double> projpts;
+    vector<double> smallgrad;
     for (int ki=0; ki<numpt; ++ki)
       {
 	Vector3D curr = cloud.point(ki);
@@ -122,6 +133,107 @@ int main(int argc, char* argv[])
 	double d4 = deriv4(bary);
 	Vector4D dv(d1,d2,d3,d4);
 	Vector4D bary2 = bary+dv;
+	if (dist > 0)
+	  dv *= -1;
+	double fac = 100.0;
+	Vector4D baryx;
+	double distx;
+	double minx = 1.0e8;
+	int minb = 0;
+	for (int kb=1; kb<100; ++kb)
+	  {
+	    baryx = bary+kb*fac*dv;
+	    distx = implicit(baryx);
+	    if (dist*distx <= 0.0)
+	      break;
+	    if (fabs(distx) < minx)
+	      {
+		minx = fabs(distx);
+		minb = kb;
+	      }
+	  }
+	if (dist*distx > 0.0)
+	  {
+	    baryx = bary+minb*fac*dv;
+	    distx = minx;
+	  }
+	BernsteinPoly line = implicit.pickLine(bary, baryx);
+	vector<double> ecoef(line.coefsBegin(), line.coefsEnd());
+
+	double tpar;
+	int kstat = 0;
+	double dist0 = 1.0e8;
+	int found = 1;
+	if (std::max(dist, distx) > 1.0e-15)
+	  {
+	    // Scale up the coefficients to avoid too small number in the iteration
+	    double sfac = std::max(100.0/std::max(dist, distx), 1.0);
+	    for (size_t kr=0; kr<ecoef.size(); ++kr)
+	      ecoef[kr] *= sfac;
+	    SISLCurve *qc = newCurve(ik, ik, &et[0], &ecoef[0], 1, 1, 1);
+	    double zero = 0.0;
+	    SISLPoint *zpt = newPoint(&zero, 1, 0);
+
+	    // Intersect
+	    double eps = 1.0e-6;
+	    //eps = std::max(1.0e-14, std::min(eps, std::min(0.9*fabs(dist), 0.9*fabs(distx))));
+	    int kcrv=0, kpt=0;
+	    double *epar = 0;
+	    SISLIntcurve **intcv = 0;
+	    if (qc)
+	      s1871(qc, &zero, 1, eps, &kpt, &epar, &kcrv, &intcv, &kstat);
+	    if (kpt == 0)
+	      found = 0;
+	    for (int kb=0; kb<kpt; ++kb)
+	      {
+		Vector4D barypt = (1.0 - epar[kb])*bary + epar[kb]*baryx;
+		Vector3D cartpt = bc.baryToCart(barypt);
+		double ptdist = curr.dist(cartpt);
+		if (ptdist < dist0)
+		  {
+		    dist0 = ptdist;
+		    // proj = cartpt;
+		    tpar = epar[kb];
+		  }
+	      }
+	// if (kpt > 0)
+	//   {
+	//     maxdist0 = std::max(maxdist0, dist0);
+	//     avdist0 += dist0;
+	//     ++nmb0;
+	//     projpts.insert(projpts.end(), &proj[0], &proj[3]);
+	//   }
+	    // double start = qc->et[qc->ik-1];
+	    // double end = qc->et[qc->in];
+	    // double guess = 0.5*(start+end);
+	    // tpar = guess;
+	    // s1771(zpt, qc, eps, start, end, guess, &tpar, &kstat);
+	    int stop_break = 1;
+	  }
+	else
+	  {
+	    tpar = (fabs(dist) < fabs(distx)) ? et[ik-1] : et[ik];
+	  }
+	
+	Vector3D proj;
+	if (found)
+	  {
+	    Vector4D barypt = (1.0 - tpar)*bary + tpar*baryx;
+	    Vector3D cartpt = bc.baryToCart(barypt);
+	    dist0 = curr.dist(cartpt);
+	    maxdist0 = std::max(maxdist0, dist0);
+	    avdist0 += dist0;
+	    ++nmb0;
+	    projpts.insert(projpts.end(), &cartpt[0], &cartpt[3]);
+	    double d12 = deriv1(barypt);
+	    double d22 = deriv2(barypt);
+	    double d32 = deriv3(barypt);
+	    double d42 = deriv4(barypt);
+	    Vector4D dv2(d12,d22,d32,d42);
+	    if (dv2.length() < dvlim)
+	      smallgrad.insert(smallgrad.end(), &cartpt[0], &cartpt[3]);
+	  }
+	double dist2 = implicit(bary2);
 	Vector3D currpt2 = bc.baryToCart(bary2);
 	Vector3D norm = currpt2 - curr;
 	double len = norm.length();
@@ -130,8 +242,11 @@ int main(int argc, char* argv[])
 	ptvecs.push_back(norm);
       }
     avdist /= (double)numpt;
+    avdist0 /= (double)nmb0;
     std::cout << "Maximum distance: " << maxdist << std::endl;
     std::cout << "Average distance: " << avdist << std::endl;
+    std::cout << "Maximum distance0: " << maxdist0 << std::endl;
+    std::cout << "Average distance0: " << avdist0 << std::endl;
 
     // Write out implicit function
     std::cout << "Sigma_min: " << sigma_min << std::endl;
@@ -204,11 +319,6 @@ int main(int argc, char* argv[])
     cv2->write(tmp);
     ssf->writeStandardHeader(tmp);
     ssf->write(tmp);
-
-    int ik = degree + 1;
-    vector<double> et(2*ik, 0.0);  // Knot vector of line curve
-    for (ki=0; ki<ik; ++ki)
-      et[ik+ki] = 1.0;
 
     vector<double> points;
     vector<double> vecs;
@@ -396,13 +506,13 @@ int main(int argc, char* argv[])
 	  }
       }
 
-    outviz << "410 1 0 4 155 0 100 255" << std::endl;
-    outviz << numpt << std::endl;
-    for (int ki=0; ki<numpt; ++ki)
-      {
-	Vector3D curr = cloud.point(ki);
-	outviz << curr << " " << curr+0.2*ptvecs[ki] << std::endl;
-      }
+    // outviz << "410 1 0 4 155 0 100 255" << std::endl;
+    // outviz << numpt << std::endl;
+    // for (int ki=0; ki<numpt; ++ki)
+    //   {
+    // 	Vector3D curr = cloud.point(ki);
+    // 	outviz << curr << " " << curr+0.2*ptvecs[ki] << std::endl;
+    //   }
     
     // Output
     if (points.size() > 0)
@@ -411,25 +521,25 @@ int main(int argc, char* argv[])
 	outviz << "400 1 0 4 255 0 0 255" << std::endl;
 	ptcloud.write(outviz);
       }
-    if (vecs.size() > 0)
-      {
-	outviz << "410 1 0 4 55 0 200 255" << std::endl;
-	outviz << vecs.size()/3 << std::endl;
-	for (int kb=0; kb<(int)vecs.size(); kb+=3)
-	  {
-	    for (int ka=0; ka<3; ++ka)
-	      outviz << points[kb+ka] << " ";
-	    for (int ka=0; ka<3; ++ka)
-	      outviz << points[kb+ka]+vecs[kb+ka] << " ";
-	    outviz << std::endl;
-	  }
-      }
-    if (linesegs.size() > 0)
-      {
-	LineCloud lines(&linesegs[0], linesegs.size()/6);
-	outviz << "410 1 0 4 255 0 0 255 " << std::endl;
-	lines.write(outviz);
-      }
+    // if (vecs.size() > 0)
+    //   {
+    // 	outviz << "410 1 0 4 55 0 200 255" << std::endl;
+    // 	outviz << vecs.size()/3 << std::endl;
+    // 	for (int kb=0; kb<(int)vecs.size(); kb+=3)
+    // 	  {
+    // 	    for (int ka=0; ka<3; ++ka)
+    // 	      outviz << points[kb+ka] << " ";
+    // 	    for (int ka=0; ka<3; ++ka)
+    // 	      outviz << points[kb+ka]+vecs[kb+ka] << " ";
+    // 	    outviz << std::endl;
+    // 	  }
+    //   }
+    // if (linesegs.size() > 0)
+    //   {
+    // 	LineCloud lines(&linesegs[0], linesegs.size()/6);
+    // 	outviz << "410 1 0 4 255 0 0 255 " << std::endl;
+    // 	lines.write(outviz);
+    //   }
 
     if (der.size() > 0)
       {
@@ -437,17 +547,30 @@ int main(int argc, char* argv[])
 	outviz << "400 1 0 4 0 255 0 255" << std::endl;
 	ptcloud.write(outviz);
       }
-    if (lineder.size() > 0)
+    // if (lineder.size() > 0)
+    //   {
+    // 	LineCloud lines(&lineder[0], lineder.size()/6);
+    // 	outviz << "410 1 0 4 0 255 0 255 " << std::endl;
+    // 	lines.write(outviz);
+    //   }
+    // if (der2.size() > 0)
+    //   {
+    // 	PointCloud3D ptcloud(&der2[0], der2.size()/3);
+    // 	outviz << "400 1 0 4 100 155 0 255" << std::endl;
+    // 	ptcloud.write(outviz);
+    //   }
+    if (projpts.size() > 0)
       {
-	LineCloud lines(&lineder[0], lineder.size()/6);
-	outviz << "410 1 0 4 0 255 0 255 " << std::endl;
-	lines.write(outviz);
+	PointCloud3D projcloud(&projpts[0], projpts.size()/3);
+	outviz << "400 1 0 4 0 155 100 255" << std::endl;
+	projcloud.write(outviz);
       }
-    if (der2.size() > 0)
+
+    if (smallgrad.size() > 0)
       {
-	PointCloud3D ptcloud(&der2[0], der2.size()/3);
-	outviz << "400 1 0 4 100 155 0 255" << std::endl;
-	ptcloud.write(outviz);
+	PointCloud3D gradcloud(&smallgrad[0], smallgrad.size()/3);
+	outviz << "400 1 0 4 0 0 0 255" << std::endl;
+	gradcloud.write(outviz);
       }
 
     LineCloud tmp2(&tmpline[0], tmpline.size()/6);

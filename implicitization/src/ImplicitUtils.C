@@ -52,6 +52,7 @@
 //#include "newmatio.h"
 
 #define DEBUG
+#define DEBUG_SELECT
 
 using namespace std;
 using namespace NEWMAT;
@@ -569,6 +570,11 @@ void make_implicit_svd(vector<vector<double> >& mat,
 	    ++nullvec;
 	}
     }
+#ifdef DEBUG_SELECT
+    std::cout << "Set nullvec in [0," << cols-1 << "]:";
+    std::cin >> nullvec;
+#endif
+    
     sigma_min = diag.element(nullvec, nullvec);
 #ifdef DEBUG
     cout << "Null-vector: " << nullvec << endl

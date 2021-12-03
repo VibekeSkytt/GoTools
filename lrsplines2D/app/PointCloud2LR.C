@@ -84,8 +84,9 @@ void print_help_text()
   std::cout << "-mba <0/1/n/-1>: 0 = use only least squares approximation \n";
   std::cout << "                 1 = use only multilevel B-spline approximation (MBA) \n";
   std::cout << "                 n = start with least squares, turn to MBA after n iterations \n";
-  std::cout << "                -1 = initiate computation using MBA \n";
+  //std::cout << "                -1 = initiate computation using MBA \n";
   std::cout << "Default setting is start with least squares, turn to MBA for the last iterations \n";
+  std::cout << "-initmba <0/1>: Initialize approximation with mba. Default = 0 \n";
   std::cout << "-degree <polynomial degree> : 2 or 3 recommended \n";
   std::cout << "-nmb_coef <initial value> : Initial number of coefficients in each parameter direction \n";
   std::cout << "-distributecf <0/1> : Modify initial number of coefficients according to relative size of parameter domain \n";
@@ -311,6 +312,13 @@ int main(int argc, char *argv[])
 	    initmba = 1;
 	  else
 	    tomba = mm;
+	}
+      else if (arg == "-initmba")
+	{
+	  int stat = fetchIntParameter(argc, argv, ki, initmba, 
+				       nmb_par, par_read);
+	  if (stat < 0)
+	    return 1;
 	}
       else if (arg == "-degree")
 	{
@@ -926,7 +934,7 @@ int main(int argc, char *argv[])
       outlier_cloud.write(ofo);
       std::ofstream ofr("regular_pts.g2");
       ofr.precision(15);
-      regular_cloud.writeStandardHeader(ofo);
+      regular_cloud.writeStandardHeader(ofr);
       regular_cloud.write(ofr);
     }
       

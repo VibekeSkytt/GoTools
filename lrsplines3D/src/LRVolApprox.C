@@ -3582,6 +3582,9 @@ void LRVolApprox::appendRef(vector<LRSplineVolume::Refinement3D>& refs,
       if (/*refs[ki].d == curr_ref.d &&*/ 
 	  fabs(refs[ki].kval-curr_ref.kval) < tol)
 	{
+	  // Ensure equality
+	  curr_ref.kval = refs[ki].kval;
+	  
 	  // Check extent std::cout refinement
 	  if (!(refs[ki].start1 > curr_ref.end1+tol ||
 		curr_ref.start1 > refs[ki].end1+tol || 
