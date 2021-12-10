@@ -64,6 +64,7 @@ int main(int argc, char* argv[])
   PointCloud3D cloud;
   input >> header >> cloud;
 
+  int ki;
   vector<Point> dir(10);
   dir[0] = Point(1.0, 0.0, 0.0);
   dir[1] = Point(0.0, 1.0, 0.0);
@@ -75,15 +76,16 @@ int main(int argc, char* argv[])
   dir[7] = Point(1.0, 0.5, 0.5);
   dir[8] = Point(0.5, 1.0, 0.5);
   dir[9] = Point(0.5, 0.5, 1.0);
+  for (ki=0; ki<10; ++ki)
+    dir[ki].normalize();
   
   BoundingBox box = cloud.boundingBox();
-  double mlen = fac*(box.low().dist(box.high()));
+  double mlen = fac; //fac*(box.low().dist(box.high()));
   int r1;
 
   int num = cloud.numPoints();
   double *points = cloud.rawData();
   int dim = 3;
-  int ki;
   double *curr;
   vector<double> rand_pts;
   for (ki=0, curr=points; ki<num; ++ki, curr+=dim)

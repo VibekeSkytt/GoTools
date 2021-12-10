@@ -78,6 +78,12 @@ int main(int argc, char* argv[])
     PointCloud3D cloud;
     input >> header >> cloud;
 
+    BoundingBox ptbox = cloud.boundingBox();
+    Point low = ptbox.low();
+    Point high = ptbox.high();
+    Point diag = high - low;
+    double diaglen = diag.length();
+
     // Implicitize
     ImplicitizePointCloudAlgo implicitize(cloud, degree);
     implicitize.perform();
@@ -89,20 +95,25 @@ int main(int argc, char* argv[])
     implicitize.getResultData(implicit, bc, sigma_min);
 
     // Differentiate
+    Vector3D origo(0.0, 0.0, 0.0);
+    Vector3D x1(1.0, 0.0, 0.0);
+    Vector3D y1(0.0, 1.0, 0.0);
+    Vector3D z1(0.0, 0.0, 1.0);
+    Vector4D borigo = bc.cartToBary(origo);
+    Vector4D bx1 = bc.cartToBary(x1);
+    Vector4D by1 = bc.cartToBary(y1);
+    Vector4D bz1 = bc.cartToBary(z1);
+    Vector4D bvecx = bx1 - borigo;
+    Vector4D bvecy = by1 - borigo;
+    Vector4D bvecz = bz1 - borigo;
+    BernsteinTetrahedralPoly bderx, bdery, bderz;
+    implicit.deriv(1, bvecx, bderx);
+    implicit.deriv(1, bvecy, bdery);
+    implicit.deriv(1, bvecz, bderz);
     Vector4D bdir1(1.0, 0.0, 0.0, 0.0);
     Vector4D bdir2(0.0, 1.0, 0.0, 0.0);
     Vector4D bdir3(0.0, 0.0, 1.0, 0.0);
     Vector4D bdir4(0.0, 0.0, 0.0, 1.0);
-    BernsteinTetrahedralPoly deriv1, deriv2, deriv3, deriv4;
-    BernsteinTetrahedralPoly deriv2_1, deriv2_2, deriv2_3, deriv2_4;
-    implicit.deriv(1, bdir1, deriv1);
-    implicit.deriv(1, bdir2, deriv2);
-    implicit.deriv(1, bdir3, deriv3);
-    implicit.deriv(1, bdir4, deriv4);
-    implicit.deriv(2, bdir1, deriv2_1);
-    implicit.deriv(2, bdir2, deriv2_2);
-    implicit.deriv(2, bdir3, deriv2_3);
-    implicit.deriv(2, bdir4, deriv2_4);
     
     int ik = degree + 1;
     vector<double> et(2*ik, 0.0);  // Knot vector of line curve
@@ -114,49 +125,37 @@ int main(int argc, char* argv[])
     double maxdist = 0.0;
     double avdist0 = 0.0;
     double maxdist0 = 0.0;
+    double avdist1 = 0.0;
+    double maxdist1 = 0.0;
     int nmb0 = 0;
-    int dim = 3;
     int numpt = cloud.numPoints();
     vector<Vector3D> ptvecs;
     vector<double> projpts;
     vector<double> smallgrad;
+    double lfac = 0.01;
     for (int ki=0; ki<numpt; ++ki)
       {
 	Vector3D curr = cloud.point(ki);
 	Vector4D bary = bc.cartToBary(curr);
 	double dist = implicit(bary);
+	double fdist, bdist;
 	maxdist = std::max(maxdist, fabs(dist));
-	avdist += dist;
-	double d1 = deriv1(bary);
-	double d2 = deriv2(bary);
-	double d3 = deriv3(bary);
-	double d4 = deriv4(bary);
-	Vector4D dv(d1,d2,d3,d4);
-	Vector4D bary2 = bary+dv;
-	if (dist > 0)
-	  dv *= -1;
-	double fac = 100.0;
-	Vector4D baryx;
-	double distx;
-	double minx = 1.0e8;
-	int minb = 0;
-	for (int kb=1; kb<100; ++kb)
-	  {
-	    baryx = bary+kb*fac*dv;
-	    distx = implicit(baryx);
-	    if (dist*distx <= 0.0)
-	      break;
-	    if (fabs(distx) < minx)
-	      {
-		minx = fabs(distx);
-		minb = kb;
-	      }
-	  }
-	if (dist*distx > 0.0)
-	  {
-	    baryx = bary+minb*fac*dv;
-	    distx = minx;
-	  }
+	avdist += fabs(dist);
+	double dx1 = bderx(bary);
+	double dy1 = bdery(bary);
+	double dz1 = bderz(bary);
+	Vector3D grad(dx1,dy1,dz1);
+	double gradlen = grad.length();
+	Vector3D curr2 = curr + grad;
+	Vector4D bary2 = bc.cartToBary(curr2);
+	Vector4D dv = bary2 - bary;
+	bdist = implicit(bary2);
+	Vector4D dir = dv/dv.length();
+	int sgn = (dist > 0) ? -1 : 1;
+	dir *= sgn*lfac*diaglen;
+	Vector4D baryx = bary + dir;;
+	double distx = implicit(baryx);
+
 	BernsteinPoly line = implicit.pickLine(bary, baryx);
 	vector<double> ecoef(line.coefsBegin(), line.coefsEnd());
 
@@ -164,7 +163,7 @@ int main(int argc, char* argv[])
 	int kstat = 0;
 	double dist0 = 1.0e8;
 	int found = 1;
-	if (std::max(dist, distx) > 1.0e-15)
+	if (std::max(fabs(dist), fabs(distx)) > 1.0e-15)
 	  {
 	    // Scale up the coefficients to avoid too small number in the iteration
 	    double sfac = std::max(100.0/std::max(dist, distx), 1.0);
@@ -176,7 +175,6 @@ int main(int argc, char* argv[])
 
 	    // Intersect
 	    double eps = 1.0e-6;
-	    //eps = std::max(1.0e-14, std::min(eps, std::min(0.9*fabs(dist), 0.9*fabs(distx))));
 	    int kcrv=0, kpt=0;
 	    double *epar = 0;
 	    SISLIntcurve **intcv = 0;
@@ -184,31 +182,23 @@ int main(int argc, char* argv[])
 	      s1871(qc, &zero, 1, eps, &kpt, &epar, &kcrv, &intcv, &kstat);
 	    if (kpt == 0)
 	      found = 0;
-	    for (int kb=0; kb<kpt; ++kb)
+	    if (kpt > 1)
+	      std::sort(&epar[0], &epar[kpt]);
+	    if (kpt > 0)
 	      {
-		Vector4D barypt = (1.0 - epar[kb])*bary + epar[kb]*baryx;
+		Vector4D barypt = (1.0 - epar[0])*bary + epar[0]*baryx;
 		Vector3D cartpt = bc.baryToCart(barypt);
 		double ptdist = curr.dist(cartpt);
-		if (ptdist < dist0)
-		  {
-		    dist0 = ptdist;
-		    // proj = cartpt;
-		    tpar = epar[kb];
-		  }
+		tpar = epar[0];
 	      }
-	// if (kpt > 0)
-	//   {
-	//     maxdist0 = std::max(maxdist0, dist0);
-	//     avdist0 += dist0;
-	//     ++nmb0;
-	//     projpts.insert(projpts.end(), &proj[0], &proj[3]);
-	//   }
-	    // double start = qc->et[qc->ik-1];
-	    // double end = qc->et[qc->in];
-	    // double guess = 0.5*(start+end);
-	    // tpar = guess;
-	    // s1771(zpt, qc, eps, start, end, guess, &tpar, &kstat);
-	    int stop_break = 1;
+	    else
+	      {
+		tpar = (fabs(dist) < fabs(distx)) ? et[ik-1] : et[ik];
+		found = 0;
+	      }
+	    if (qc) freeCurve(qc);
+	    if (intcv) freeIntcrvlist(intcv, kcrv);
+	    if (epar) free(epar);
 	  }
 	else
 	  {
@@ -219,18 +209,18 @@ int main(int argc, char* argv[])
 	if (found)
 	  {
 	    Vector4D barypt = (1.0 - tpar)*bary + tpar*baryx;
+	    fdist = implicit(barypt);
 	    Vector3D cartpt = bc.baryToCart(barypt);
 	    dist0 = curr.dist(cartpt);
 	    maxdist0 = std::max(maxdist0, dist0);
 	    avdist0 += dist0;
 	    ++nmb0;
 	    projpts.insert(projpts.end(), &cartpt[0], &cartpt[3]);
-	    double d12 = deriv1(barypt);
-	    double d22 = deriv2(barypt);
-	    double d32 = deriv3(barypt);
-	    double d42 = deriv4(barypt);
-	    Vector4D dv2(d12,d22,d32,d42);
-	    if (dv2.length() < dvlim)
+	    double dx12 = bderx(barypt);
+	    double dy12 = bdery(barypt);
+	    double dz12 = bderz(barypt);
+	    Vector3D grad2(dx12,dy12,dz12);
+	    if (grad2.length() < dvlim)
 	      smallgrad.insert(smallgrad.end(), &cartpt[0], &cartpt[3]);
 	  }
 	double dist2 = implicit(bary2);
@@ -240,13 +230,20 @@ int main(int argc, char* argv[])
 	if (len > 1.0e-10)
 	  norm /= len;
 	ptvecs.push_back(norm);
+	double dist1 = fabs(dist)/gradlen;
+	maxdist1 = std::max(maxdist1, dist1);
+	avdist1 += dist1;
       }
     avdist /= (double)numpt;
     avdist0 /= (double)nmb0;
-    std::cout << "Maximum distance: " << maxdist << std::endl;
-    std::cout << "Average distance: " << avdist << std::endl;
-    std::cout << "Maximum distance0: " << maxdist0 << std::endl;
-    std::cout << "Average distance0: " << avdist0 << std::endl;
+    avdist1 /= (double)numpt;
+    std::cout << "Maximum field: " << maxdist << std::endl;
+    std::cout << "Average field: " << avdist << std::endl;
+    std::cout << "Maximum projected distance: " << maxdist0 << std::endl;
+    std::cout << "Average projected distance: " << avdist0 << std::endl;
+    std::cout << "numpt-nmb0: " << numpt - nmb0 << std::endl;
+    std::cout << "Maximum estimated distance: " << maxdist1 << std::endl;
+    std::cout << "Average esitmated distance: " << avdist1 << std::endl;
 
     // Write out implicit function
     std::cout << "Sigma_min: " << sigma_min << std::endl;
@@ -255,10 +252,6 @@ int main(int argc, char* argv[])
     cout << "Data written to output" << endl;
 
     // Fetch points on the implicit surface, fetch also points where the gradient vanishes
-    BoundingBox ptbox = cloud.boundingBox();
-    Point low = ptbox.low();
-    Point high = ptbox.high();
-
     Point dir(3);
     int nmb_sample;
     std::cout << "Box min: " << low << ", box max: " << high << std::endl;
@@ -282,8 +275,8 @@ int main(int argc, char* argv[])
     Point ydir(0.0, 1.0, 0.0);
     Point zdir(0.0, 0.0, 1.0);
     CompositeModelFactory factory(gap, gap, 10.0*gap, 0.01, 0.05);
-    shared_ptr<SurfaceModel> boxmod(factory.createFromBox(low, xdir, ydir, high[0]-low[0],
-							  high[1]-low[1], high[2]-low[2]));
+    shared_ptr<SurfaceModel> boxmod(factory.createFromBox(low-0.5*diag, xdir, ydir, 2*diag[0],
+							  2*diag[1], 2*diag[2]));
     
     // Find the coordinate direction with the largest angle with the view direction
     double a1 = xdir.angle(dir);
@@ -305,8 +298,8 @@ int main(int argc, char* argv[])
     dir2.normalize();
     dir3.normalize();
     double len = low.dist(high);
-    shared_ptr<SplineCurve> cv1(new SplineCurve(bmid-0.5*len*dir2, 0.0, bmid+0.5*len*dir2, 1.0));
-    shared_ptr<SplineCurve> cv2(new SplineCurve(bmid-0.5*len*dir3, 0.0, bmid+0.5*len*dir3, 1.0));
+    shared_ptr<SplineCurve> cv1(new SplineCurve(bmid-len*dir2, 0.0, bmid+len*dir2, 1.0));
+    shared_ptr<SplineCurve> cv2(new SplineCurve(bmid-len*dir3, 0.0, bmid+len*dir3, 1.0));
     SweepSurfaceCreator sweep;
     shared_ptr<SplineSurface> ssf(sweep.linearSweptSurface(*cv1, *cv2, bmid));
     double del = 1.0/(double)(nmb_sample-1);
@@ -379,26 +372,15 @@ int main(int argc, char* argv[])
 		  continue;
 		
 		Vector3D pos = bc.baryToCart(barypt);
-		double d1 = deriv1(barypt);
-		double d2 = deriv2(barypt);
-		double d3 = deriv3(barypt);
-		double d4 = deriv4(barypt);
-		Vector4D dv(d1,d2,d3,d4);
-		Vector3D dv2 = bc.baryToCart(dv);
-		Vector4D barypt2 = barypt+dv;
-		Vector3D currpt2 = bc.baryToCart(barypt2);
-		Vector3D norm = currpt2 - pos;
-		double len = norm.length();
-		if (len > 1.0e-10)
-		  norm /= len;
 		points.insert(points.end(), pos.begin(), pos.end());
-		vecs.insert(vecs.end(), norm.begin(), norm.end());
 
+		double dx1 = bderx(barypt);
+		double dy1 = bdery(barypt);
+		double dz1 = bderz(barypt);
+		Vector3D grad(dx1,dy1,dz1);
+		vecs.insert(vecs.end(), grad.begin(), grad.end());
+		
 		// Check
-		Vector4D bary = bc.cartToBary(pos);
-		double dist = implicit(bary);
-		if (dist > 1.0e-4)
-		  std::cout << "dist: " << dist << ", ki= " << ki << ", kj= " << kj << std::endl;
 		double dist2 = implicit(barypt);
 		if (dist2 > 1.0e-4)
 		  std::cout << "dist: " << dist2 << ", ki= " << ki << ", kj= " << kj << std::endl;
@@ -421,98 +403,20 @@ int main(int argc, char* argv[])
 		  std::cout << "line dist: " << dist << ", ki= " << ki << ", kj= " << kj << std::endl;
 	      }
 	    
-	    SISLCurve *qc2 = 0;
-	    s1720(qc, 1, &qc2, &kstat);
-		
-	    int kcrv2=0, kpt2=0;
-	    double *epar2 = 0;
-	    SISLIntcurve **intcv2 = 0;
-	    if (qc2)
-	      s1871(qc2, &zero, 1, eps, &kpt2, &epar2, &kcrv2, &intcv2, &kstat);
-	    double mindist = 1.0e8;
-	    for (kr=0; kr<kpt2; ++kr)
-	      {
-		Vector4D barypt = (1.0 - epar2[kr])*bary1 + epar2[kr]*bary2;
-		int kb;
-		for (kb=0; kb<4; ++kb)
-		  if (barypt[kb] < -0.001 || barypt[kb] > 1.001)
-		    break;
-		if (kb < 4)
-		  continue;
-		Vector3D pos = bc.baryToCart(barypt);
-		der.insert(der.end(), pos.begin(), pos.end());
-		double dist = implicit(barypt);
-		mindist = std::min(dist, mindist);
-		// if (fabs(dist) < std::max(maxdist,1.0e-7))
-		//   der2.insert(der2.end(), pos.begin(), pos.end());
-	      }
-	    for (kr=0; kr<kpt2; ++kr)
-	      {
-		Vector4D barypt = (1.0 - epar2[kr])*bary1 + epar2[kr]*bary2;
-		int kb;
-		for (kb=0; kb<4; ++kb)
-		  if (barypt[kb] < -0.001 || barypt[kb] > 1.001)
-		    break;
-		if (kb < 4)
-		  continue;
-		Vector3D pos = bc.baryToCart(barypt);
-		double dist = implicit(barypt);
-		mindist = std::min(dist, mindist);
-		if (fabs(dist) < std::max(sigma_min,1.0e-8))//std::min(1.5*mindist,std::max(0.1*maxdist,1.0e-7)))
-		  {
-		    std::ofstream f1("iter.g2");
-		    std::ofstream f2("iter.txt");
-		    for (int kb=0; kb<50; ++kb)
-		      {
-			f1 << "400 1 0 4 255 0 0 255" << std::endl;
-			f1 << "1" << std::endl;
-			f1 << pos << std::endl;
-			
-			double d1 = deriv1(barypt);
-			double d2 = deriv2(barypt);
-			double d3 = deriv3(barypt);
-			double d4 = deriv4(barypt);
-			Vector4D dv(d1,d2,d3,d4);
-			f2 << barypt << std::endl;
-			f2 << dv << std::endl;
-			f2 << dist << "  " << dv.length() << std::endl;
-			double fac = 3000;
-			// if (dist > 0.0)
-			//   fac *= -1;
-			barypt = barypt - fac*dist*dv;
-			pos = bc.baryToCart(barypt);
-			dist = implicit(barypt);
-		      }
-		    der2.insert(der2.end(), pos.begin(), pos.end());
-		  }
-	      }
-	    for (kr=0; kr<kcrv2; ++kr)
-	      {
-		int ipt = intcv2[kr]->ipoint;
-		double par1 = intcv2[kr]->epar1[0];
-		double par2 = intcv2[kr]->epar1[ipt-1];
-		Point pp1 = (1.0-par1)*cart1 + par1*cart2;
-		Point pp2 = (1.0-par2)*cart1 + par2*cart2;
-		lineder.insert(lineder.end(), pp1.begin(), pp1.end());
-		lineder.insert(lineder.end(), pp2.begin(), pp2.end());
-	      }
 	    
 	    if (qc) freeCurve(qc);
-	    if (qc2) freeCurve(qc2);
 	    if (intcv) freeIntcrvlist(intcv, kcrv);
-	    if (intcv2) freeIntcrvlist(intcv2, kcrv2);
 	    if (epar) free(epar);
-	    if (epar2) free(epar2);
 	  }
       }
 
-    // outviz << "410 1 0 4 155 0 100 255" << std::endl;
-    // outviz << numpt << std::endl;
-    // for (int ki=0; ki<numpt; ++ki)
-    //   {
-    // 	Vector3D curr = cloud.point(ki);
-    // 	outviz << curr << " " << curr+0.2*ptvecs[ki] << std::endl;
-    //   }
+    outviz << "410 1 0 4 155 0 100 255" << std::endl;
+    outviz << numpt << std::endl;
+    for (int ki=0; ki<numpt; ++ki)
+      {
+    	Vector3D curr = cloud.point(ki);
+    	outviz << curr << " " << curr+0.2*ptvecs[ki] << std::endl;
+      }
     
     // Output
     if (points.size() > 0)
