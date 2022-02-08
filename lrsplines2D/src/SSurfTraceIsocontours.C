@@ -583,8 +583,8 @@ vector<PandDer> intermediate_points(const SplineSurface& surf, const PandDer& ol
   
   PandDer midpoint;
   PointIterationOutcome outcome;
-  if (!check_midpoint(surf, old_point, new_point, forward, isoval, tol, midpoint, outcome) &
-      (outcome == OK)) {
+  bool ok2 = check_midpoint(surf, old_point, new_point, forward, isoval, tol, midpoint, outcome);
+  if (!ok2 & (outcome == OK)) {
 
     list<PandDer> tmp;
     if (outcome == BRANCH_SWAP)
@@ -945,7 +945,8 @@ PointStatus find_next_point(const SplineSurface& surf, vector<PandDer>& prev_poi
   // one point has been added.
   if (ok)
     prev_points.emplace_back(new_pt);
- else if (ipoints.empty() && (fabs(dt) > /*2 **/ tol)) 
+  //else if (ipoints.empty() && (fabs(dt) > /*2 **/ tol)) 
+  else if (ipoints.empty() && fabs(dt) > std::min(0.5*max_step, tol))
     // no next point was ultimately added.  Unless step size limit is reached,
     // call routine again, with smaller step size.
     return find_next_point(surf, prev_points, forward, isoval, endpt, open, tol, 
@@ -1184,6 +1185,7 @@ pair<CurvePtr, CurvePtr> curve_from_points(const SplineSurface& surf,
 					const bool include_3D)
 // ----------------------------------------------------------------------------
 {
+  double len_tol = std::min(1.0e-6, 0.5*tol);
   PointStatus ps;
     
   // trace in the first direction
@@ -1244,7 +1246,11 @@ pair<CurvePtr, CurvePtr> curve_from_points(const SplineSurface& surf,
 	      double dd1 = p6.dist(p7);
 	      double dd2 = p8.dist(p5);
 	      if (dd1 < std::min(dist1,dist2) && dd2 > dd1 && open == true)
-		res = merge_vec(res, resn);
+		{
+		  if (dd1 < len_tol)
+		    resn.erase(resn.begin());
+		  res = merge_vec(res, resn);
+		}
 	    }
 	}
 	  else if (p4.dist(p1) < p4.dist(p3))

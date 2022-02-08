@@ -39,6 +39,8 @@
 
 #include "GoTools/lrsplines2D/LRSurfUtils.h"
 #include "GoTools/lrsplines2D/LRSplineSurface.h"
+#include "GoTools/lrsplines2D/Mesh2D.h"
+#include "GoTools/lrsplines2D/Direction2D.h"
 #include "GoTools/lrsplines2D/TrimCrvUtils.h"
 #include "GoTools/geometry/SplineSurface.h"
 #include "GoTools/geometry/BoundedSurface.h"
@@ -176,3 +178,81 @@ void LRSurfUtils::convert2TPsurfs(shared_ptr<ParamSurface> surf, double epsge,
     }
 }
 
+void LRSurfUtils::defineOnSameMesh(vector<shared_ptr<LRSplineSurface> >& surfs)
+{
+  if (surfs.size() <= 1)
+    return;  // Nothing to do
+
+  bool same = false;
+
+  while (!same)
+    {
+      // Insert knots until the first surface contains all knots from all surfaces
+      // Since knot lines segments might be prolonged due to a different sequence of knot
+      // insertion, the process is repeated until no new knot segments are inserted.
+      // This might result in larger surfaces than necessary and a better solution should
+      // be found.
+
+      same = true;
+      int num0 = surfs[0]->numBasisFunctions();
+      for (size_t ki=1; ki<surfs.size(); ++ki)
+	{
+	  int ka;
+	  Direction2D dir;
+	  const Mesh2D mesh = surfs[ki]->mesh();
+	  for (dir=XFIXED, ka=0; ka<2; ++ka, dir=flip(dir))
+	    {
+	      int num = mesh.numDistinctKnots(dir);
+	      Direction2D dir2 = flip(dir);
+	      for (int kb=0; kb<num; ++kb)
+		{
+		  const vector<GPos> mr = mesh.mrects(dir, kb);
+		  for (size_t kj=0; kj<mr.size(); ++kj)
+		    {
+		      int mult = mr[kj].mult;
+		      if (mult > 0)
+			{
+			  double end = (kj < mr.size()-1) ? mesh.kval(dir2, mr[kj+1].ix) :
+			    surfs[ki]->paramMax(dir2);
+			  surfs[0]->refine(dir, mesh.kval(dir, kb), mesh.kval(dir2, mr[kj].ix),
+					   end, mult, mr[kj].generation, true);
+			}
+		    }
+		}
+	    }
+	}
+      if (surfs[0]->numBasisFunctions() > num0)
+	same = false;
+
+      // Insert knots in the other surfaces
+      int ka;
+      Direction2D dir;
+      const Mesh2D mesh = surfs[0]->mesh();
+      for (dir=XFIXED, ka=0; ka<2; ++ka, dir=flip(dir))
+	{
+	  int num = mesh.numDistinctKnots(dir);
+	  Direction2D dir2 = flip(dir);
+	  for (int kb=0; kb<num; ++kb)
+	    {
+	      const vector<GPos> mr = mesh.mrects(dir, kb);
+	      for (size_t kj=0; kj<mr.size(); ++kj)
+		{
+		  int mult = mr[kj].mult;
+		  if (mult > 0)
+		    {
+		      double end = (kj < mr.size()-1) ? mesh.kval(dir2, mr[kj+1].ix) :
+			surfs[0]->paramMax(dir2);
+		      for (size_t ki=1; ki<surfs.size(); ++ki)
+			{
+			  int num = surfs[ki]->numBasisFunctions();
+			  surfs[ki]->refine(dir, mesh.kval(dir, kb), mesh.kval(dir2, mr[kj].ix),
+					    end, mult, mr[kj].generation, true);
+			  if (surfs[ki]->numBasisFunctions() > num)
+			    same = false;
+			}
+		    }
+		}
+	    }
+	}
+    }
+}

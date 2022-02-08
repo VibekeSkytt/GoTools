@@ -41,6 +41,7 @@
 #define LRSURFUTILS_H
 
 #include "GoTools/geometry/ParamSurface.h"
+#include "GoTools/lrsplines2D/LRSplineSurface.h"
 #include <vector>
 #include <math.h>
 
@@ -51,6 +52,8 @@ namespace Go
     void convert2TPsurfs(shared_ptr<ParamSurface> surf, double epsge,
 			 double threshold_missing,
 			 std::vector<shared_ptr<ParamSurface> >& tpsurfs);
+
+    void defineOnSameMesh(std::vector<shared_ptr<LRSplineSurface> >& surfs);
   };
 };
 

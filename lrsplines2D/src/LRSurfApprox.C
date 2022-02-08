@@ -65,7 +65,7 @@
 //#define DEBUG2
 //#define DEBUG_SURF
 //#define DEBUG_DIST
-//#define DEBUG_REFINE
+#define DEBUG_REFINE
 #define DEBUG_AIC
 
 using std::vector;
@@ -135,7 +135,7 @@ LRSurfApprox::LRSurfApprox(shared_ptr<LRSplineSurface>& srf,
 {
   initDefaultParams();
 
-  nmb_pts_ = 0;  // Points already distributed
+  nmb_pts_ = (int)points.size()/(2+srf->dimension());
 
   srf_ = srf;
   coef_known_.assign(srf_->numBasisFunctions(), 0.0);  // Initially nothing is fixed
@@ -155,7 +155,7 @@ LRSurfApprox::LRSurfApprox(shared_ptr<LRSplineSurface>& srf,
 {
   initDefaultParams();
 
-  nmb_pts_ = (int)points.size()/(2+srf->dimension());
+  nmb_pts_ = 0;
 
   srf_ = srf;
   coef_known_.assign(srf_->numBasisFunctions(), 0.0);  // Initially nothing is fixed
@@ -422,10 +422,6 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   int div = 1; //(alter) ? 2 : 1;
   int currdiv = (alter_) ? 1 : 3;
 
-  FILE *fp = fopen("acc_stat.txt","w");
-  fprintf(fp, "Max iterations = %d, tolerance = %4.2f, no pts: %d \n",max_iter, aepsge_,nmb_pts_);
-  fprintf(fp,"iter, maxdist, average dist, no. pts. out, no. coefs, no. pts.in, average out, approx efficiency, rel. improvement pts,improvement acc dist, max inner knots, average inner knots, no. el.  \n");
-
   if (srf_->dimension() == 3 && initial_surface_)
     {
       // Reparameterize to reflect the surface size
@@ -455,10 +451,31 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
     LRSplineUtils::distributeDataPoints(srf_.get(), points_, true, 
 					LRSplineUtils::REGULAR_POINTS, 
 					outlier_detection_);
+  else
+    {
+      // Compute number of points
+      int num = srf_->numElements();
+      int kj;
+      LRSplineSurface::ElementMap::const_iterator it;
+      nmb_pts_ = 0;
+      for (it=srf_->elementsBegin(), kj=0; kj<num; ++it, ++kj)
+	nmb_pts_ += it->second->nmbDataPoints();
+   }
+  
   if (sign_points_.size() > 0)
     LRSplineUtils::distributeDataPoints(srf_.get(), sign_points_, true, 
 					LRSplineUtils::SIGNIFICANT_POINTS, 
 					outlier_detection_);
+  else
+    {
+      // Compute number of points
+      int num = srf_->numElements();
+      int kj;
+      LRSplineSurface::ElementMap::const_iterator it;
+      nmb_sign_ = 0;
+      for (it=srf_->elementsBegin(), kj=0; kj<num; ++it, ++kj)
+	nmb_sign_ += it->second->nmbSignificantPoints();
+    }
 
   if (make_ghost_points_ && !initial_surface_ && srf_->dimension() == 1 && 
       !useMBA_)
@@ -501,7 +518,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
     setFixBoundary(true);
 
   // Initial approximation of LR B-spline surface
-  if (initMBA_)
+  if (initMBA_ || (initial_surface_ && useMBA_))
     {
       runMBAUpdate(false);
       LSapprox.setInitSf(srf_, coef_known_);
@@ -592,7 +609,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 
 #ifdef DEBUG_AIC
   FILE *aic = fopen("AIC.txt","w");
-  fprintf(aic,"Iter loglikelyhood1 loglikelyhood2 AIC1 AIC2  loglikelyhoodn1 loglikelyhoodn2 AICn1 AICn2  \n");
+  fprintf(aic,"Iter ncoef loglikelyhood1 loglikelyhood2 AIC1 AIC2  loglikelyhoodn1 loglikelyhoodn2 AICn1 AICn2  \n");
   
   vector<double> residual;
   residual.reserve(points_.size()+sign_points_.size());
@@ -628,12 +645,13 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   double loglh2 = 0, logn2 = 0;
   double loglh = LogLikelyhood::compute(residual, Tny, true, loglh2, initT);
   double logn = LogLikelyhood::compute(residual, 50.0, false, logn, initT);
-  double AIC = 2.0*(srf_->numBasisFunctions() - loglh);
-  double AIC2 = 2.0*(srf_->numBasisFunctions() - loglh2);
-  double AICn = 2.0*(srf_->numBasisFunctions() - logn);
-  double AICn2 = 2.0*(srf_->numBasisFunctions() - logn2);
-  fprintf(aic,"0 \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f  \t %15.7f \n",
-	  loglh, loglh2, AIC, AIC2, logn, logn2, AICn, AICn2);
+  int ncoef = srf_->numBasisFunctions();
+  double AIC = 2.0*(ncoef - loglh);
+  double AIC2 = 2.0*(ncoef - loglh2);
+  double AICn = 2.0*(ncoef - logn);
+  double AICn2 = 2.0*(ncoef - logn2);
+  fprintf(aic,"0 \t %9d \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f  \t %15.7f \n",
+	  ncoef, loglh, loglh2, AIC, AIC2, logn, logn2, AICn, AICn2);
 #endif
   
   if (write_feature_)
@@ -775,7 +793,10 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
       if (!useMBA_)
 	{
 	  if (srf_->numBasisFunctions() >= maxLScoef_)
-	    useMBA_ = true;  // Left side matrix too large
+	    {
+	      std::cout << "Too many coefficients for LS" << std::endl;
+	      useMBA_ = true;  // Left side matrix too large
+	    }
 	}
   
 //       // Check for linear independence (overloading)
@@ -806,16 +827,16 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
        // Update surface
       if (useMBA_ || ki >= toMBA_)
       {
-#ifdef DEBUG
+	//#ifdef DEBUG
 	std::cout << "Using MBA" << std::endl;
-#endif
+	//#endif
 	runMBAUpdate(true);
       }
       else
 	{
-#ifdef DEBUG
+	  //#ifdef DEBUG
 	  std::cout << "Using LS" << std::endl;
-#endif
+	  //#endif
 	  try {
 	    LSapprox.updateLocals();
 	    performSmooth(&LSapprox);
@@ -824,9 +845,9 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 	  }
 	  catch (...)
 	    {
-#ifdef DEBUG
+	      //#ifdef DEBUG
 	      std::cout << "Switch to MBA" << std::endl;
-#endif
+	      //#endif
 	      useMBA_ = true;
 	      runMBAUpdate(true);
 	    }
@@ -1041,12 +1062,13 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 
   loglh = LogLikelyhood::compute(residual, Tny, true, loglh2, initT);
   logn = LogLikelyhood::compute(residual, 50, false, logn2, initT);
-  AIC = 2.0*(srf_->numBasisFunctions() - loglh);
-  AIC2 = 2.0*(srf_->numBasisFunctions() - loglh2);
-  AICn = 2.0*(srf_->numBasisFunctions() - logn);
-  AICn2 = 2.0*(srf_->numBasisFunctions() - logn2);
-  fprintf(aic,"%d \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \n",
-	  ki+1, loglh, loglh2, AIC, AIC2, logn, logn2, AICn, AICn2);
+  ncoef = srf_->numBasisFunctions();
+  AIC = 2.0*(ncoef - loglh);
+  AIC2 = 2.0*(ncoef - loglh2);
+  AICn = 2.0*(ncoef - logn);
+  AICn2 = 2.0*(ncoef - logn2);
+  fprintf(aic,"%d \t %9d \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \t %15.7f \n",
+	  ki+1, ncoef, loglh, loglh2, AIC, AIC2, logn, logn2, AICn, AICn2);
 #endif
   
   if (write_feature_)
@@ -1148,7 +1170,7 @@ void LRSurfApprox::performSmooth(LRSurfSmoothLS *LSapprox)
 
   //std::cout << "Smoothing weight: " << smoothweight_ << std::endl;
   double wgt1 = 0.0; //0.8*smoothweight_;
-  double wgt3 = 0.0; //0.8*smoothweight_;//0.0; //0.1*smoothweight_; //0.9*smoothweight_; // 0.5*smoothweight_;
+  double wgt3 = 0.8*smoothweight_;//0.0; //0.1*smoothweight_; //0.9*smoothweight_; // 0.5*smoothweight_;
   double wgt2 = (1.0 - wgt3 -wgt1)*smoothweight_;
   double fac = 100.0;
 
@@ -4505,7 +4527,7 @@ void LRSurfApprox::initDefaultParams()
   avout_ = 0.0;
   smoothweight_ = 1.0e-3;
   significant_fac_ = 5.0;
-  maxLScoef_ = 25000; // 46340; Memory management to costly for large surfaces
+  maxLScoef_ = 46340; // 25000; Memory management to costly for large surfaces
   smoothbd_ = false;
   fix_corner_ = false;
   to3D_ = -1;

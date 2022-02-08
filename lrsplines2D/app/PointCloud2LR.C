@@ -926,7 +926,7 @@ int main(int argc, char *argv[])
       outlier_cloud.write(ofo);
       std::ofstream ofr("regular_pts.g2");
       ofr.precision(15);
-      regular_cloud.writeStandardHeader(ofo);
+      regular_cloud.writeStandardHeader(ofr);
       regular_cloud.write(ofr);
     }
       
