@@ -382,9 +382,10 @@ class LRSurfApprox
     }
 
     /// Set flag on whether or not a search for outliers should be performed
-    void setOutlierFlag(bool outlier_detection)
+  void setOutlierFlag(int outlier_flag, double outlier_fac)
     {
-      outlier_detection_ = outlier_detection;
+      outlier_flag_ = outlier_flag;
+      outlier_fac_ = outlier_fac;
     }
 
     /// Fetch number of registered outliers (may be non-zero only if
@@ -575,7 +576,9 @@ private:
     
     bool fix_boundary_;
     bool make_ghost_points_;
-    bool outlier_detection_;
+    int outlier_flag_;
+  double outlier_fac_;
+  
 
     // Variable tolerance (linear with distane from zero)
     bool has_var_tol_;
@@ -620,6 +623,8 @@ private:
     int defineOutlierPts(Element2D* element, 
 			 std::vector<double>& prev_dist, double lim,
 			 double rad);
+  int defineOutlierPtsIQR(Element2D* element, double lim);
+    int defineOutlierPtsZ(Element2D* element, double lim);
 
     //double density);
     /// Refine surface

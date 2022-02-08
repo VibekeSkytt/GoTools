@@ -90,7 +90,8 @@ void print_help_text()
   std::cout << "-degree <polynomial degree> : 2 or 3 recommended \n";
   std::cout << "-nmb_coef <initial value> : Initial number of coefficients in each parameter direction \n";
   std::cout << "-distributecf <0/1> : Modify initial number of coefficients according to relative size of parameter domain \n";
-  std::cout << "-outlier <0/1>: Flag for removal of outliers (0=false, 1=true). Default false \n";
+  std::cout << "-outlier <0/1/2/3>: Flag for removal of outliers (0=false, 1=low, 2=Z, 3=IQR). Default false \n";
+  std::cout << "-outlierfac <size>. Default not used for outlierfac = 1(low), 3 for Z, 1.3 for IQR \n";
   std::cout << "-minsize <size> : Minimum element size, all directions \n";
   std::cout << "-reltol <0/1>: Apply relative tolerance flag. Default false \n";
   std::cout << "-tolfac1: Factor for modification of tolerance, positive heights. Default 0.0 \n";
@@ -224,6 +225,7 @@ int main(int argc, char *argv[])
   // iteration level 5 or in the last iteration
   int degree = 2;
   int outlierflag = 0;
+  double outlierfac = 0.0;
   int reltol = 0;
   double tolfac1 = 0.0, tolfac2 = 0.0;
   char *signpointfile = 0;  // Input significant points
@@ -345,6 +347,13 @@ int main(int argc, char *argv[])
 	{
 	  int stat = fetchIntParameter(argc, argv, ki, outlierflag, 
 				       nmb_par, par_read);
+	  if (stat < 0)
+	    return 1;
+	}
+       else if (arg == "-outlierfac")
+	{
+	  int stat = fetchDoubleParameter(argc, argv, ki, outlierfac, 
+					  nmb_par, par_read);
 	  if (stat < 0)
 	    return 1;
 	}
@@ -524,7 +533,9 @@ int main(int argc, char *argv[])
 	}
 	
     }
-
+  if (outlierflag > 0 && outlierfac <= 0.0)
+    outlierfac = (outlierflag == 1) ? 0.5 : ((outlierflag == 2) ? 3.0 : 1.5);
+      
   // Read remaining parameters
   if (nmb_par != 4)
     {
@@ -774,6 +785,7 @@ int main(int argc, char *argv[])
 
   t.restart();
 
+  std::cout << "mba = " << mba << ", initmba = " << initmba << std::endl;
   // if (del > 3)
   //   {
   //     initmba = 0;
@@ -818,7 +830,7 @@ int main(int argc, char *argv[])
 	approx->setMakeGhostPoints(false /*true*/);
     }
   if (outlierflag > 0)
-    approx->setOutlierFlag(true);
+    approx->setOutlierFlag(outlierflag, outlierfac);
   if (minsize > 0.0)
     approx->setMinimumElementSize(minsize, minsize);
   if (reltol > 0)
@@ -848,7 +860,8 @@ int main(int argc, char *argv[])
   // Refine strategy
   approx->setRefinementStrategy(refcat1, alter, threshold1, swap, refcat2, threshold2);
 
-  if (del == 3)
+  //if (del == 3)
+  if (false)
     {
       double zrange = extent[5] - extent[4];
       double zfac = std::max(AEPSGE, 0.005*zrange);

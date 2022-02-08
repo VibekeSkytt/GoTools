@@ -65,6 +65,7 @@
 //#define DEBUG_SURF
 //#define DEBUG_DIST
 #define DEBUG_REFINE
+//#define DEBUG_OUTLIER
 
 using std::vector;
 using std::set;
@@ -448,11 +449,11 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   if (points_.size() > 0)
     LRSplineUtils::distributeDataPoints(srf_.get(), points_, true, 
 					LRSplineUtils::REGULAR_POINTS, 
-					outlier_detection_);
+					(outlier_flag_>0));
   if (sign_points_.size() > 0)
     LRSplineUtils::distributeDataPoints(srf_.get(), sign_points_, true, 
 					LRSplineUtils::SIGNIFICANT_POINTS, 
-					outlier_detection_);
+					(outlier_flag_>0));
 
   if (make_ghost_points_ && !initial_surface_ && srf_->dimension() == 1 && 
       !useMBA_)
@@ -463,7 +464,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
       constructGhostPoints(ghost_points);
       LRSplineUtils::distributeDataPoints(srf_.get(), ghost_points, true, 
 					  LRSplineUtils::GHOST_POINTS,
-					  outlier_detection_);
+					  (outlier_flag_>0));
     }
 
   if (make_ghost_points_ && initial_surface_)
@@ -539,6 +540,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
     {
       std::cout << "Number of data points: " << nmb_pts_ << std::endl;
       std::cout << "Number of coefficients: " << srf_->numBasisFunctions() << std::endl;
+      std::cout << "Number of elements: " << srf_->numElements() << std::endl;
       std::cout << "Initial surface. Maximum distance: " << maxdist_;
       std::cout << ", average distance: " << avdist_all_ << std::endl;
       std::cout << "Number of points outside tolerance: " << outsideeps_;
@@ -602,6 +604,8 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   double max_prev = maxdist_;
   int outsideeps_prev = outsideeps_;
   int ki;
+  std::cout << "useMBA: " << useMBA_ << ", toMBA: " << toMBA_ << std::endl;
+  
   for (ki=0; ki<max_iter; ++ki)
     {
       // Check if the requested accuracy is reached
@@ -630,6 +634,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 		}
 	      if (threshold_prev > 0.0 && threshold/threshold_prev > 0.9)
 		threshold = 0.9*threshold_prev;
+	      threshold = std::min(threshold, 0.9*maxdist_);
 	      threshold = std::max(aepsge_, threshold);
 	    }
 	  else
@@ -837,14 +842,14 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 
       ghost_elems.clear();
       if (ki == max_iter-1)
-	outlier_detection_ = false;  // Last accuracy check
+	outlier_flag_ = 0;  // Last accuracy check
 
       if (omp_for_elements)
 	computeAccuracy_omp(ghost_elems);
       else
 	computeAccuracy(ghost_elems);
-      if (srf_->dimension() == 1 && (maxdist_ > 1.1*maxdist_prev_ ||
-      				     avdist_all_ > 1.1*avdist_all_prev_))
+      if (false) /*srf_->dimension() == 1 && ki > 0 && (maxdist_ > 1.1*maxdist_prev_ ||
+		   avdist_all_ > 1.1*avdist_all_prev_)) */
       	useMBA_ = true;
 
       if (verbose_)
@@ -857,6 +862,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 	  std::cout << "Maximum distance exceeding tolerance (dist-tol): " << maxout_ << std::endl;
 	  std::cout << "Average distance exceeding tolerance (dist-tol): " << avout_ << std::endl;
 	  std::cout << "Number of coefficients: " << srf_->numBasisFunctions() << std::endl;
+	  std::cout << "Number of elements: " << srf_->numElements() << std::endl;
 	  std::cout << "Number of registered outliers: " << nmb_outliers_ << std::endl;
 	  std::cout << "Number of signicant points: " << nmb_sign_ << std::endl;
 	  std::cout << "Maximum distance, significant points: " << maxdist_sign_ << std::endl;
@@ -999,6 +1005,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 	  std::cout << "Maximum distance exceeding tolerance (dist-tol): " << maxout_ << std::endl;
 	  std::cout << "Average distance exceeding tolerance (dist-tol): " << avout_ << std::endl;
 	  std::cout << "Number of coefficients: " << srf_->numBasisFunctions() << std::endl;
+	  std::cout << "Number of elements: " << srf_->numElements() << std::endl;
 	  std::cout << "Number of registered outliers: " << nmb_outliers_ << std::endl;
 	  std::cout << "Number of signicant points: " << nmb_sign_ << std::endl;
 	  std::cout << "Maximum distance, significant points: " << maxdist_sign_ << std::endl;
@@ -1116,7 +1123,10 @@ void LRSurfApprox::computeAccuracy(vector<Element2D*>& ghost_elems)
   double outlier_fac = 0.5;
   bool update_global = false;
   int nmb_outliers = 0;
-
+  int nmb_outlier_tested = 0;
+#ifdef DEBUG_OUTLIER
+  std::cout << "Outlier threshold: " << outlier_threshold << std::endl;
+#endif  
   int outlierK = 100;  
   double dom_size = (srf_->endparam_u()-srf_->startparam_u())*
     (srf_->endparam_v()-srf_->startparam_v());
@@ -1449,12 +1459,19 @@ void LRSurfApprox::computeAccuracy(vector<Element2D*>& ghost_elems)
 	  ghost_elems.push_back(it->second.get());
 	}
 
-      if (outside > 0 && outlier_detection_ && max_prev > 0.0 &&
+      if (outside > 0 && outlier_flag_ > 0 && max_prev > 0.0 &&
 	  max_err > outlier_threshold && max_err > ghost_fac*max_err_prev &&
 	  max_err > outlier_fac*acc_err/(double)nmb_pts2)
 	{
-	  int found = defineOutlierPts(it->second.get(), prev_point_dist, 
-				       outlier_threshold, outlier_rad);
+	  int found = 0;
+	  if (outlier_flag_ == 1)
+	    found = defineOutlierPts(it->second.get(), prev_point_dist, 
+					 outlier_threshold, outlier_rad);
+	  else if (outlier_flag_ == 3)
+	    found = defineOutlierPtsIQR(it->second.get(), outlier_fac_);
+	  else
+	    found = defineOutlierPtsZ(it->second.get(), outlier_fac_);
+	  nmb_outlier_tested++;
 	  if (found > 0)
 	    {
 #ifdef DEBUG1
@@ -1636,6 +1653,7 @@ void LRSurfApprox::computeAccuracy(vector<Element2D*>& ghost_elems)
     }
 
   nmb_outliers_ = nmb_outliers;
+  std::cout << "Number of elements tested for outliers: " << nmb_outlier_tested << std::endl;
 // #ifdef _OPENMP
 //   double time1 = omp_get_wtime();
 //   double time_spent = time1 - time0;
@@ -1678,12 +1696,15 @@ void LRSurfApprox::computeAccuracy_omp(vector<Element2D*>& ghost_elems)
   double outlier_fac = 0.5;
   bool update_global = false;
   int nmb_outliers = 0;
-
+#ifdef DEBUG_OUTLIER
+  std::cout << "Outlier threshold: " << outlier_threshold << std::endl;
+#endif
   int outlierK = 100;  
   double dom_size = (srf_->endparam_u()-srf_->startparam_u())*
     (srf_->endparam_v()-srf_->startparam_v());
   double density = dom_size/nmb_pts_;
   double outlier_rad = 0.5*sqrt(outlierK*density);
+  int nmb_outlier_tested = 0;
 
 
   RectDomain rd = srf_->containingDomain();
@@ -1705,7 +1726,7 @@ void LRSurfApprox::computeAccuracy_omp(vector<Element2D*>& ghost_elems)
       elem_iters.push_back(it);
   }
 
-#pragma omp parallel default(none) private(kj, it) shared(dim, elem_iters, rd, ghost_fac, ghost_elems, outlier_threshold, outlier_fac, outlier_rad, update_global, nmb_outliers)
+#pragma omp parallel default(none) private(kj, it) shared(dim, elem_iters, rd, ghost_fac, ghost_elems, outlier_threshold, outlier_fac, outlier_rad, update_global, nmb_outliers, nmb_outliers_tested)
   {
       double av_prev, max_prev;
       int nmb_out_prev;
@@ -1961,12 +1982,20 @@ void LRSurfApprox::computeAccuracy_omp(vector<Element2D*>& ghost_elems)
 	      ghost_elems.push_back(it->second.get());
 	  }
 
-	  if (outside > 0 && outlier_detection_ && max_prev > 0.0 &&
+	  if (outside > 0 && outlier_flag_ > 0 && max_prev > 0.0 &&
 	      max_err > outlier_threshold && max_err > ghost_fac*max_err_prev &&
 	      max_err > outlier_fac*acc_err/(double)nmb_pts2)
 	    {
-	      int found = defineOutlierPts(it->second.get(), prev_point_dist, 
-					   outlier_threshold, outlier_rad);
+	      int found = 0;
+	      if (outlier_flag_ == 1)
+		found = defineOutlierPts(it->second.get(), prev_point_dist, 
+					 outlier_threshold, outlier_rad);
+	      else if (outlier_flag_ == 3)
+		found = defineOutlierPtsIQR(it->second.get(), outlier_fac_);
+	      else
+		found = defineOutlierPtsZ(it->second.get(), outlier_fac_);
+	      nmb_outlier_tested++;
+
 	      if (found > 0)
 		{
 #ifdef DEBUG1
@@ -2084,6 +2113,7 @@ void LRSurfApprox::computeAccuracy_omp(vector<Element2D*>& ghost_elems)
     }
 
   nmb_outliers_ = nmb_outliers;
+  std::cout << "Number of elements tested for outliers: " << nmb_outlier_tested << std::endl;
 // #ifdef _OPENMP
 //   double time1 = omp_get_wtime();
 //   double time_spent = time1 - time0;
@@ -2538,6 +2568,136 @@ void  LRSurfApprox::runMBAUpdate(bool computed_accuracy)
 }
 
 //==============================================================================
+int LRSurfApprox::defineOutlierPtsIQR(Element2D* element, double lim)
+//==============================================================================
+{
+  vector<double>& points = element->getDataPoints();
+  int nmb = element->nmbDataPoints();
+  int del = element->getNmbValPrPoint();
+
+  if (del != 5)
+    return 0;  // 3D case or no outlier information possible
+  int ix = 3;   // Only elevation (1D)
+
+  if (nmb < 20)
+    return 0;
+
+  // Traverse point cloud and fetch distances
+  vector<double> ptdist;
+  ptdist.reserve(nmb);
+  double *curr;
+  int ki;
+  double maxdist = 0.0;
+  for (ki=0, curr=&points[0]; ki<nmb; ++ki, curr+=del)
+    {
+      if (curr[ix+1] < 0.0)
+	continue;  // Already classified as outlier
+      ptdist.push_back(curr[ix]);
+      maxdist = std::max(maxdist, fabs(curr[ix]));
+    }
+
+  // Sort
+  std::sort(ptdist.begin(), ptdist.end());
+
+  // Compute quartiles
+  int ndist = (int)ptdist.size();
+  int Q2 = ndist/2;
+  int Q2_2 = (ndist - Q2 > Q2-1) ? Q2+1 : Q2;
+  int Q1 = (Q2_2-1)/2;
+  int Q1_2 = (Q2_2 - Q1 > Q1_2-1) ? Q1+1 : Q1;
+  int Q3 = Q2 + (ndist - Q2)/2;
+  int Q3_2 = (ndist - Q3 > Q3-1) ? Q3+1 : Q3;
+  double v1 = 0.5*(ptdist[Q1-1] + ptdist[Q1_2-1]);
+  double v2 = 0.5*(ptdist[Q3-1] + ptdist[Q3_2-1]);
+  double IQR = v2 - v1;
+  double fence1 = v1 - lim*IQR;
+  double fence2 = v2 + lim*IQR;
+#ifdef DEBUG_OUTLIER
+  std::cout << "v1 = " << v1 << ", v2 = " << v2 << ", IQR = " << IQR << ", fence1 = " << fence1 << ", fence2 = " << fence2 << std::endl;
+#endif
+  
+  // Traverse point cloud and define outliers
+  int nmb_out = 0;
+  for (ki=0, curr=&points[0]; ki<nmb; ++ki, curr+=del)
+    {
+      if (curr[ix+1] < 0.0)
+	continue;  // Already classified as outlier
+      if (curr[ix] < fence1 || curr[ix] > fence2)
+	{
+	  curr[ix+1] = -1;
+	  nmb_out++;
+	}
+    }
+#ifdef DEBUG_OUTLIER
+   std::cout << "nmb total: " << nmb << ", maxdist: " << maxdist << ", nmb found: " << nmb_out << std::endl;
+#endif
+  return nmb_out;
+ }
+
+//==============================================================================
+int LRSurfApprox::defineOutlierPtsZ(Element2D* element, double lim)
+//==============================================================================
+{
+  vector<double>& points = element->getDataPoints();
+  int nmb = element->nmbDataPoints();
+  int del = element->getNmbValPrPoint();
+
+  if (del != 5)
+    return 0;  // 3D case or no outlier information possible
+  int ix = 3;   // Only elevation (1D)
+  
+  if (nmb < 20)
+    return 0;
+
+  // Compute mean and variance
+  double mean = 0.0, var = 0.0;
+  int nmb_val = 0;
+  int ki;
+  double *curr;
+  for (ki=0, curr=&points[0]; ki<nmb; ++ki, curr+=del)
+    {
+      if (curr[ix+1] < 0.0)
+	continue;  // Already classified as outlier
+      mean += curr[ix];
+      nmb_val++;
+    }
+  mean /= (double)nmb_val;
+
+  for (ki=0, curr=&points[0]; ki<nmb; ++ki, curr+=del)
+    {
+      if (curr[ix+1] < 0.0)
+	continue;  // Already classified as outlier
+      double tmp = (curr[ix]-mean)*(curr[ix]-mean);
+      tmp /= (double)nmb_val;
+      var += tmp;
+    }
+  double stdev = sqrt(var);
+#ifdef DEBUG_OUTLIER
+   std::cout << "Z. mean = " << mean << ", stdev = " << stdev;
+#endif
+
+  // For each data point compute z-value and check if it is outside
+  // the border given by the factor fac
+  int nmb_out = 0;
+  for (ki=0, curr=&points[0]; ki<nmb; ++ki, curr+=del)
+    {
+      if (curr[ix+1] < 0.0)
+	continue;  // Already classified as outlier
+
+      double z = (curr[ix] - mean)/stdev;
+      if (z < -lim || z > lim)
+	{
+	  curr[ix+1] = -1;
+	  nmb_out++;
+	}
+    }
+#ifdef DEBUG_OUTLIER
+   std::cout << ", # outliers: " << nmb_out << std::endl;
+#endif
+  return nmb_out;
+}
+
+//==============================================================================
 int LRSurfApprox::defineOutlierPts(Element2D* element, 
 				   vector<double>& prev_dist, double lim,
 				   double rad)
@@ -2827,6 +2987,9 @@ int LRSurfApprox::defineOutlierPts(Element2D* element,
 	    of3 << tmp[0] << " " << tmp[1] << " " << tmp[2] << std::endl;
 	  }
     }
+#endif
+#ifdef DEBUG_OUTLIER
+   std::cout << "nmb pts: " << nmb << ", nmb cand: " << icand.size() << ", nmb found: " << nmb_found << std::endl;
 #endif
   return nmb_found;
 }
@@ -4407,7 +4570,8 @@ void LRSurfApprox::initDefaultParams()
   has_local_constraint_ = false;
   nmb_mba_iter_ = 2;
   mba_sgn_ = 0;
-  outlier_detection_ = false;
+  outlier_flag_ = 0;
+  outlier_fac_ = 0.0;
   has_var_tol_ = false;
   var_fac_pos_ = 0.0;
   var_fac_neg_ = 0.0;

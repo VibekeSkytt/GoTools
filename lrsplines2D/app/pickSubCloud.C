@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
   for (pp3=pp2; pp3<pp1 && data[pp3+1]<v2; pp3+=3);
 
   // Sort the current sub set of points according to the w-parameter
-  qsort(&data[0]+pp0, (pp1-pp0)/3, 3*sizeof(double), compare_w_par);
+  qsort(&data[0]+pp2, (pp3-pp2)/3, 3*sizeof(double), compare_w_par);
 
   // Traverse sub set of points
   int pp4, pp5;

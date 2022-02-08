@@ -62,9 +62,9 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-  if (argc != 5)
+  if (argc != 6)
     {
-    std::cout << "Input parameters : Input file, output file, output file viz, degree"  << std::endl;
+    std::cout << "Input parameters : Input file, output file, output file viz, degree, gradient factor"  << std::endl;
     exit(-1);
   }
   
@@ -73,6 +73,7 @@ int main(int argc, char* argv[])
     ofstream output(argv[2]);
     ofstream outviz(argv[3]);
     int degree = atoi(argv[4]);
+    double gradfac = atof(argv[5]);
     ObjectHeader header;
     PointCloud3D cloud;
     input >> header >> cloud;
@@ -126,14 +127,13 @@ int main(int argc, char* argv[])
     int numpt = cloud.numPoints();
     vector<Vector3D> ptvecs;
     vector<double> projpts;
-    vector<double> smallgrad;
-    double mingradlen = 1.0e8;
-    double maxgradlen = 0.0;
-    double avgradlen = 0.0;
-    double mingradlen2 = 1.0e8;
-    double maxgradlen2 = 0.0;
-    double avgradlen2 = 0.0;
+    vector<double> gradval1(numpt, -1.0);
+    vector<double> gradval2;
     double lfac = 0.01;
+    double minlen1 = std::numeric_limits<double>::max();
+    double maxlen1 = 0.0;
+    double minlen2 = std::numeric_limits<double>::max();
+    double maxlen2 = 0.0;
     for (int ki=0; ki<numpt; ++ki)
       {
 	Vector3D curr = cloud.point(ki);
@@ -147,14 +147,14 @@ int main(int argc, char* argv[])
 	double dz1 = bderz(bary);
 	Vector3D grad(dx1,dy1,dz1);
 	double gradlen = grad.length();
-	mingradlen = std::min(mingradlen, gradlen);
-	maxgradlen = std::max(maxgradlen, gradlen);
-	avgradlen += gradlen;
+	gradval1[ki] = gradlen;
+	minlen1 = std::min(minlen1, gradlen);
+	maxlen1 = std::max(maxlen1, gradlen);
 	Vector3D curr2 = curr + grad;
 	Vector4D bary2 = bc.cartToBary(curr2);
 	Vector4D dv = bary2 - bary;
 	bdist = implicit(bary2);
-	Vector4D dir = dv/dv.length();
+	Vector4D dir = (dv.length() < 1.0e-15) ? dv : dv/dv.length();
 	int sgn = (dist > 0) ? -1 : 1;
 	dir *= sgn*lfac*diaglen;
 	Vector4D baryx = bary + dir;;
@@ -225,9 +225,10 @@ int main(int argc, char* argv[])
 	    double dz12 = bderz(barypt);
 	    Vector3D grad2(dx12,dy12,dz12);
 	    double gradlen2 = grad2.length();
-	    mingradlen2 = std::min(mingradlen2, gradlen2);
-	    maxgradlen2 = std::max(maxgradlen2, gradlen2);
-	    avgradlen2 += gradlen2;
+	    gradval2.push_back(gradlen2);
+	    minlen2 = std::min(minlen2, gradlen2);
+	    maxlen2 = std::max(maxlen2, gradlen2);
+
 	  }
 	double dist2 = implicit(bary2);
 	Vector3D currpt2 = bc.baryToCart(bary2);
@@ -243,27 +244,17 @@ int main(int argc, char* argv[])
     avdist /= (double)numpt;
     avdist0 /= (double)nmb0;
     avdist1 /= (double)numpt;
-    avgradlen /= (double)numpt;
-    avgradlen2 /= (double)nmb0;
     std::cout << "Maximum field: " << maxdist << std::endl;
     std::cout << "Average field: " << avdist << std::endl;
     std::cout << "Maximum projected distance: " << maxdist0 << std::endl;
     std::cout << "Average projected distance: " << avdist0 << std::endl;
     std::cout << "numpt-nmb0: " << numpt - nmb0 << std::endl;
     std::cout << "Maximum estimated distance: " << maxdist1 << std::endl;
-    std::cout << "Average estimated distance: " << avdist1 << std::endl;
-    std::cout << "Minimum gradient length: " << mingradlen << std::endl;
-    std::cout << "Maximum gradient length: " << maxgradlen << std::endl;
-    std::cout << "Average gradient length: " << avgradlen << std::endl;
-    std::cout << "Minimum gradient length2: " << mingradlen2 << std::endl;
-    std::cout << "Maximum gradient length2: " << maxgradlen2 << std::endl;
-    std::cout << "Average gradient length2: " << avgradlen2 << std::endl;
-
-    double gradlim1, gradlim2;
-    std::cout << "Gradient limit 1: ";
-    std::cin >> gradlim1;
-    std::cout << "Gradient limit 2: ";
-    std::cin >> gradlim2;
+    std::cout << "Average esitmated distance: " << avdist1 << std::endl;
+    std::cout << "Minimum gradient length point: " << minlen1 << std::endl;
+    std::cout << "Maximum gradient length point: " << maxlen1 << std::endl;
+    std::cout << "Minimum gradient length projection: " << minlen2 << std::endl;
+    std::cout << "Maximum gradient length projection: " << maxlen2 << std::endl;
 
     // Write out implicit function
     std::cout << "Sigma_min: " << sigma_min << std::endl;
@@ -271,7 +262,26 @@ int main(int argc, char* argv[])
 	   << bc << endl;
     cout << "Data written to output" << endl;
 
-    // Fetch points on the implicit surface, fetch also points where the gradient vanishes
+    vector<double> smallgrad1, smallgrad2;
+    double gradlim1 = minlen1 + gradfac*(maxlen1 - minlen1);
+    double gradlim2 = minlen2 + gradfac*(maxlen2 - minlen2);
+    for (int ka=0; ka<numpt; ++ka)
+      {
+	if (gradval1[ka] >= 0.0 && gradval1[ka] <= gradlim1)
+	  {
+	    Vector3D pos = cloud.point(ka);
+	    smallgrad1.insert(smallgrad1.end(), &pos[0], &pos[3]);
+	  }
+      }
+    for (size_t kr=0; kr<projpts.size()/3; ++kr)
+      {
+	if (gradval2[kr] >= 0.0 && gradval2[kr] <= gradlim2)
+	  {
+	    smallgrad2.insert(smallgrad2.end(), &projpts[3*kr], &projpts[3*kr+3]);
+	  }
+      }
+   
+    // Fetch points on the implicit surface
     Point dir(3);
     int nmb_sample;
     std::cout << "Box min: " << low << ", box max: " << high << std::endl;
@@ -281,13 +291,8 @@ int main(int argc, char* argv[])
     std::cin >> nmb_sample;
 
     // Find extension of view area
-    std::ofstream tmp("tmplines.g2");
     dir.normalize();
     Point bmid = 0.5*(low + high);
-
-    tmp << "400 1 0 4 255 0 0 255" << std::endl;
-    tmp << "1" << std::endl;
-    tmp << bmid << std::endl;
 
     // Define bounding box as a surface model
     double gap = 1.0e-6;
@@ -326,13 +331,6 @@ int main(int argc, char* argv[])
     double p1, p2;
     int ki, kj, kr;
 
-    cv1->writeStandardHeader(tmp);
-    cv1->write(tmp);
-    cv2->writeStandardHeader(tmp);
-    cv2->write(tmp);
-    ssf->writeStandardHeader(tmp);
-    ssf->write(tmp);
-
     vector<double> points;
     vector<double> vecs;
     vector<double> linesegs;
@@ -348,13 +346,8 @@ int main(int argc, char* argv[])
 	    // Compute barysentric coordinates of end points of line
 	    // First cartesian
 	    Point sfpos = ssf->ParamSurface::point(p1,p2);
-	    tmp << "400 1 0 4 0 255 0 255 " << std::endl;
-	    tmp << "1" << std::endl;
-	    tmp << sfpos << std::endl;
 	    Point cart1 = sfpos + len*dir;
 	    Point cart2 = sfpos - len*dir;
-	    tmpline.insert(tmpline.end(), cart1.begin(), cart1.end());
-	    tmpline.insert(tmpline.end(), cart2.begin(), cart2.end());
 
 	    Vector4D bary1 = bc.cartToBary(Vector3D(cart1[0], cart1[1], cart1[2]));
 	    Vector4D bary2 = bc.cartToBary(Vector3D(cart2[0], cart2[1], cart2[2]));
@@ -430,13 +423,13 @@ int main(int argc, char* argv[])
 	  }
       }
 
-    outviz << "410 1 0 4 155 0 100 255" << std::endl;
-    outviz << numpt << std::endl;
-    for (int ki=0; ki<numpt; ++ki)
-      {
-    	Vector3D curr = cloud.point(ki);
-    	outviz << curr << " " << curr+0.2*ptvecs[ki] << std::endl;
-      }
+    // outviz << "410 1 0 4 155 0 100 255" << std::endl;
+    // outviz << numpt << std::endl;
+    // for (int ki=0; ki<numpt; ++ki)
+    //   {
+    // 	Vector3D curr = cloud.point(ki);
+    // 	outviz << curr << " " << curr+0.2*ptvecs[ki] << std::endl;
+    //   }
     
     // Output
     if (points.size() > 0)
@@ -445,25 +438,6 @@ int main(int argc, char* argv[])
 	outviz << "400 1 0 4 255 0 0 255" << std::endl;
 	ptcloud.write(outviz);
       }
-    // if (vecs.size() > 0)
-    //   {
-    // 	outviz << "410 1 0 4 55 0 200 255" << std::endl;
-    // 	outviz << vecs.size()/3 << std::endl;
-    // 	for (int kb=0; kb<(int)vecs.size(); kb+=3)
-    // 	  {
-    // 	    for (int ka=0; ka<3; ++ka)
-    // 	      outviz << points[kb+ka] << " ";
-    // 	    for (int ka=0; ka<3; ++ka)
-    // 	      outviz << points[kb+ka]+vecs[kb+ka] << " ";
-    // 	    outviz << std::endl;
-    // 	  }
-    //   }
-    // if (linesegs.size() > 0)
-    //   {
-    // 	LineCloud lines(&linesegs[0], linesegs.size()/6);
-    // 	outviz << "410 1 0 4 255 0 0 255 " << std::endl;
-    // 	lines.write(outviz);
-    //   }
 
     if (der.size() > 0)
       {
@@ -471,18 +445,7 @@ int main(int argc, char* argv[])
 	outviz << "400 1 0 4 0 255 0 255" << std::endl;
 	ptcloud.write(outviz);
       }
-    // if (lineder.size() > 0)
-    //   {
-    // 	LineCloud lines(&lineder[0], lineder.size()/6);
-    // 	outviz << "410 1 0 4 0 255 0 255 " << std::endl;
-    // 	lines.write(outviz);
-    //   }
-    // if (der2.size() > 0)
-    //   {
-    // 	PointCloud3D ptcloud(&der2[0], der2.size()/3);
-    // 	outviz << "400 1 0 4 100 155 0 255" << std::endl;
-    // 	ptcloud.write(outviz);
-    //   }
+
     if (projpts.size() > 0)
       {
 	PointCloud3D projcloud(&projpts[0], projpts.size()/3);
@@ -490,50 +453,18 @@ int main(int argc, char* argv[])
 	projcloud.write(outviz);
       }
 
-    vector<double> smallgrad1;
-    for (int ki=0; ki<numpt; ++ki)
-      {
-	Vector3D curr = cloud.point(ki);
-	Vector4D bary = bc.cartToBary(curr);
-	double dx1 = bderx(bary);
-	double dy1 = bdery(bary);
-	double dz1 = bderz(bary);
-	Vector3D grad(dx1,dy1,dz1);
-	double gradlen = grad.length();
-	if (gradlen < gradlim1)
-	  smallgrad1.insert(smallgrad1.end(), &curr[0], &curr[3]);
-      }
     if (smallgrad1.size() > 0)
       {
-	PointCloud3D smallcloud1(&smallgrad1[0], smallgrad1.size()/3);
-	outviz << "400 1 0 4 0 0 0 255" << std::endl;
-	smallcloud1.write(outviz);
+	PointCloud3D grad1(&smallgrad1[0], smallgrad1.size()/3);
+	outviz << "400 1 0 4 55 50 150 255" << std::endl;
+	grad1.write(outviz);
       }
 
-    vector<double> smallgrad2;
-    for (int ki=0; ki<(int)projpts.size(); ki+=3)
+        if (smallgrad2.size() > 0)
       {
-	Vector3D curr(projpts[ki],projpts[ki+1],projpts[ki+2]);
-	Vector4D bary = bc.cartToBary(curr);
-	double dx1 = bderx(bary);
-	double dy1 = bdery(bary);
-	double dz1 = bderz(bary);
-	Vector3D grad(dx1,dy1,dz1);
-	double gradlen = grad.length();
-	if (gradlen < gradlim2)
-	  smallgrad2.insert(smallgrad2.end(), &curr[0], &curr[3]);
+	PointCloud3D grad2(&smallgrad2[0], smallgrad2.size()/3);
+	outviz << "400 1 0 4 155 100 0 255" << std::endl;
+	grad2.write(outviz);
       }
-    if (smallgrad2.size() > 0)
-      {
-	PointCloud3D smallcloud2(&smallgrad2[0], smallgrad2.size()/3);
-	outviz << "400 1 0 4 50 50 50 255" << std::endl;
-	smallcloud2.write(outviz);
-      }
-
-
-    LineCloud tmp2(&tmpline[0], tmpline.size()/6);
-    tmp2.writeStandardHeader(tmp);
-    tmp2.write(tmp);
-    
-    return 0;
+return 0;
 }
