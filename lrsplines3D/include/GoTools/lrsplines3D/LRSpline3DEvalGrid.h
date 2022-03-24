@@ -169,7 +169,8 @@ public:
 		    if (ka == order_W-1)
 		      par = ur_z;
 		    const bool on_end = (par == orig_dom_[5]); //bfunctions[ki]->wmax());
-		    val3[ki*order_W+ka] = uni3->evalBasisFunction(par, 0, on_end);
+		    //val3[ki*order_W+ka] = uni3->evalBasisFunction(par, 0, on_end);
+		    val3[ki*order_W+ka] = uni3->evalBasisFunction(par, 1, on_end);  //TEST!!
 		  }
 	      }
 	  }

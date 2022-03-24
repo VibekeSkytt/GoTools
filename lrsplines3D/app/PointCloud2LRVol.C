@@ -4,6 +4,8 @@
 #include "GoTools/lrsplines3D/LRVolApprox.h"
 #include "GoTools/geometry/ObjectHeader.h"
 #include "GoTools/lrsplines3D/LRSpline3DBezierCoefs.h"
+#include <boost/timer.hpp>
+#include <time.h>
 
 using namespace std;
 using namespace Go;
@@ -33,6 +35,8 @@ void print_help_text()
   std::cout << "-tolfile: File specifying domains with specific tolerances, global tolerance apply outside domains. PointCloud2LR -tolfile for file format \n";
   std::cout << "-toldoc: Documentation on file format for tolerance domains. \n";
   std::cout << "-outfrac <percentage>: Local measure for when the fraction of points outside the tolerance should lead to volume splitting \n";
+  std::cout << "-feature <ncell1> <ncell2> <ncell3>: Specify 3D grid for feature output \n";
+  std::cout << "-featurelevels <number of levels> <level 1> ... <level n> \n";
   std::cout << "-h or --help : Write this text\n";
 }
 
@@ -112,6 +116,8 @@ int main (int argc, char *argv[]) {
   double minsize = -1.0;
   double outfrac = 0.0;
   int ncell1=0, ncell2=0, ncell3=0;
+  bool features = false;
+  vector<int> feature_levels;
 
   int ki, kj;
   vector<bool> par_read(argc-1, false);
@@ -188,6 +194,39 @@ int main (int argc, char *argv[]) {
 	    return 1;
 	  outfrac = std::max(0.0, outfrac);
 	  outfrac /= 100.0;
+	}
+      else if (arg == "-feature")
+	{
+	  if (ki == argc-1)
+	    {
+	      std::cout << "ERROR: Missing input" << std::endl;
+	      print_help_text();
+	      return 1;
+	    }
+	  features = true;
+	  ncell1 = atoi(argv[ki+1]);
+	  ncell2 = atoi(argv[ki+2]);
+	  ncell3 = atoi(argv[ki+3]);
+	  par_read[ki-1] = par_read[ki] = par_read[ki+1] = par_read[ki+2] = true;
+	  nmb_par -= 4;
+	}
+     else if (arg == "-featurelevels")
+	{
+	  if (ki == argc-1)
+	    {
+	      std::cout << "ERROR: Missing input" << std::endl;
+	      print_help_text();
+	      return 1;
+	    }
+	  int fsize = atoi(argv[ki+1]);
+	  par_read[ki-1] = par_read[ki] = true;
+	  feature_levels.resize(fsize);
+	  for (int ka=0; ka<fsize; ++ka)
+	    {
+	      feature_levels[ka] = atoi(argv[ki+ka+2]);
+	      par_read[ki+ka+1] = true;
+	    }
+	  nmb_par -= (fsize+2);
 	}
     }
 
@@ -312,6 +351,15 @@ int main (int argc, char *argv[]) {
       std::cout << "Standard deviation: " << stdd << std::endl;
      }
      
+  time_t start = time(NULL);
+
+
+
+ boost::timer t;
+  double duration;
+
+  t.restart();
+
   std::cout << "Domain: [" << domain[0] << "," << domain[1] << "]x[" << domain[2];
   std::cout << "," << domain[3] << "]x[" << domain[4] << "," << domain[5] << "]" << std::endl;
   std::cout << "Range: [" << minval << "," << maxval << "]" << std::endl;
@@ -348,6 +396,13 @@ int main (int argc, char *argv[]) {
   else
     vol_approx.setVerbose(false);
 
+  // Feature output
+  if (features)
+    {
+      vol_approx.setFeatureOut(ncell1, ncell2, ncell3);
+      vol_approx.setFeatureLevel(feature_levels);
+    }
+
   double max, average, av_all;
   double maxout, avout;
   int num_out;
@@ -356,6 +411,14 @@ int main (int argc, char *argv[]) {
   shared_ptr<LRSplineVolume> result = vol_approx.getApproxVol(max,av_all,average,num_out,levels);
 
   vol_approx.fetchOutsideTolInfo(maxout, avout);
+
+  duration = t.elapsed();
+  std::cout << "Duration: " << duration << std::endl;
+  double min = floor(duration/60);
+  double sec = duration - 60*min;
+  std::cout << min << "m" << sec << "s" << std::endl;
+  time_t end = time(NULL);
+  std::cout<<"Execution Time: "<< (double)(end-start)<<" Seconds"<<std::endl;
 
   if (infofile)
     {

@@ -37,31 +37,30 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef TRIMSURFACE_H
-#define TRIMSURFACE_H
 
-#include "GoTools/geometry/BoundedSurface.h"
-#include <vector>
-#include <math.h>
+#ifndef _LFEATURE3DUTILS_H
+#define _LRFEATUR3DEUTILS_H
+
+
+#include "GoTools/lrsplines3D/LRSplineVolume.h"
+#include <iostream>
+
 
 namespace Go
 {
-  namespace TrimSurface
+  namespace LRFeature3DUtils
   {
-    // Note that the sequence of the points will be changed
-    bool makeBoundedSurface(shared_ptr<ParamSurface>& surf,
-			    bool isotrim[], 
-			    std::vector<double>& points,
-			    int tightness,
-			    shared_ptr<BoundedSurface>& trim_surf,
-			    bool only_outer=true);
-
-    bool defineBdSurface(shared_ptr<ParamSurface>& surf,
-			 double domain[], bool isotrim[], double eps,
-			 std::vector< std::vector<std::vector<double> > >& seqs,
-			 shared_ptr<BoundedSurface>& trim_surf);
+    // Write accuracy features to file
+    void writeCellInfo(const LRSplineVolume& vol, 
+		       double tol, int ncell1, int ncell2, int ncell3,
+		       std::ostream &out);
+    
+    void writeCellInfo_omp(const LRSplineVolume& vol, 
+			   double tol, int ncell1, int ncell2, int ncell3,
+			   std::ostream &out);
   };
-};
 
-#endif
+ }; // End namespace Go
 
+
+#endif // _LRFEATURE3DUTILS_H

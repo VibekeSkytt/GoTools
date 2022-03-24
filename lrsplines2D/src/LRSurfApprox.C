@@ -64,7 +64,7 @@
 //#define DEBUG2
 //#define DEBUG_SURF
 //#define DEBUG_DIST
-#define DEBUG_REFINE
+//#define DEBUG_REFINE
 //#define DEBUG_OUTLIER
 
 using std::vector;
@@ -3473,9 +3473,12 @@ int LRSurfApprox::refineSurf3(int iter, int& dir, double threshold)
 #endif
   set<pair<Element2D*,pair<Direction2D,double> > > unbalanced;
   vector<LRSplineSurface::Refinement2D> refs_x, refs_y;
+  int ix = 0;
   for (LRSplineSurface::ElementMap::const_iterator it=srf_->elementsBegin();
-       it != srf_->elementsEnd(); ++it)
+       it != srf_->elementsEnd(); ++it, ++ix)
     {
+      // if (ix != 35)
+      // 	continue;
       double av_err, max_err;
       int nmb_out, nmb_out_sign;
       it->second->getAccuracyInfo(av_err, max_err, nmb_out, nmb_out_sign);
@@ -3658,9 +3661,12 @@ int LRSurfApprox::refineSurf4(int& dir, double threshold)
     }
 
   vector<LRSplineSurface::Refinement2D> refs_x, refs_y;
+  int ix = 0;
   for (LRSplineSurface::BSplineMap::const_iterator it=srf_->basisFunctionsBegin();
-       it != srf_->basisFunctionsEnd(); ++it)
+       it != srf_->basisFunctionsEnd(); ++it, ++ix)
     {
+      // if (ix != 55)
+      // 	continue;
       LRBSpline2D* bspline = it->second.get();
       const Mesh2D* mesh = bspline->getMesh();
       int size1 = bspline->degree(XFIXED)+1;
@@ -3886,6 +3892,8 @@ int LRSurfApprox::refineSurf(int iter, int& dir, double threshold)
 	error2[kr] *= error_fac2;
       average_nmb_out += (double)(num_out_pts[kr]);
       average_nmb += (double)(num_pts[kr]);
+      // if (kr != 55)
+      // 	continue;
       if (num_out_pts[kr] > 0)
 	bspl_perm[nmb_perm++] = kr;
     }

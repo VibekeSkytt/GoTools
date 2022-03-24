@@ -53,7 +53,7 @@
 #include <boost/timer.hpp>
 #include <time.h>
 
-//#define DEBUG
+#define DEBUG
 //#define DEBUG_EL
 //#define DEBUG2
 
@@ -860,8 +860,8 @@ int main(int argc, char *argv[])
   // Refine strategy
   approx->setRefinementStrategy(refcat1, alter, threshold1, swap, refcat2, threshold2);
 
-  //if (del == 3)
-  if (false)
+  if (del == 3)
+  //if (false)
     {
       double zrange = extent[5] - extent[4];
       double zfac = std::max(AEPSGE, 0.005*zrange);
