@@ -558,13 +558,95 @@ DirectionCone SplineSurface::normalCone(NormalConeMethod method) const
 
 }
 
-
 //===========================================================================
 DirectionCone SplineSurface::normalCone() const
 //===========================================================================
 {
   return normalCone(sislBased);
 }
+
+//===========================================================================
+  void SplineSurface::dirNormAngles(pair<double,double>  minmaxang[]) const
+//===========================================================================
+{
+  // We are making a cones surrounding the orientating surface on the
+  // unit sphere. The cone is representated with centre coordinates
+  // and an angle. The orientation is computed from aproximation of
+  // the normal to the surface projected onto each coordinate plane.
+  // Based on the sisl function s1990.
+  if (dim_ != 3)
+    THROW("Normal only defined in 3D");
+
+  double tol = 0.1;
+  double eps = 1.0e-10;
+  Point null(0.0, 0.0, 0.0);
+  Point dir[3];
+  bool orthfirst[3] = {true, true, true};
+  bool alongfirst[3] = {true, true, true};
+  int in1 = numCoefs_u();
+  int in2 = numCoefs_v();
+  int ki, kj, kr;
+  for (kr=0; kr<3; ++kr)
+    {
+      dir[kr] = null;
+      dir[kr][kr] = 1.0;
+      minmaxang[kr].first = std::numeric_limits<double>::max();
+      minmaxang[kr].second = std::numeric_limits<double>::lowest();
+    }
+  
+  Point corner[4];  // The coefficients making the corner of each patch
+  Point diff[4];    // Difference vector between corner coefficients
+  Point norm[4];    // Estimated surface normal (cross product between difference vectors)
+  int kver, khor;   // The index to the vertice in the upper
+  // left corner to the patch to treat.
+  vector<double>::const_iterator it1;
+  
+  // Here we are treating each patch in the control polygon separately.
+  for (it1=coefs_begin(), kver=0; kver < (in2-1); kver++, it1+=dim_)
+    for (khor=0; khor < (in1-1); khor++, it1+=dim_)
+      {
+	// Here we make the tangents in each corner of the
+	// patch, and in direction with the clock. The first
+	// and the last vector contains both the first
+	// tangent.
+	corner[0].resize(dim_);
+	corner[0].setValue(&it1[0]);
+	corner[1].resize(dim_);
+	corner[1].setValue(&it1[dim_]);
+	corner[2].resize(dim_);
+	corner[2].setValue(&it1[(in1+1)*dim_]);
+	corner[3].resize(dim_);
+	corner[3].setValue(&it1[in1*dim_]);
+	for (ki=0; ki<4; ki++)
+	  {
+	    kj = ((ki+1) % 4);
+	    diff[ki] = corner[kj] - corner[ki];
+	  }
+	  
+	// Here we makes the normales in each corner of the
+	// patch.  We are using a cross product between two
+	// tangents.  The normals are also normalized.
+	int count = 0;
+	for (ki=0; ki<4; ki++)
+	  {
+	    kj = (ki == 0) ? 3 : ki-1;
+	    norm[ki] = diff[kj].cross(diff[ki]);
+	    double len = norm[ki].normalize_checked();
+	    if (len != 0.0)
+	      {
+		for (kr=0; kr<3; ++kr)
+		  {
+		    double ang = norm[ki].angle(dir[kr]);
+		    if (norm[ki]*dir[kr] < 0)
+		      ang *= -1.0;
+		    minmaxang[kr].first = std::min(minmaxang[kr].first, ang);
+		    minmaxang[kr].second = std::max(minmaxang[kr].second, ang);
+		  }
+	      }
+	  }
+      }
+}
+
 
 
 //===========================================================================

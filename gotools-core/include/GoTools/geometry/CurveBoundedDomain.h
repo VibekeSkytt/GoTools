@@ -123,6 +123,15 @@ public:
     virtual bool isOnBoundary(const Array<double, 2>& point, 
 			      double tolerance) const;
 
+    bool isOnSameBdCrv(const Array<double, 2>& point1, 
+		       const Array<double, 2>& point2, 
+		       double tolerance) const;
+
+    bool onSmoothBdSeg(const Array<double, 2>& point1,
+		       const Array<double, 2>& point2,
+		       double tolerance,
+		       double angtol) const;
+    
     /// Check if the given parameter pair is located on the endpoint of some
     /// curve in the curve loop
     bool isOnCorner(const Array<double, 2>& point, 
@@ -207,7 +216,8 @@ public:
       findPcurveInsideSegments(const SplineCurve& curve,
 			       double tolerance,
 			       std::vector<double>& params_start_end_interval,
-			       bool with_bd=true) const;
+			       bool with_bd=true,
+			       bool split_at_tang=false) const;
 
     /// Given a curve in the 2D parameter plane, determine those parts of the curve
     /// that are contained inside 'this' CurveBoundedDomain. Also store positional
@@ -236,7 +246,8 @@ public:
 			       std::vector<double>& boundary_params,
 			       std::vector<int>& boundary_loops,
 			       std::vector<int>& boundary_curves,
-			       bool with_bd=true) const;
+			       bool with_bd=true,
+			       bool split_at_tang=false) const;
 
     /// Fetch all intervals in one parameter direction
     /// going through a specific point lying inside the
@@ -254,8 +265,8 @@ public:
 			      double parval2,
 			      double tolerance) const;
 
-    /// Check if the domain intersects a 2D spline curve within the given
-    /// tolerance
+    /// Check if the domain boundary intersects a 2D spline curve within 
+    /// the given tolerance
     bool doIntersect(const SplineCurve& curve, double tol) const;
 
 
@@ -310,7 +321,8 @@ private:
     void findPcurveInsideSegments(const SplineCurve& curve,
 				  double tolerance, 
 				  std::vector<intersection_point>& intpt,
-				  bool with_bd=true) const;
+				  bool with_bd=true,
+				  bool split_at_tang=false) const;
 
 };
 

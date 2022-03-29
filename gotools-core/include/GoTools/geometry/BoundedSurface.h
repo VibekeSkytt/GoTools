@@ -190,6 +190,8 @@ public:
     ///         to this surface.
     virtual DirectionCone normalCone() const;
 
+    virtual void dirNormAngles(std::pair<double,double>  minmaxang[]) const;
+    
     /// Creates a DirectionCone covering all tangents to 
     /// this surface along a given parameter direction.
     /// \param pardir_is_u if 'true', then the DirectionCone will be defined on basis 
@@ -254,7 +256,9 @@ public:
     /// \return vector containing CurveLoops.  The first of these describe the
     ///         outer boundary of the surface (counterclockwise) whereas the others
     ///         describe boundaries of interior holes (clockwise).
+    /// Boundary loops are copied, but not the curves
     std::vector<CurveLoop> absolutelyAllBoundaryLoops() const;
+    std::vector<shared_ptr<CurveLoop> > boundaryLoops() const;
 
     /// Fetch information about boundary loops: Number of loops, total
     /// number of trimming curves, minimum and maximum curve length (estimate)

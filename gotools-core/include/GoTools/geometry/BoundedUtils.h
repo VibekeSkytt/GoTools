@@ -235,7 +235,14 @@ namespace BoundedUtils {
 		     std::vector< shared_ptr< CurveOnSurface > >&
 		     part_bnd_cvs, double eps, int last_split=-1);
 
-    /// Help function for getBoundaryLoops (few sample)
+    std::vector< std::vector< shared_ptr< ParamCurve > > >
+      getBoundaryLoops(std::vector<shared_ptr<CurveLoop>  >& boundary_loops,
+		       std::vector< shared_ptr< ParamCurve > >& part_bd_cvs,
+		       double eps, double min_loop_tol,
+		       double knot_diff_tol, const Point& par_eps,
+		       int last_split=-1);
+
+   /// Help function for getBoundaryLoops (few sample)
     int checkCurveCoinc(shared_ptr<ParamCurve> cv1, 
 			shared_ptr<ParamCurve> cv2, double tol);
       
@@ -391,7 +398,10 @@ namespace BoundedUtils {
     bool loopIsDegenerate(std::vector<shared_ptr<CurveOnSurface> >& loop,
 			  double epsgeo);
 
-    bool createMissingParCvs(BoundedSurface& bd_sf);
+    bool loopIsDegenerate(std::vector<shared_ptr<ParamCurve> >& loop,
+			  double epsgeo);
+
+     bool createMissingParCvs(BoundedSurface& bd_sf);
 
     bool createMissingParCvs(std::vector<CurveLoop>& bd_loops);
 
