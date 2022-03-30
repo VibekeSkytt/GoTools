@@ -48,8 +48,11 @@
 #include <assert.h>
 #include <algorithm>
 #include <stdexcept>
-
+#include <iostream>
+#include <sstream>
+#include <string>
 #include <array>
+#include <cctype>
 
 using std::vector;
 using std::pair;
@@ -69,14 +72,19 @@ namespace { // anonymous namespace
 // - Verifies that multiplicities are >= 0.
 bool mrvec_is_correct(const vector<GPos>& vec);
 
-
+  void read_mrvec(std::istream& is, std::vector<std::vector<GPos> >& mrvec);
 };
+
+
+// =============================================================================
+Mesh2D::Mesh2D(std::istream& is) {read(is); }
+// =============================================================================
 
 // =============================================================================
   Mesh2D::Mesh2D(const std::vector<double>& xknots,
-                const std::vector<double>& yknots,
-                const std::vector<std::vector<int> >& mrvecx,
-                const std::vector<std::vector<int> >& mrvecy)
+		 const std::vector<double>& yknots,
+		 const std::vector<std::vector<int> >& mrvecx,
+		 const std::vector<std::vector<int> >& mrvecy)
     : knotvals_x_(xknots), knotvals_y_(yknots)
 // =============================================================================
   {
@@ -89,11 +97,11 @@ bool mrvec_is_correct(const vector<GPos>& vec);
       xmults[ki].resize(mrvecy.size(), 0);
     for (size_t kj=0; kj<mrvecy.size(); ++kj)
       {
-       vector<int> mult;
-       vector<int> ixy = compactify_ixvec_(mrvecy[kj].begin(), mrvecy[kj].end(),
-                                           mult);
-       for (size_t kr=0; kr<ixy.size(); ++kr)
-         xmults[ixy[kr]][kj] = mult[kr];
+	vector<int> mult;
+	vector<int> ixy = compactify_ixvec_(mrvecy[kj].begin(), mrvecy[kj].end(),
+					    mult);
+	for (size_t kr=0; kr<ixy.size(); ++kr)
+	  xmults[ixy[kr]][kj] = mult[kr];
       }
     
     // Create matrix for knot multiplicity corresponding to yknots
@@ -102,54 +110,49 @@ bool mrvec_is_correct(const vector<GPos>& vec);
       ymults[ki].resize(mrvecx.size(), 0);
     for (size_t kj=0; kj<mrvecx.size(); ++kj)
       {
-       vector<int> mult;
-       vector<int> ixx = compactify_ixvec_(mrvecx[kj].begin(), mrvecx[kj].end(),
-                                           mult);
-       for (size_t kr=0; kr<ixx.size(); ++kr)
-         ymults[ixx[kr]][kj] = mult[kr];
+	vector<int> mult;
+	vector<int> ixx = compactify_ixvec_(mrvecx[kj].begin(), mrvecx[kj].end(),
+					    mult);
+	for (size_t kr=0; kr<ixx.size(); ++kr)
+	  ymults[ixx[kr]][kj] = mult[kr];
       }
 
     // Collect mesh rectangles
     for (size_t ki=0; ki<xmults.size(); ++ki)
       {
-       GPos pos0(0, xmults[ki][0]);
-       mrects_x_[ki].push_back(pos0);
-       for (size_t kj=1; kj<xmults[ki].size(); ++kj)
-         {
-           GPos pos1((int)kj, xmults[ki][kj]);
-           if (pos1.mult != pos0.mult)
-             {
-               mrects_x_[ki].push_back(pos1);
-               pos0 = pos1;
-             }
-         }
+	GPos pos0(0, xmults[ki][0], 0);
+	mrects_x_[ki].push_back(pos0);
+	for (size_t kj=1; kj<xmults[ki].size(); ++kj)
+	  {
+	    GPos pos1((int)kj, xmults[ki][kj], 0);
+	    if (pos1.mult != pos0.mult)
+	      {
+		mrects_x_[ki].push_back(pos1);
+		pos0 = pos1;
+	      }
+	  }
       }
-             
+	      
     for (size_t ki=0; ki<ymults.size(); ++ki)
       {
-       GPos pos0(0, ymults[ki][0]);
-       mrects_y_[ki].push_back(pos0);
-       for (size_t kj=1; kj<ymults[ki].size(); ++kj)
-         {
-           GPos pos1((int)kj, ymults[ki][kj]);
-           if (pos1.mult != pos0.mult)
-             {
-               mrects_y_[ki].push_back(pos1);
-               pos0 = pos1;
-             }
-         }
+	GPos pos0(0, ymults[ki][0], 0);
+	mrects_y_[ki].push_back(pos0);
+	for (size_t kj=1; kj<ymults[ki].size(); ++kj)
+	  {
+	    GPos pos1((int)kj, ymults[ki][kj], 0);
+	    if (pos1.mult != pos0.mult)
+	      {
+		mrects_y_[ki].push_back(pos1);
+		pos0 = pos1;
+	      }
+	  }
       }
-             
-           
+	      
+	    
 
     int stop_break = 1;
   }
   
-
-// =============================================================================
-Mesh2D::Mesh2D(std::istream& is) {read(is); }
-// =============================================================================
-
 // =============================================================================
 void Mesh2D::write(std::ostream& os) const
 // =============================================================================
@@ -167,8 +170,10 @@ void Mesh2D::read(std::istream& is)
   Mesh2D tmp;
   object_from_stream(is, tmp.knotvals_x_);
   object_from_stream(is, tmp.knotvals_y_);
-  object_from_stream(is, tmp.mrects_x_);
-  object_from_stream(is, tmp.mrects_y_);
+  read_mrvec(is, tmp.mrects_x_);
+  read_mrvec(is, tmp.mrects_y_);
+  // object_from_stream(is, tmp.mrects_x_);
+  // object_from_stream(is, tmp.mrects_y_);
   tmp.consistency_check_();
   swap(tmp);
 }
@@ -271,7 +276,7 @@ int Mesh2D::extent(Direction2D d, int ix, int start, int mult) const
 }
 
 // =============================================================================
-void Mesh2D::incrementMult(Direction2D d, int ix, int start, int end, int mult)
+  void Mesh2D::incrementMult(Direction2D d, int ix, int start, int end, int mult)
 // =============================================================================
 {
   // The current implementation is dead simple but likely inefficient.  A more
@@ -280,12 +285,14 @@ void Mesh2D::incrementMult(Direction2D d, int ix, int start, int end, int mult)
 
   for (int i = start; i < end; ++i) {
     const int cur_mult = nu(d, ix, i, i+1);
-    setMult(d, ix, i, i+1, cur_mult + mult); // set the new multiplicity to the old one plus 'mult'
+    // set the new multiplicity to the old one plus 'mult'
+    bool refined = 
+      setMult(d, ix, i, i+1, cur_mult + mult);
   }
 }
 
 // =============================================================================
-void Mesh2D::setMult(Direction2D d, int ix, int start, int end, int mult)
+  bool Mesh2D::setMult(Direction2D d, int ix, int start, int end, int mult)
 // =============================================================================
 {
   if ((end <= start) || (mult < 0))
@@ -305,21 +312,26 @@ void Mesh2D::setMult(Direction2D d, int ix, int start, int end, int mult)
     result.push_back(GPos(start, mult));
   if (end < last_pos) {
     int tmp = nu(d, ix, end, end+1);
-    if (tmp != mult) result.push_back(GPos(end, tmp));
+    if (tmp != mult)
+      result.push_back(GPos(end, tmp));
   }
 
   // inserting succeeding GPoses (not affected by the change)
   p = find_if(p, mr.end(), [end](GPos& g) {return g.ix > end;});
   result.insert(result.end(), p, mr.end());
 
+  // if (result.size() <= mr.size())
+  //   return false;
   mr.swap(result);
 
   // verify that end contract of this function is fulfilled
   assert(mrvec_is_correct(mr));
+  return
+    true;
 }
 
 // =============================================================================
-int Mesh2D::insertLine(Direction2D d, double kval, int mult)
+  int Mesh2D::insertLine(Direction2D d, double kval, int mult)
 // =============================================================================
 {
   // Mesh2D does not impose any specific tolerance, but assumes that there is one
@@ -722,7 +734,39 @@ bool mrvec_is_correct(const vector<GPos>& v)
   return true;
 }
 
-  
+  void read_mrvec(std::istream& is, std::vector<std::vector<GPos> >& mrvec)
+  {
+  int num1;
+  is >> num1;
+  mrvec.resize(num1);
+  std::string line;
+  int ki = 0;
+  while (std::getline(is, line) && ki<num1)
+    {
+      if (line.length() > 1)
+	{
+	  std::istringstream ss(line);
+	  int num2;
+	  ss >> num2;
+	  vector<int> gposval;
+	  while (!ss.eof())
+	    {
+	      std::string curr;
+	      ss >> curr;
+	      if (std::isdigit(curr.c_str()[0]))
+		gposval.push_back(atoi(curr.c_str()));
+	    }
+	  mrvec[ki].resize(num2);
+	  int idiv = (int)gposval.size()/num2;
+	  int kj, kr;
+	  for (kj=0, kr=0; kj<num2; ++kj, kr+=idiv)
+	    mrvec[ki][kj] = GPos(gposval[kr], gposval[kr+1],
+				 (idiv==3) ? gposval[kr+1] : 0);
+	  ++ki;
+	}
+    }
+  }
+
 }; // end anonymous namespace
 
 }; // end namespace Go
