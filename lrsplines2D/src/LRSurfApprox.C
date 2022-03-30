@@ -498,14 +498,18 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   // Initial approximation of LR B-spline surface
   if (initMBA_)
     {
-      std::cout << "Run MBA" << std::endl;
+#ifdef DEBUG
+      //std::cout << "Run MBA" << std::endl;
+#endif
       runMBAUpdate(false);
       LSapprox.setInitSf(srf_, coef_known_);
       updateCoefKnown();
     }
   else if (!(initial_surface_ && useMBA_))
     {
-      std::cout << "Run LS" << std::endl;
+#ifdef DEBUG
+      //std::cout << "Run LS" << std::endl;
+#endif
      LSapprox.setInitSf(srf_, coef_known_);
       LSapprox.updateLocals();
       //performSmooth(&LSapprox);
@@ -604,7 +608,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   double max_prev = maxdist_;
   int outsideeps_prev = outsideeps_;
   int ki;
-  std::cout << "useMBA: " << useMBA_ << ", toMBA: " << toMBA_ << std::endl;
+  //std::cout << "useMBA: " << useMBA_ << ", toMBA: " << toMBA_ << std::endl;
   
   for (ki=0; ki<max_iter; ++ki)
     {
@@ -754,16 +758,16 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
        // Update surface
       if (useMBA_ || ki >= toMBA_)
       {
-	//#ifdef DEBUG
-	std::cout << "Using MBA" << std::endl;
-	//#endif
+#ifdef DEBUG
+	//std::cout << "Using MBA" << std::endl;
+#endif
 	runMBAUpdate(true);
       }
       else
 	{
-	  //#ifdef DEBUG
-	  std::cout << "Using LS" << std::endl;
-	  //#endif
+#ifdef DEBUG
+	  //std::cout << "Using LS" << std::endl;
+#endif
 	  try {
 	    LSapprox.updateLocals();
 	    performSmooth(&LSapprox);
@@ -772,9 +776,9 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 	  }
 	  catch (...)
 	    {
-	      //#ifdef DEBUG
-	      std::cout << "Switch to MBA" << std::endl;
-	      //#endif
+#ifdef DEBUG
+	      //std::cout << "Switch to MBA" << std::endl;
+#endif
 	      useMBA_ = true;
 	      runMBAUpdate(true);
 	    }
@@ -1653,8 +1657,11 @@ void LRSurfApprox::computeAccuracy(vector<Element2D*>& ghost_elems)
     }
 
   nmb_outliers_ = nmb_outliers;
-  std::cout << "Number of elements tested for outliers: " << nmb_outlier_tested << std::endl;
-// #ifdef _OPENMP
+#ifdef DEBUG
+  //std::cout << "Number of elements tested for outliers: " << nmb_outlier_tested << std::
+endl;
+#endif
+  // #ifdef _OPENMP
 //   double time1 = omp_get_wtime();
 //   double time_spent = time1 - time0;
 //   std::cout << "time_spent in computeAccuracy: " << time_spent << std::endl;

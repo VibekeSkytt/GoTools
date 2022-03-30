@@ -48,11 +48,11 @@
 #include <assert.h>
 #include <algorithm>
 #include <stdexcept>
-#include <iostream>
-#include <sstream>
-#include <string>
+//#include <iostream>
+//#include <sstream>
+//#include <string>
 #include <array>
-#include <cctype>
+//#include <cctype>
 
 using std::vector;
 using std::pair;
@@ -72,7 +72,7 @@ namespace { // anonymous namespace
 // - Verifies that multiplicities are >= 0.
 bool mrvec_is_correct(const vector<GPos>& vec);
 
-  void read_mrvec(std::istream& is, std::vector<std::vector<GPos> >& mrvec);
+  //  void read_mrvec(std::istream& is, std::vector<std::vector<GPos> >& mrvec);
 };
 
 
@@ -120,11 +120,11 @@ Mesh2D::Mesh2D(std::istream& is) {read(is); }
     // Collect mesh rectangles
     for (size_t ki=0; ki<xmults.size(); ++ki)
       {
-	GPos pos0(0, xmults[ki][0], 0);
+	GPos pos0(0, xmults[ki][0]);
 	mrects_x_[ki].push_back(pos0);
 	for (size_t kj=1; kj<xmults[ki].size(); ++kj)
 	  {
-	    GPos pos1((int)kj, xmults[ki][kj], 0);
+	    GPos pos1((int)kj, xmults[ki][kj]);
 	    if (pos1.mult != pos0.mult)
 	      {
 		mrects_x_[ki].push_back(pos1);
@@ -135,11 +135,11 @@ Mesh2D::Mesh2D(std::istream& is) {read(is); }
 	      
     for (size_t ki=0; ki<ymults.size(); ++ki)
       {
-	GPos pos0(0, ymults[ki][0], 0);
+	GPos pos0(0, ymults[ki][0]);
 	mrects_y_[ki].push_back(pos0);
 	for (size_t kj=1; kj<ymults[ki].size(); ++kj)
 	  {
-	    GPos pos1((int)kj, ymults[ki][kj], 0);
+	    GPos pos1((int)kj, ymults[ki][kj]);
 	    if (pos1.mult != pos0.mult)
 	      {
 		mrects_y_[ki].push_back(pos1);
@@ -170,10 +170,10 @@ void Mesh2D::read(std::istream& is)
   Mesh2D tmp;
   object_from_stream(is, tmp.knotvals_x_);
   object_from_stream(is, tmp.knotvals_y_);
-  read_mrvec(is, tmp.mrects_x_);
-  read_mrvec(is, tmp.mrects_y_);
-  // object_from_stream(is, tmp.mrects_x_);
-  // object_from_stream(is, tmp.mrects_y_);
+  //read_mrvec(is, tmp.mrects_x_);
+  //read_mrvec(is, tmp.mrects_y_);
+  object_from_stream(is, tmp.mrects_x_);
+  object_from_stream(is, tmp.mrects_y_);
   tmp.consistency_check_();
   swap(tmp);
 }
@@ -734,38 +734,38 @@ bool mrvec_is_correct(const vector<GPos>& v)
   return true;
 }
 
-  void read_mrvec(std::istream& is, std::vector<std::vector<GPos> >& mrvec)
-  {
-  int num1;
-  is >> num1;
-  mrvec.resize(num1);
-  std::string line;
-  int ki = 0;
-  while (std::getline(is, line) && ki<num1)
-    {
-      if (line.length() > 1)
-	{
-	  std::istringstream ss(line);
-	  int num2;
-	  ss >> num2;
-	  vector<int> gposval;
-	  while (!ss.eof())
-	    {
-	      std::string curr;
-	      ss >> curr;
-	      if (std::isdigit(curr.c_str()[0]))
-		gposval.push_back(atoi(curr.c_str()));
-	    }
-	  mrvec[ki].resize(num2);
-	  int idiv = (int)gposval.size()/num2;
-	  int kj, kr;
-	  for (kj=0, kr=0; kj<num2; ++kj, kr+=idiv)
-	    mrvec[ki][kj] = GPos(gposval[kr], gposval[kr+1],
-				 (idiv==3) ? gposval[kr+1] : 0);
-	  ++ki;
-	}
-    }
-  }
+  // void read_mrvec(std::istream& is, std::vector<std::vector<GPos> >& mrvec)
+  // {
+  // int num1;
+  // is >> num1;
+  // mrvec.resize(num1);
+  // std::string line;
+  // int ki = 0;
+  // while (std::getline(is, line) && ki<num1)
+  //   {
+  //     if (line.length() > 1)
+  // 	{
+  // 	  std::istringstream ss(line);
+  // 	  int num2;
+  // 	  ss >> num2;
+  // 	  vector<int> gposval;
+  // 	  while (!ss.eof())
+  // 	    {
+  // 	      std::string curr;
+  // 	      ss >> curr;
+  // 	      if (std::isdigit(curr.c_str()[0]))
+  // 		gposval.push_back(atoi(curr.c_str()));
+  // 	    }
+  // 	  mrvec[ki].resize(num2);
+  // 	  int idiv = (int)gposval.size()/num2;
+  // 	  int kj, kr;
+  // 	  for (kj=0, kr=0; kj<num2; ++kj, kr+=idiv)
+  // 	    mrvec[ki][kj] = GPos(gposval[kr], gposval[kr+1],
+  // 				 (idiv==3) ? gposval[kr+1] : 0);
+  // 	  ++ki;
+  // 	}
+  //   }
+  // }
 
 }; // end anonymous namespace
 

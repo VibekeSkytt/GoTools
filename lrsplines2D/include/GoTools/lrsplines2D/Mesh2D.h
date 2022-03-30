@@ -57,7 +57,7 @@ namespace Go
 struct GPos { 
   // due to Visual Studio 2010 not supporting initializer lists, we have
   // to make an explicit constructor here.
-GPos(int i, int m, int g=0) : ix(i), mult(m) {}
+GPos(int i, int m) : ix(i), mult(m) {}
 GPos() : ix(-1), mult(-1) {}
 
   int ix; 
