@@ -37,31 +37,40 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#include "GoTools/geometry/Factory.h"
-#include "GoTools/geometry/GoTools.h"
-#include "GoTools/utils/config.h"
-#include "GoTools/geometry/Utils.h"
-#include "GoTools/geometry/ObjectHeader.h"
-#include "GoTools/lrsplines2D/LRSplineSurface.h"
-#include "GoTools/lrsplines2D/LRSplineUtils.h"
-#include "GoTools/lrsplines2D/Element2D.h"
-#include <iostream>
-#include <fstream>
-#include <string.h>
+#ifndef LR_SPLINE3DMBA_H
+#define LR_SPLINE3DMBA_H
 
-using namespace Go;
-using std::vector;
+#include "GoTools/lrsplines3D/LRSplineVolume.h"
+#include "GoTools/lrsplines3D/LRBSpline3D.h"
+#include "GoTools/utils/Point.h"
 
-int main(int argc, char *argv[])
+namespace Go
 {
-  if (argc != 6) {
-    std::cout << "Usage: input surface 1(.g2), input surface 2 (.g2), output surface(.g2), lower limit, upper limit" << std::endl;
-    return -1;
-  }
 
-  std::ifstream insf1(argv[1]);
-  std::ifstream insf2(argv[2]);
-  std::ofstream outsf(argv[3]);
-  double low = atof(argv[4]);
-  double high = atof(argv[5]);
+  namespace LRSpline3DMBA
+  {
+    // Update LRSplineSurface according to data points stored in the surface elements
+    // using the 3DMBA algorithm
+    void MBADistAndUpdate(LRSplineVolume *vol);
+    void MBADistAndUpdate_omp(LRSplineVolume *vol, double eps, double delta);
+    void MBAUpdate(LRSplineVolume *vol);
+    //void MBAUpdate_omp(LRSplineVolume *vol);
+    void MBAUpdate(LRSplineVolume *vol, std::vector<Element3D*>& elems,
+		   std::vector<Element3D*>& elems2);
 
+    // Help function to 3DMBAUpdate
+    void
+      add_contribution(int dim,
+    		       std::map<const LRBSpline3D*, Array<double,2> >& target,
+    		       const LRBSpline3D* bspline, double nom[], double denom);
+    void 
+      add_contribution2(int dim,
+			std::map<const LRBSpline3D*, Array<double,4> >& target, 
+			const LRBSpline3D* bspline, double nom[], double denom);
+
+  }; // end namespace LRSpline3DMBA
+
+}; // end namespace Go
+
+#endif
+ 

@@ -186,6 +186,19 @@ LRMinMax::computeMinMaxPoints(shared_ptr<ParamSurface> surface,
       double umax = std::min(bbox[ki].high()[0], dom.umax());
       double vmin = std::max(bbox[ki].low()[1], dom.vmin());
       double vmax = std::min(bbox[ki].high()[1], dom.vmax());
+      if (umax-umin < tol)
+	{
+	  umax = std::min(dom.umax(), umax+tol);
+	  umin = std::max(dom.umin(), umin-tol);
+	}
+      if (vmax - vmin < tol)
+	{
+	  vmax = std::min(dom.vmax(), vmax+tol);
+	  vmin = std::max(dom.vmin(), vmin-tol);
+	}
+      if (umax < umin || vmax < vmin)
+	THROW("Mismatch between curves and surface");
+      
       vector<shared_ptr<ParamSurface> > sub_sfs =
 	surf->subSurfaces(umin, vmin, umax, vmax, epsge);
 
@@ -237,8 +250,9 @@ LRMinMax::computeMinMaxPoints(shared_ptr<ParamSurface> surface,
 	  maxpoints.insert(maxpoints.end(), extpoints.begin(), extpoints.end());
 	int stop_break0 = 1;
     }
-	
+#ifdef DEBUG
   std::cout << "Number of searches: " << nmb_search << std::endl;
+#endif
   int stop_break = 1;
 }
 

@@ -407,17 +407,10 @@ std::vector<int> Mesh2D::compactify_ixvec_(Iterator kvec_start, Iterator kvec_en
   mult.clear();  
   for (auto i = result.begin(); i != result.end(); ++i) 
       mult.push_back(std::count(kvec_start, kvec_end, *i));
-<<<<<<< HEAD
 
   return result;
 }
 
-=======
-  return result;
-}
-
-
->>>>>>> origin/master
 // =============================================================================
 inline double Mesh2D::minParam(Direction2D d) const
 // =============================================================================

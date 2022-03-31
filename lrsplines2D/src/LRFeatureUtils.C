@@ -234,7 +234,7 @@ void  LRFeatureUtils::writeCellInfo(const LRSplineSurface& srf,
 	    {
 	      srf.point(der, upar2, vpar2, 2);
 	      slope2 += sqrt(der[1][0]*der[1][0]+der[2][0]*der[2][0]);
-	      laplace2 += der[3][0]*der[3][0] + der[5][0]*der[5][0];
+	      laplace2 += der[3][0]*der[3][0]+der[5][0]*der[5][0];
 	      min_height_sf[kj*ncell+ki] = std::min(min_height_sf[kj*ncell+ki],
 						    der[0][0]);
 	      max_height_sf[kj*ncell+ki] = std::max(max_height_sf[kj*ncell+ki],
@@ -445,7 +445,7 @@ void  LRFeatureUtils::writeCellInfo(const LRSplineSurface& srf,
   for (int kr=0; kr<nc2; ++kr)
     outval[15][kr] = outval[15][kr]*maxval/currmax;
 
-  currmin = std::numeric_limits<double>::max();
+   currmin = std::numeric_limits<double>::max();
   currmax = std::numeric_limits<double>::lowest();
   for (int kr=0; kr<nc2; ++kr)
     {
@@ -454,9 +454,9 @@ void  LRFeatureUtils::writeCellInfo(const LRSplineSurface& srf,
       outval[16][kr] = laplace[kr];
     }
   for (int kr=0; kr<nc2; ++kr)
-    outval[16][kr] = outval[16][kr]*maxval/currmax;
+    outval[16][kr] = (currmax < 1.0e-9) ? 0 : outval[16][kr]*maxval/currmax;
 
- 
+
   // Write to file
   out << ncell << "  " << ncell << "  " << "17" << std::endl;
   for (int kr=0; kr<nc2; ++kr)

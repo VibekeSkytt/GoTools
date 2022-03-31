@@ -687,25 +687,18 @@ namespace Go
   // For 1D surfaces the endpoints of the lines are given as (u,v,f(u,v))
   LineCloud getElementBds(int num_pts = 5) const;
 
-<<<<<<< HEAD
   LineCloud getElementPar() const;
 
   void writeElementAccuracy(int level);
 
   // Constructor given mesh and a collection of LR B-splines. Only internal use
-=======
-  // Private constructor given mesh and a collection of LR B-splines
-  // Also used from lr volume
->>>>>>> origin/master
+
   // Updates mesh pointers in B-splines
   LRSplineSurface(double knot_tol, bool rational,
   		  Mesh2D& mesh, 
 		  std::vector<LRBSpline2D*>& b_splines,
 		  int first_ixu, int first_ixv);
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/master
  private:
 
   // ----------------------------------------------------
@@ -738,10 +731,6 @@ namespace Go
   mutable RectDomain domain_;
   mutable Element2D* curr_element_;
 
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/master
 #if 0
   // @@sbr Remove this when LRSplineEvalGrid does not need them any longer!
   ElementMap::iterator elementsBeginNonconst() { return emap_.begin();}

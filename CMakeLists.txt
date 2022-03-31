@@ -1,7 +1,7 @@
 PROJECT(GoTools)
 
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
 
 # Set version info
 SET(GoTools_VERSION_MAJOR 4)
@@ -10,11 +10,7 @@ SET(GoTools_VERSION_PATCH 0)
 SET(GoTools_VERSION "${GoTools_VERSION_MAJOR}.${GoTools_VERSION_MINOR}.${GoTools_VERSION_PATCH}")
 SET(GoTools_ABI_VERSION "${GoTools_VERSION_MAJOR}.${GoTools_VERSION_MINOR}" CACHE INTERNAL "GoTools ABI version")
 
-if(WIN32)
-  option(GoTools_COPY_DATA "Copy data?" OFF)
-else()
-  option(GoTools_COPY_DATA "Copy data?" ON)
-endif()
+option(GoTools_COPY_DATA "Copy data?" ON)
 
 OPTION(GoTools_ENABLE_OPENMP "Include OPENMP?" OFF)
 IF(GoTools_ENABLE_OPENMP)
@@ -42,12 +38,11 @@ ENDIF(WIN32)
 # Get rid of MESSAGEs in Release mode
 SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNVERBOSE")
 
+# set(Boost_USE_STATIC_LIBS ON)
 
 # Check if Boost is available
-IF(WIN32)
-  SET(BOOST_LIBRARYDIR ${BOOST_ROOT}/lib64-msvc-14.0/)
-ENDIF()
 SET(Boost_ADDITIONAL_VERSIONS
+  "1.74" "1.74.0"
   "1.65" "1.65.0"
   "1.58" "1.58.0"
   "1.51" "1.51.0"
@@ -119,7 +114,7 @@ OPTION(GoTools_COMPILE_APPS
 # Compile unit test - depends on Boost
 IF(Boost_FOUND)
   OPTION(GoTools_COMPILE_TESTS
-    "Compile unit tests?" OFF)
+    "Compile unit tests?" ON)
   IF(GoTools_COMPILE_TESTS)
     SET(Boost_USE_STATIC_LIBS ON)
     FIND_PACKAGE(Boost COMPONENTS unit_test_framework REQUIRED)
@@ -210,6 +205,12 @@ OPTION(GoTools_COMPILE_MODULE_lrsplines2D
 IF(GoTools_COMPILE_MODULE_lrsplines2D)
 ADD_SUBDIRECTORY(lrsplines2D)
 ENDIF(GoTools_COMPILE_MODULE_lrsplines2D)
+
+OPTION(GoTools_COMPILE_MODULE_lrsplines3D
+  "Compile the GoTools module lrsplines3D?" ON)
+IF(GoTools_COMPILE_MODULE_lrsplines3D)
+  ADD_SUBDIRECTORY(lrsplines3D)
+ENDIF(GoTools_COMPILE_MODULE_lrsplines3D)
 
 OPTION(GoTools_COMPILE_MODULE_viewlib
   "Compile the GoTools module viewlib?" ON)

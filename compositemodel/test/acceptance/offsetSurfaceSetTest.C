@@ -68,12 +68,14 @@ using std::ifstream;
 struct Config {
 public:
     Config()
-        : input_filename("tmp/testHermiteApprEvalSurf_input.g2"),
-          output_filename("tmp/testHermiteApprEvalSurf_result.g2")
+        : input_filename("tmp/offsetSurfaceSetTest_input.g2"),
+          output_filename("tmp/offsetSurfaceSetTest_result.g2")
 
     {
 
         const std::string data_basedir("../../gotools-private-data/compositemodel/Offset");
+
+#ifdef GOTOOLS_TEST_PRIVATE_DATA
 
         // NEW CASES!!!
 #ifdef TEST_NEW_CASES
@@ -182,6 +184,8 @@ public:
         epsgeo.push_back(1.0e-03);
 #endif
 
+#endif
+
         GoTools::init();
 
     }
@@ -193,8 +197,6 @@ public:
     ObjectHeader header;
     const std::string input_filename;
     const std::string output_filename;
-    // const std::string input_filename("tmp/testHermiteApprEvalSurf_input.g2");
-    // const std::string output_filename("tmp/testHermiteApprEvalSurf_result.g2");
 
 };
 

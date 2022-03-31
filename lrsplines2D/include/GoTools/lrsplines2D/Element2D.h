@@ -60,11 +60,8 @@ struct LSSmoothData
     max_error_ = max_error_prev_ = -1.0;
     nmb_outside_tol_ = -1;
     nmb_sign_outside_tol_ = -1;
-<<<<<<< HEAD
     acc_err_pos_ = acc_err_neg_ = 0.0;
     nmb_err_pos_ = nmb_err_neg_ = 0;
-=======
->>>>>>> origin/master
     minheight_ = std::numeric_limits<double>::max();
     maxheight_ = std::numeric_limits<double>::lowest();
   }
@@ -350,11 +347,8 @@ struct LSSmoothData
     nmb_outside_tol_ = -1;
     accumulated_out_ = 0.0;
     nmb_sign_outside_tol_ = -1;
-<<<<<<< HEAD
     acc_err_pos_ = acc_err_neg_= 0.0;
     nmb_err_pos_ = nmb_err_neg_ = 0;
-=======
->>>>>>> origin/master
   }
 
   void setHeightInfo(double minheight, double maxheight)
@@ -594,14 +588,11 @@ public:
 
 	void eraseSignificantPoints()
 	{
-<<<<<<< HEAD
 	  if (element_accuracy_)
 	    {
 	      int nmb_points = nmbSignificantPoints();
 	      element_accuracy_->addNmbPoints(-nmb_points);
 	    }
-=======
->>>>>>> origin/master
 	  if (LSdata_.get())
 	    LSdata_->eraseSignificantPoints();
 	}
@@ -890,7 +881,6 @@ public:
 	  LSdata_->setAccuracyInfo(accumulated_error, average_error, 
 				   max_error, nmb_outside_tol, 
 				   nmb_outside_sign, accumulated_out);
-<<<<<<< HEAD
 	  if (element_accuracy_)
 	    {
 	      int nmb_pt = nmbDataPoints();
@@ -898,8 +888,6 @@ public:
 	      element_accuracy_->setAccuracyInfo(max_error, averr,
 					       nmb_outside_tol+nmb_outside_sign);
 	    }
-=======
->>>>>>> origin/master
 	}
 
 
@@ -992,8 +980,8 @@ public:
 	  is_modified_ = true;
 	}
 
-<<<<<<< HEAD
-	void setElementAccuracyInfo(Element2DAccuracyInfo* info)
+
+   void setElementAccuracyInfo(Element2DAccuracyInfo* info)
 	{
 	  element_accuracy_ = info;
 	}
@@ -1007,8 +995,6 @@ public:
 	{
 	  return element_accuracy_;
 	}
-=======
->>>>>>> origin/master
 
 	// DEBUG
 	double sumOfScaledBsplines(double upar, double vpar);
