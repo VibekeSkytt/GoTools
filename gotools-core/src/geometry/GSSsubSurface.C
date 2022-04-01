@@ -186,6 +186,7 @@ SplineSurface* SplineSurface::subSurface(double from_upar,
 			      newcoefs.begin(),
 			      the_surface.dimension(),
 			      the_surface.rational());
+    the_subSurface->flagcode_ = flagcode_;
 
     if (elementary_surface_.get())
       {
