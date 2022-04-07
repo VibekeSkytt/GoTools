@@ -53,16 +53,18 @@
 
 using namespace Go;
 
+/// Apply a series of refinement to an input SplineSurface or LRSplineSurface.
+/// Specification of refinement is performed interactively.
+
 int main(int argc, char *argv[])
 {
-  if (argc != 4) {
-    std::cout << "Usage: lrspline_in (.g2) refinement_in lrspline_out.g2 " << std::endl;
+  if (argc != 3) {
+    std::cout << "Usage: spline or lrspline_in (.g2),  lrspline_out.g2 " << std::endl;
     return -1;
   }
 
   std::ifstream filein(argv[1]);
-  std::ifstream filein2(argv[2]);
-  std::ofstream fileout(argv[3]);
+  std::ofstream fileout(argv[2]);
 
   // Create the default factory
   GoTools::init();
@@ -104,9 +106,9 @@ int main(int argc, char *argv[])
     }
     
   
-  shared_ptr<LRSplineSurface> tmp2(lrsf->clone());
-  if (tmp2->dimension() == 1)
-    tmp2->to3D();
+  // shared_ptr<LRSplineSurface> tmp2(lrsf->clone());
+  // if (tmp2->dimension() == 1)
+  //   tmp2->to3D();
 
   // tmp2->writeStandardHeader(fileout);
   // tmp2->write(fileout);
@@ -114,30 +116,57 @@ int main(int argc, char *argv[])
   // LineCloud lines2 = tmp2->getElementBds();
   // lines2.writeStandardHeader(fileout);
   // lines2.write(fileout);
+
+  std::cout << "Degrees: " << lrsf->degree(XFIXED) << " " << lrsf->degree(YFIXED) << std::endl;
+  std::cout << "Knots in the first parameter direction: " << std::endl;
+  for (auto it=lrsf->mesh().knotsBegin(XFIXED); it!=lrsf->mesh().knotsEnd(XFIXED); ++it)
+    std::cout << *it << " ";
+  std::cout << std::endl;
+  std::cout << "Knots in the second parameter direction: " << std::endl;
+  for (auto it=lrsf->mesh().knotsBegin(YFIXED); it!=lrsf->mesh().knotsEnd(YFIXED); ++it)
+    std::cout << *it << " ";
+  std::cout << std::endl;
   
   int nmb_refs;
-  filein2 >> nmb_refs;
+  std::cout << "Number of refinements: ";
+  std::cin >> nmb_refs;
+  std::cout << "For each refinement specify: direction (0/1), knot value, " << std::endl;
+  std::cout << "start and end in the other direction, multiplicity" << std::endl;
   for (int ki=0; ki<nmb_refs; ++ki)
     {
+      std::cout << "Refinement no. " << ki+1 << std::endl;
       double parval, start, end;
       int dir;
       int mult;
 
-      filein2 >> parval;
-      filein2 >> start;
-      filein2 >> end;
-      filein2 >> dir;
-      filein2 >> mult;
-      //lrsf->refine((dir==0) ? XFIXED : YFIXED, parval, start, end, mult);
-      std::cout << "Iteration no. " << ki << std::endl;
-      lrsf->refine((dir==0) ? XFIXED : YFIXED, parval, start, end, mult, true);
+      std::cin >> dir;
+      std::cin >> parval;
+      std::cin >> start;
+      std::cin >> end;
+      std::cin >> mult;
 
-      puts("Writing lr-spline to file.");
-      if (lrsf->dimension() == 1)
-	lrsf->to3D();
-      lrsf->writeStandardHeader(fileout);
-      lrsf->write(fileout);
-      fileout << std::endl;
+      // check feasibility
+      Direction2D d = (dir==0) ? XFIXED : YFIXED;
+      if (parval < lrsf->paramMin(d) || parval > lrsf->paramMax(d))
+	{
+	  std::cout << "Parameter value outside surface domain" << std::endl;
+	  continue;
+	}
+      int count = lrsf->mesh().numKnots(d, parval, start, end);
+      if (count <= lrsf->degree(flip(d)) + 1)
+	{
+	  std::cout << "Refinement not legal" << std::endl;
+	  continue;
+	}
+      //lrsf->refine((dir==0) ? XFIXED : YFIXED, parval, start, end, mult);
+      lrsf->refine(d, parval, start, end, mult, true);
     }
+  puts("Writing lr-spline to file.");
+  // if (lrsf->dimension() == 1)
+  // 	lrsf->to3D();
+  lrsf->writeStandardHeader(fileout);
+  lrsf->write(fileout);
+  fileout << std::endl;
+
   return 0;
 }

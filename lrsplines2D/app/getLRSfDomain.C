@@ -51,6 +51,13 @@
 using namespace std;
 using namespace Go;
 
+/// Read LRSplineSurface and output the surface domain and the bound of the z-components
+/// of the surface. The app is intended for 1D surfaces (funtions) but is also applicable
+/// for parameterized surfaces. The element boundaries of the surface is written to the
+/// file sf_elements.g2 in the directory from where the app is run. If a trimmed
+/// surface (BoundedSurface) with an underlying LR B-spline surface is given as input, the
+/// trimming loop(s) will be written to sf_loop.g2.
+
 int main( int argc, char* argv[] )
 {
   if (argc != 2) {
@@ -73,7 +80,7 @@ int main( int argc, char* argv[] )
   }
   catch (...)
     {
-      std::cerr << "Exiting" << std::endl;
+      std::cerr << "Error in reading the surface. Exiting" << std::endl;
       exit(-1);
     }
   shared_ptr<GeomObject> geom_obj(Factory::createObject(header.classType()));

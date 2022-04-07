@@ -109,6 +109,25 @@ IF(GoTools_COMPILE_APPS)
   ENDFOREACH(app)
 ENDIF(GoTools_COMPILE_APPS)
 
+#IF(GoTools_COMPILE_APPS)
+#  FILE(GLOB_RECURSE GoLRspline2D_APPS2 app/app2/*.C)
+#  FOREACH(app ${GoLRspline2D_APPS2})
+#    GET_FILENAME_COMPONENT(appname ${app} NAME_WE)
+#    message(STATUS ${appname})
+#    message(STATUS ${app})
+#    ADD_EXECUTABLE(${appname} ${app})
+#    TARGET_LINK_LIBRARIES(${appname} GoLRspline2D ${DEPLIBS})
+#    SET_TARGET_PROPERTIES(${appname}
+#      PROPERTIES RUNTIME_OUTPUT_DIRECTORY app/app2)
+#    IF(GoTools_ENABLE_OPENMP)
+#      SET_TARGET_PROPERTIES(${appname} PROPERTIES COMPILE_FLAGS "${OpenMP_CXX_FLAGS}") 
+#      SET_TARGET_PROPERTIES(${appname} PROPERTIES LINK_FLAGS "${OpenMP_CXX_FLAGS}")
+#    ENDIF(GoTools_ENABLE_OPENMP)
+#    SET_PROPERTY(TARGET ${appname}
+#      PROPERTY FOLDER "GoLRspline2D/Apps/Apps2")
+#  ENDFOREACH(app2)
+#ENDIF(GoTools_COMPILE_APPS)
+
 
 IF(GoTools_COMPILE_TESTS)
   SET(DEPLIBS ${DEPLIBS} ${Boost_LIBRARIES})

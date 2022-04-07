@@ -205,6 +205,9 @@ int fetchCharParameter(int argc, char *argv[], int ki, char*& parameter,
   return 0;
 }
 
+/// Approximates a point cloud by an LR B-spline surface. Run the function with -h or
+/// --help for user guidance.
+
 int main(int argc, char *argv[])
 {
   char* input_type = 0;    // Type of point file

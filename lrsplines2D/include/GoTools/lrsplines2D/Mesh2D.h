@@ -154,6 +154,8 @@ public:
   /// \param ix  index of row/column from which to fetch the knot vector
   std::vector<double> getKnots(Direction2D d, int ix, bool right=true) const;
 
+  int numKnots(Direction2D d, double val, double start, double end) const;
+
   // Determine the length of the longest k-meshrectangle with multiplicity 
   // (at least) 'mult' and with starting point at 'start'.
   int extent(Direction2D d, int ix, int start, int mult) const;

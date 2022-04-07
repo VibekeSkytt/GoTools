@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 
   // Create initial spline surface (cubic, one inner knot in each
   // parameter direction, dim=1)
-  const double AEPSGE = 1.0e-3;
+  const double AEPSGE = 0.1;
   vector<double> knots_u(9);
   vector<double> knots_v(9);
   vector<double> coefs(25, 0.0);
@@ -134,6 +134,7 @@ int main(int argc, char *argv[])
   int nmb_out_eps;        // will be set below
   shared_ptr<SplineSurface> result_surf = asurf.getApproxSurf(maxdist, avdist, nmb_out_eps, 1);
 
+  std::cout << "Number of data points: " << nmb_pts << ", tolerance: " << AEPSGE << std::endl;
   std::cout << "Maxdist= " << maxdist << ", avdist= " << avdist;
   std::cout << ", nmb out= " << nmb_out_eps << std::endl;
 

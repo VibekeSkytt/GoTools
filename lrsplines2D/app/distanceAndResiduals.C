@@ -72,11 +72,16 @@ int compare_v_par(const void* el1, const void* el2)
     return 0;
 }
 
+/// Computes the maximum and average absolute distance between a point cloud and a
+/// 1D surface/function approximating the point cloud. Assumes a 2.5D point cloud that is
+/// parameterized by its x- and y- values. Outputs the points with associated residual
+/// in a specified file.
+
 
 int main(int argc, char *argv[])
 {
   if (argc != 4) {
-    std::cout << "Usage: surface in (.g2) point cloud (.g2) lrspline_out.g2 " << std::endl;
+    std::cout << "Usage: <surface in (.g2)> <point cloud (.g2)> <point and residual length (.txt)>  " << std::endl;
     return -1;
   }
 

@@ -39,7 +39,12 @@ int compare_v_par(const void* el1, const void* el2)
     return 0;
 }
 
-
+/// Classify points with regard to the distance to an approximating surface (1D LRSplineSurface):
+/// outside the tolerance belt and below the surface, with the tolerance, outside the tolerance 
+/// belt and above the surface. The tolerance is varying with respect to the z-value of the
+/// points. The tolerance at z=0 is specified along with a factor above and below zero. The
+/// actual tolerance is computed as tolerance +/- factor times z-value.
+/// This app is can be used with PointCloud2LR with a height dependent tolerance.
 
 int main(int argc, char *argv[])
 {
@@ -98,6 +103,8 @@ int main(int argc, char *argv[])
   double *curr;
   double dist;
 
+  double max_tol = 0.0;
+  double min_tol = std::numeric_limits<double>::max();
   int pp0, pp1;
   Element2D* elem = NULL;
   for (pp0=0, knotv=vknots; pp0<(int)data.size() && data[pp0+1] < (*knotv); 
@@ -143,6 +150,8 @@ int main(int argc, char *argv[])
 	      double tol2 = (curr[2] < 0.0) ?
 		tol - fac2*curr[2] : tol + fac1*curr[2];
 	      tol2 = std::max(tol2, mintol);
+	      max_tol = std::max(tol2, max_tol);
+	      min_tol = std::min(tol2, min_tol);
 	      int ix = 1;
 	      if (fabs(dist) <= tol2)
 		ix = 1;
@@ -176,6 +185,10 @@ int main(int argc, char *argv[])
 
   std::cout << "Max dist: " << max_above << ", max dist below: " << max_below;
   std::cout << ", average dist: " << avdist << std::endl;
+  std::cout << "Number of points within the tolerance: " << level_points[1].size() << std::endl;
+  std::cout << "Number of points outside the tolerance, below the surface: " << level_points[0].size() << std::endl;
+  std::cout << "Number of points outside the tolerance, above the surface: " << level_points[2].size() << std::endl;
+  std::cout << "Minimum applied tolerance: " << min_tol << ", maximum applied tolerance: " << max_tol << std::endl;
 }
 
       

@@ -74,6 +74,9 @@ void print_help_text()
   std::cout << "-h or --help for help text" << std::endl;
 }
 
+/// Trim LRSplineSurface with respect to a point cloud with a domain covered by the
+/// surface domain. One BoundedSurface will be created.
+
 
 int main(int argc, char* argv[])
 {

@@ -70,9 +70,13 @@ int compare_v_par(const void* el1, const void* el2)
     return 0;
 }
 
+/// Extract points within a specified domain, possibly after rotating the point cloud.
+/// Information about rotation and domain is requested.
+
 int main(int argc, char *argv[])
 {
   if (argc != 4) {
+    std::cout << "Extract points within a specified domain, possibly after rotating the point cloud" << std::endl;
     std::cout << "Usage: point cloud in (.g2), point cloud out(g2), rotate (0/1) " << std::endl;
     return -1;
   }
@@ -106,17 +110,19 @@ int main(int argc, char *argv[])
       vec1.normalize();
       vec2.normalize();
       points.rotate(vec1, vec2);
+    
+
+      std::ofstream of("rotated_points.g2");
+      points.writeStandardHeader(of);
+      points.write(of);
+      
+      BoundingBox box = points.boundingBox();
+      printf("Domain: [ %13.3f , %13.3f ] x [ %13.3f , %13.3f ] \n",
+	     box.low()[0], box.high()[0], box.low()[1] ,box.high()[1]);
     }
-
-  std::ofstream of("rotated_points.g2");
-  points.writeStandardHeader(of);
-  points.write(of);
-
-  BoundingBox box = points.boundingBox();
-  printf("Domain: [ %13.3f , %13.3f ] x [ %13.3f , %13.3f ] \n",
-	 box.low()[0], box.high()[0], box.low()[1] ,box.high()[1]);
+  
   printf("New domain: \n");
-double u1, u2, v1, v2;
+  double u1, u2, v1, v2;
   std::cin >> u1;  
   std::cin >> u2;  
   std::cin >> v1;  

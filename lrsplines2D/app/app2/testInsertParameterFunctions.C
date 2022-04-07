@@ -100,7 +100,7 @@ void test_surface(const char* msg, LRSplineSurface* lrs, int samples_u = 100, in
 
   cout << "Completed grid evaluations before calling insertParameterFunctions" << endl;
   clock_t t_before_insert = clock();
-  // LRSplineUtils::insertParameterFunctions(lrs);
+  //LRSplineUtils::insertParameterFunctions(lrs);
   lrs->to3D();
   clock_t t_after_insert = clock();
   cout << "InsertParameterFunctions completed, now testing against grid evaluation" << endl;

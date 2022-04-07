@@ -64,6 +64,11 @@ using std::string;
 
 //#define DEBUG
 
+/// Trim LRSplineSurface with respect to a point cloud with a domain covered by the
+/// surface domain. A point cloud with isolated groups of points will give rise to
+/// more than one BoundedSurface. The tightness parameter should be in the range
+/// [1:8] dependent on the density of the point cloud.
+
 int main(int argc, char* argv[])
 {
   if (argc != 5)

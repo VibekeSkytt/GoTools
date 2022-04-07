@@ -52,6 +52,10 @@
 using namespace Go;
 using std::vector;
 
+/// Create a 3D LRSplineSurface from a 1D surface by assigning the greville parameters of the
+/// LRBSpline2D to the x- and y-coordinates. Translation of the surface to origo prior 
+/// to conversion to 3D is optional.
+
 int main(int argc, char *argv[])
 {
   if (argc != 4) {

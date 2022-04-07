@@ -524,6 +524,22 @@ int Mesh2D::removeUnusedLines(Direction2D d)
 }
 
 // =============================================================================
+int Mesh2D::numKnots(Direction2D d, double val, double start, double end) const
+// =============================================================================
+  {
+    // Locate index to the left of val
+    int ix = Mesh2DUtils::last_nonlarger_knotvalue_ix(*this, d, val);
+    vector<double> knots = getKnots(flip(d), ix, true);
+    int count = 0;
+    size_t ki;
+    for (ki=0; ki<knots.size() && knots[ki] < start; ++ki);
+    for (; ki<knots.size() && knots[ki] <= end; ++ki)
+      if (knots[ki] <= end)
+	count++;
+    return count;
+  }
+
+// =============================================================================
 vector<pair<int, int> > Mesh2D::segments(Direction2D d, int ix, int threshold) const
 // =============================================================================
 {

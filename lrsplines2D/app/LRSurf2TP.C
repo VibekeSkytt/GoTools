@@ -47,10 +47,14 @@
 using namespace std;
 using namespace Go;
 
+/// Translates an LRSplineSurface to a SplineSurface by extending knot line
+/// segments that do not cover the entire domain of the LR B-spline surface.
+/// Writes the LR mesh (mesh1.eps) and the tensor product mesh (mesh2.eps) to file 
+/// if visualization by ghostview if requested.
 int main( int argc, char* argv[] )
 {
-  if (argc != 3) {
-    std::cout << "Input parameters : Input file, output file"  << std::endl;
+  if (argc != 3 && argc != 4) {
+    std::cout << "Input parameters : Input file, output file, (mesh to file (0/1), default 0)"  << std::endl;
     exit(-1);
   }
 
@@ -59,23 +63,32 @@ int main( int argc, char* argv[] )
   ALWAYS_ERROR_IF(file1.bad(), "Input file not found or file corrupt");
 
   std::ofstream file2(argv[2]);
+  int write_mesh = 0;
+  if (argc == 4)
+    write_mesh = atoi(argv[3]);
 
   // Read lrspline surface
   ObjectHeader header;
   header.read(file1);
   shared_ptr<LRSplineSurface> surf(new LRSplineSurface());
   surf->read(file1);
-  
-  std::ofstream ofmesh1("mesh1.eps");
-  writePostscriptMesh(*surf, ofmesh1);
+
+  if (write_mesh == 1)
+    {
+      std::ofstream ofmesh1("mesh1.eps");
+      writePostscriptMesh(*surf, ofmesh1);
+    }
 
   shared_ptr<SplineSurface> splsf(surf->asSplineSurface());
   splsf->writeStandardHeader(file2);
   splsf->write(file2);
 
-  shared_ptr<LRSplineSurface> surf2(new LRSplineSurface(splsf.get(), 1.0e-8));
-  std::ofstream ofmesh2("mesh2.eps");
-  writePostscriptMesh(*surf2, ofmesh2);
+  if (write_mesh == 1)
+    {
+      shared_ptr<LRSplineSurface> surf2(new LRSplineSurface(splsf.get(), 1.0e-8));
+      std::ofstream ofmesh2("mesh2.eps");
+      writePostscriptMesh(*surf2, ofmesh2);
+    }
 
 }
 

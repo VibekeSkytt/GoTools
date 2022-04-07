@@ -114,6 +114,9 @@ int fetchCharParameter(int argc, char *argv[], int ki, char*& parameter,
   return 0;
 }
 
+/// Compute contour curves from an LRSplineSurface. The surface must be 1D (i.e. a function).
+/// Run the app with -h or --help for user guidance.
+
 int main(int argc, char* argv[])
 {
   char *surffile = 0;       // Surface output file

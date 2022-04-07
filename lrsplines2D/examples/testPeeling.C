@@ -136,7 +136,7 @@ namespace { // begin anonymous namespace
 } // end anonymous namespace
 
 // -----------------------------------------------------------------
-// Constructs LR spline, tests its peelability, and exits.
+// Constructs LR splines, tests its peelability, writes results to file, and exits.
 // -----------------------------------------------------------------
 int main () {
 
@@ -144,8 +144,8 @@ int main () {
   cout << endl;
 
   // Construct LR spline.
+  cout << "Example of LR B-spline surface with linear dependence" << endl;
   LRSplineSurface lrs = construct_lrspline_from_paper();
-  //LRSplineSurface lrs = construct_hierarchical_lrspline();
   
   // Print sizes
   cout << "numElements: " << lrs.numElements() << endl;
@@ -166,6 +166,29 @@ int main () {
     {
       funs[ki]->write(of);
       of << std::endl;
+    }
+
+  // Construct LR spline.
+  cout << "LR B-spline surface with hierarchical structure" << endl;
+  LRSplineSurface lrs2 = construct_hierarchical_lrspline();
+  
+  // Print sizes
+  cout << "numElements: " << lrs2.numElements() << endl;
+  cout << "numBasisFunctions: " << lrs2.numBasisFunctions() << endl;
+
+  // Check for overloading.
+  vector<LRBSpline2D*> funs2 = LinDepUtils::unpeelableBasisFunctions(lrs2);
+  cout << "Number of unpeelable LR B-splines: " << funs2.size() << endl;
+  cout << "LR spline is peelable: " << ((funs2.size()==0) ? "Yes" : "No") << "!" << endl;
+
+  std::ofstream of2("peelable_Bsplines.g2");
+  lrs2.writeStandardHeader(of2);
+  lrs2.write(of2);
+  of2 << "===========================================================" << std::endl << std::endl << std::endl;
+  for (size_t ki=0; ki<funs2.size(); ++ki)
+    {
+      funs2[ki]->write(of2);
+      of2 << std::endl;
     }
 
   // That's it.
