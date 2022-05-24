@@ -950,17 +950,30 @@ int main(int argc, char *argv[])
       vector<double> AICinfo;
       vector<int> ncoef;
       approx->getAICInfo(AICinfo, ncoef);
-      std::ofstream ofAIC(AIC_file);
-      ofAIC.precision(10);
-      ofAIC << "For each iteration level the following is reported: " << std::endl;
-      ofAIC << "level, number of coefficients, Mahalanobix distance with students t-distribution, \n";
-      ofAIC << "AIC student t-distribution, Mahalanobix distance normal distribution, AIC normal distribution" << std::endl;
+    //   std::ofstream ofAIC(AIC_file);
+    //   ofAIC.precision(10);
+    //   ofAIC << "For each iteration level the following is reported: " << std::endl;
+    //   ofAIC << "level, number of coefficients, Mahalanobix distance with students t-distribution, \n";
+    //   ofAIC << "AIC student t-distribution, Mahalanobix distance normal distribution, AIC normal distribution" << std::endl;
+    //   for (size_t ki=0; ki<ncoef.size(); ++ki)
+    // 	{
+    // 	  ofAIC << ki << "\t" << ncoef[ki];
+    // 	  for (size_t kj=0; kj<4; ++kj)
+    // 	    ofAIC << "\t" << AICinfo[4*ki+kj];
+    // 	  ofAIC << std::endl;
+    // 	}
+    // }
+      FILE *ofAIC = fopen(AIC_file,"w");
+      fprintf(ofAIC,"For each iteration level the following is reported: \n ");
+      fprintf(ofAIC,"level, number of coefficients, Mahalanobix distance with students t-distribution, \n");
+      fprintf(ofAIC,"AIC student t-distribution, Mahalanobix distance normal distribution, AIC normal distribution \n");
+      fprintf(ofAIC,"BIC t-distribution, BIC normal distribution \n");
       for (size_t ki=0; ki<ncoef.size(); ++ki)
 	{
-	  ofAIC << ki << "\t" << ncoef[ki];
-	  for (size_t kj=0; kj<4; ++kj)
-	    ofAIC << "\t" << AICinfo[4*ki+kj];
-	  ofAIC << std::endl;
+	  fprintf(ofAIC,"%d \t %d", ki, ncoef[ki]);
+	  for (size_t kj=0; kj<6; ++kj)
+	    fprintf(ofAIC,"\t %10.2f", AICinfo[6*ki+kj]);
+	  fprintf(ofAIC,"\n");
 	}
     }
  

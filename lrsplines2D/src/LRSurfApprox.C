@@ -586,7 +586,8 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   if (compute_AIC_)
     {
       vector<double> residual;
-      residual.reserve(points_.size()+sign_points_.size());
+      int npt = nmb_pts_ + nmb_sign_;
+      residual.reserve(npt);
       int dim = srf_->dimension();
       int del2 = dim + 3; // Parameter pair, point and distance
       for (LRSplineSurface::ElementMap::const_iterator it=srf_->elementsBegin();
@@ -607,6 +608,8 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 	  for (ka=0, curr=&points[0]; ka<nmb_all; ++ka)
 	    {
 	      residual.push_back(curr[del2-1]);
+	  //     int sgn = (curr[del2-1] < 0.0) ? -1 : 1;
+	  // residual.push_back(sgn*std::max(aepsge_, fabs(curr[del2-1])));
 	      if (ka == nmb_pts-1 && nmb_all > nmb_pts)
 		curr = &sign_points[0];
 	      else
@@ -626,10 +629,14 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
       double AIC2 = 2.0*(ncoef - loglh2);
       double AICn = 2.0*(ncoef - logn);
       double AICn2 = 2.0*(ncoef - logn2);
+      double BIC = -2.0*loglh2 + log(npt)*ncoef;
+      double BICn = -2.0*logn2 + log(npt)*ncoef;
       AIC_.push_back(loglh2);
       AIC_.push_back(AIC2);
       AIC_.push_back(logn2);
       AIC_.push_back(AICn2);
+      AIC_.push_back(BIC);
+      AIC_.push_back(BICn);
       ncoef_.push_back(ncoef);
     }
   
@@ -1002,7 +1009,8 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   if (compute_AIC_)
     {
       vector<double> residual;
-      residual.reserve(points_.size()+sign_points_.size());
+      int npt = nmb_pts_ + nmb_sign_;
+      residual.reserve(npt);
       int dim = srf_->dimension();
       int del2 = dim + 3; // Parameter pair, point and distance
       for (LRSplineSurface::ElementMap::const_iterator it=srf_->elementsBegin();
@@ -1042,10 +1050,14 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
       double AIC2 = 2.0*(ncoef - loglh2);
       double AICn = 2.0*(ncoef - logn);
       double AICn2 = 2.0*(ncoef - logn2);
+      double BIC = -2.0*loglh2 + log(npt)*ncoef;
+      double BICn = -2.0*logn2 + log(npt)*ncoef;
       AIC_.push_back(loglh2);
       AIC_.push_back(AIC2);
       AIC_.push_back(logn2);
       AIC_.push_back(AICn2);
+      AIC_.push_back(BIC);
+      AIC_.push_back(BICn);
       ncoef_.push_back(ncoef);
     }
   

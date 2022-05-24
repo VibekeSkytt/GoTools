@@ -124,6 +124,8 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tmp)
 if (GoTools_COPY_DATA)
   FILE(COPY ${CMAKE_CURRENT_SOURCE_DIR}/../gotools-data/lrsplines2D/data
     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+  FILE(COPY ${GoLRspline2D_SOURCE_DIR}/../gotools-data/lrsplines2D/examples/data
+    DESTINATION ${GoLRspline2D_BINARY_DIR}/examples)
 endif()
 
 # 'install' target

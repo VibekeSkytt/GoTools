@@ -910,10 +910,10 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 	  bool inside = isInside(pnt, normal, pt_dist);
 	  shared_ptr<ParamSurface> tmp_surf(surf->clone());
 	  shared_ptr<ftSurface> tmp_face(new ftSurface(tmp_surf, -1));
-	  if (faces_[ki]->asFtSurface()->hasBoundaryConditions())
+	  if (faces[ki]->asFtSurface()->hasBoundaryConditions())
 	    {
 	      int bd_cond_type, bd_cond;
-	      faces_[ki]->asFtSurface()->getBoundaryConditions(bd_cond_type, bd_cond);
+	      faces[ki]->asFtSurface()->getBoundaryConditions(bd_cond_type, bd_cond);
 	      tmp_face->setBoundaryConditions(bd_cond_type, bd_cond);
 	    }
 	  if (inside)
@@ -974,10 +974,10 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 	      double pt_dist;
 	      bool inside = isInside(pnt, normal, pt_dist);
 	      shared_ptr<ftSurface> tmp_face(new ftSurface(trim_sfs[kr], -1));
-	      if (faces_[ki]->asFtSurface()->hasBoundaryConditions())
+	      if (faces[ki]->asFtSurface()->hasBoundaryConditions())
 		{
 		  int bd_cond_type, bd_cond;
-		  faces_[ki]->asFtSurface()->getBoundaryConditions(bd_cond_type, bd_cond);
+		  faces[ki]->asFtSurface()->getBoundaryConditions(bd_cond_type, bd_cond);
 		  tmp_face->setBoundaryConditions(bd_cond_type, bd_cond);
 		}
 	      if (inside)
@@ -987,10 +987,10 @@ shared_ptr<SurfaceModel> SurfaceModel::trimWithPlane(const ftPlane& plane)
 		  //   {
 		  //     shared_ptr<ParamSurface> tmp_surf2(trim_sfs[kr]->clone());
 		  //     shared_ptr<ftSurface> tmp_face2(new ftSurface(tmp_surf2, -1));
-		  //     if (faces_[ki]->asFtSurface()->hasBoundaryConditions())
+		  //     if (faces[ki]->asFtSurface()->hasBoundaryConditions())
 		  // 	{
 		  // 	  int bd_cond_type, bd_cond;
-		  // 	  faces_[ki]->asFtSurface()->getBoundaryConditions(bd_cond_type, bd_cond);
+		  // 	  faces[ki]->asFtSurface()->getBoundaryConditions(bd_cond_type, bd_cond);
 		  // 	  tmp_face2->setBoundaryConditions(bd_cond_type, bd_cond);
 		  // 	}
 		  //     outside2.push_back(tmp_face2);

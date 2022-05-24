@@ -37,51 +37,43 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#include "GoTools/lrsplines2D/LRSplineSurface.h"
-#include "GoTools/geometry/SplineSurface.h"
+#include "GoTools/utils/config.h"
+#include "GoTools/geometry/PointCloud.h"
+#include "GoTools/geometry/FileUtils.h"
+#include "GoTools/utils/Array.h"
 #include "GoTools/geometry/ObjectHeader.h"
-#include "GoTools/lrsplines2D/LRSplinePlotUtils.h"
+#include "GoTools/lrsplines2D/LRSplineSurface.h"
+#include "GoTools/lrsplines2D/LRSurfApprox.h"
+#include "GoTools/lrsplines2D/LRApproxApp.h"
+
+#include <iostream>
 #include <fstream>
-#include <stdlib.h> // For atof()
 
-using namespace std;
 using namespace Go;
+using std::cout;
 
+//===========================================================================
+//                                                                           
+/// Description:
+///  
+/// This programs reads a point cloud (.txt), parameterizes the points by
+/// their x- and y-coordintes and approximates the z-coordinate with an
+/// LR B-spline surface. Appropriate parameters are defined.
+///
+/// The application gotools/lrsplines2D/app/PointCloud2LR performs the
+/// corresponding functionality with user defined point cloud and
+/// parameters.
+///
+/// Input/output
+/// The input point cloud is read from a hardcoded file. Parameters are
+/// hardcoded. The produced surface is written to the file data/surface.g2
+///
+//===========================================================================
 int main( int argc, char* argv[] )
 {
-  if (argc != 3 && argc != 4) {
-    std::cout << "Input parameters : Input file, output file (only LR mesh output 0/1)"  << std::endl;
-    exit(-1);
-  }
+  // Prepare for output file
+  std::string outfile1("data/surface.g2");
 
-  // Read input arguments
-  std::ifstream file1(argv[1]);
-  ALWAYS_ERROR_IF(file1.bad(), "Input file not found or file corrupt");
-
-  std::ofstream file2(argv[2]);
-  bool only_mesh = false;
-  if (argc == 4)
-    only_mesh = (atoi(argv[3]));
-
-  // Read lrspline surface
-  ObjectHeader header;
-  header.read(file1);
-  shared_ptr<LRSplineSurface> surf(new LRSplineSurface());
-  surf->read(file1);
-  
-  std::ofstream ofmesh1("mesh1.eps");
-  writePostscriptMesh(*surf, ofmesh1);
-
-
-  if (!only_mesh)
-    {
-      shared_ptr<SplineSurface> splsf(surf->asSplineSurface());
-      splsf->writeStandardHeader(file2);
-      splsf->write(file2);
-      
-      shared_ptr<LRSplineSurface> surf2(new LRSplineSurface(splsf.get(), 1.0e-8));
-      std::ofstream ofmesh2("mesh2.eps");
-      writePostscriptMesh(*surf2, ofmesh2);
-    }
 }
 
+  
