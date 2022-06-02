@@ -93,7 +93,7 @@ LRBSpline2D::LRBSpline2D(const LRBSpline2D& rhs)
   rational_ = rhs.rational_;
   // don't copy the support
   weight_ = rhs.weight_;
-
+  overload_ = rhs.overload_;
 }
 
 //==============================================================================
@@ -180,6 +180,7 @@ void LRBSpline2D::write(ostream& os) const
   bspline_v_->read(is);
 
   coef_fixed_ = 0;
+  overload_ = false;
 }
 
 
@@ -236,6 +237,7 @@ void LRBSpline2D::write(ostream& os) const
   bspline_v_->incrCount();
   
   coef_fixed_ = 0;
+  overload_ = false;
 }
 
 //==============================================================================
@@ -527,6 +529,39 @@ bool LRBSpline2D::overlaps(Element2D *el) const
   return true;
 }
 
+//==============================================================================
+bool LRBSpline2D::covers(double domain[]) const
+//==============================================================================
+{
+  // Does it make sense to include equality?
+  if (domain[0] < umin())
+    return false;
+  if (domain[1] > umax())
+    return false;
+  if (domain[2] < vmin())
+    return false;
+  if (domain[3] > vmax())
+    return false;
+  
+  return true;
+}
+
+//==============================================================================
+bool LRBSpline2D::covers(LRBSpline2D *bsp) const
+//==============================================================================
+{
+  // Does it make sense to include equality?
+  if (bsp->umin() < umin())
+    return false;
+  if (bsp->umax() > umax())
+    return false;
+  if (bsp->vmin() < vmin())
+    return false;
+  if (bsp->vmax() > vmax())
+    return false;
+  
+  return true;
+}
 
 //==============================================================================
 bool LRBSpline2D::addSupport(Element2D *el)
@@ -582,6 +617,19 @@ std::vector<Element2D*>::iterator LRBSpline2D::supportedElementEnd()
 //==============================================================================
 {
   return support_.end();
+}
+
+//==============================================================================
+bool LRBSpline2D::checkOverload()
+//==============================================================================
+{
+  bool overload = true;
+  for (size_t ki=0; ki<support_.size(); ++ki)
+    if (!support_[ki]->getOverload())
+      overload = false;
+
+  overload_ = overload;
+  return overload;
 }
 
 //==============================================================================

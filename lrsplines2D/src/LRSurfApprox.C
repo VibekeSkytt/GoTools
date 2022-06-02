@@ -778,11 +778,91 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 	    useMBA_ = true;  // Left side matrix too large
 	}
   
-//       // Check for linear independence (overloading)
-//       vector<LRBSpline2D*> funs = LinDepUtils::unpeelableBasisFunctions(*srf_);
-// #ifdef DEBUG
-//       std::cout << "Number of unpeelable functions: " << funs.size() << std::endl;
-// #endif
+      // Check for linear independence (overloading)
+      vector<LRBSpline2D*> funs = LinDepUtils::unpeelableBasisFunctions(*srf_);
+      std::cout << "Number of unpeelable functions0: " << funs.size() << std::endl;
+      // for (size_t kr=0; kr<funs.size(); ++kr)
+      // 	std::cout << funs[kr] << " " << std::endl;
+      // std::cout << std::endl;
+      // vector<LRBSpline2D*> funs2 = fetchUnpeelable();
+      
+      // //#ifdef DEBUG
+      // std::cout << "Number of unpeelable functions: " << funs2.size() << std::endl;
+      // for (size_t kr=0; kr<funs2.size(); ++kr)
+      // 	std::cout << funs2[kr] << " " << std::endl;
+      // std::cout << std::endl;
+      
+      std::string extension = ".g2";
+      std::string ver = std::to_string(ki+1);
+      if (funs.size() >= 8)
+	{
+	  vector<vector<LRBSpline2D*> > lindep;
+	  checkOverloaded(8, funs, lindep);
+	  if (lindep.size() > 0)
+	    {
+	      std::string body = "lindep";
+	      std::string body3 = "lindep2_";
+	      std::string outfile = body + ver + extension;
+	      std::ofstream lin_out(outfile.c_str());
+	      std::string outfile3 = body3 + ver + extension;
+	      std::ofstream lin_out3(outfile3.c_str());
+	      for (size_t kr=0; kr<lindep.size(); ++kr)
+		{
+		  std::cout << "Number of B-splines in relation: " << lindep[kr].size() << std::endl;
+		  LRBSpline2D *cb = lindep[kr][0];
+		  lin_out << "410 1 0 4 0 0 0 255" << std::endl;
+		  lin_out << "4" << std::endl;
+		  lin_out << cb->umin() << " " << cb->vmin() << " 0 ";
+		  lin_out << cb->umax() << " " << cb->vmin() << " 0" << std::endl;
+		  lin_out << cb->umin() << " " << cb->vmin() << " 0 ";
+		  lin_out << cb->umin() << " " << cb->vmax() << " 0" << std::endl;
+		  lin_out << cb->umax() << " " << cb->vmin() << " 0 ";
+		  lin_out << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
+		  lin_out << cb->umin() << " " << cb->vmax() << " 0 ";
+		  lin_out << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
+		  
+		  lin_out3 << "410 1 0 4 0 0 0 255" << std::endl;
+		  lin_out3 << "4" << std::endl;
+		  lin_out3 << cb->umin() << " " << cb->vmin() << " 0 ";
+		  lin_out3 << cb->umax() << " " << cb->vmin() << " 0" << std::endl;
+		  lin_out3 << cb->umin() << " " << cb->vmin() << " 0 ";
+		  lin_out3 << cb->umin() << " " << cb->vmax() << " 0" << std::endl;
+		  lin_out3 << cb->umax() << " " << cb->vmin() << " 0 ";
+		  lin_out3 << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
+		  lin_out3 << cb->umin() << " " << cb->vmax() << " 0 ";
+		  lin_out3 << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
+		  for (size_t kh=1; kh<lindep[kr].size(); ++kh)
+		    {
+		      LRBSpline2D *cb3 = lindep[kr][kh];
+		      lin_out3 << "410 1 0 4 0 0 255 255" << std::endl;
+		      lin_out3 << "4" << std::endl;
+		      lin_out3 << cb3->umin() << " " << cb3->vmin() << " 0 ";
+		      lin_out3 << cb3->umax() << " " << cb3->vmin() << " 0" << std::endl;
+		      lin_out3 << cb3->umin() << " " << cb3->vmin() << " 0 ";
+		      lin_out3 << cb3->umin() << " " << cb3->vmax() << " 0" << std::endl;
+		      lin_out3 << cb3->umax() << " " << cb3->vmin() << " 0 ";
+		      lin_out3 << cb3->umax() << " " << cb3->vmax() << " 0" << std::endl;
+		      lin_out3 << cb3->umin() << " " << cb3->vmax() << " 0 ";
+		      lin_out3 << cb3->umax() << " " << cb3->vmax() << " 0" << std::endl;
+		    }
+		}
+	      lin_out << "410 1 0 4 0 100 155 255" << std::endl;
+	      lin_out << "4" << std::endl;
+	      lin_out << srf_->startparam_u() << " " << srf_->startparam_v() << " 0 ";
+	      lin_out << srf_->endparam_u() << " " << srf_->startparam_v() << " 0" << std::endl;
+	      lin_out << srf_->startparam_u() << " " << srf_->startparam_v() << " 0 ";
+	      lin_out << srf_->startparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
+	      lin_out << srf_->endparam_u() << " " << srf_->startparam_v() << " 0 ";
+	      lin_out << srf_->endparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
+	      lin_out << srf_->startparam_u() << " " << srf_->endparam_v() << " 0 ";
+	      lin_out << srf_->endparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
+	    }
+	}
+      std::string body2 = "mesh";
+      std::string outfile2 = body2 + ver + extension;
+      std::ofstream mesh_out(outfile2.c_str());
+      writeg2Mesh(*srf_, mesh_out);
+      //#endif
      
       // Construct additional ghost points in elements with a low
       // distribution of points
@@ -6769,4 +6849,257 @@ void LRSurfApprox::turnTo3D()
   
   // Turn surface into 3D
   srf_->to3D();
+}
+
+//==============================================================================
+vector<LRBSpline2D*> LRSurfApprox::fetchUnpeelable()
+//==============================================================================
+{
+  vector<LRBSpline2D*> fun;
+  
+  // Initialize elements
+  bool overload = false;
+  int nmb_el_init = 0;
+  for (auto it1=srf_->elementsBegin(); it1!=srf_->elementsEnd(); ++it1)
+    {
+      bool found = it1->second->initOverload();
+      if (found)
+	{
+	  overload = true;
+	  nmb_el_init++;
+	}
+    }
+
+  if (!overload)
+    return fun;
+
+  // Initialize B-splines
+  overload = false;
+  int nmb_bspl_init = 0;
+  for (auto it2=srf_->basisFunctionsBegin(); it2!=srf_->basisFunctionsEnd(); ++it2)
+    {
+      bool found = it2->second->checkOverload();
+      if (found)
+	{
+	  overload = true;
+	  nmb_bspl_init++;
+	}
+    }
+
+  if (!overload)
+    return fun;
+
+  // std::ofstream of1("overload_cand2_0.g2");
+  // for (auto it2=srf_->basisFunctionsBegin(); it2!=srf_->basisFunctionsEnd(); ++it2)
+  //   {
+  //     bool curr = it2->second->getOverload();
+  //     if (curr)
+  // 	{
+  // 	  std::cout << it2->second.get() << std::endl;
+  // 	  LRBSpline2D *cand = it2->second.get();
+  // 	  of1 << "410 1 0 4 255 0 0 255" << std::endl;
+  // 	  of1 << "4" << std::endl;
+  // 	  of1 << cand->umin() << " " << cand->vmin() << " 0 ";
+  // 	  of1 << cand->umax() << " " << cand->vmin() << " 0" << std::endl;
+  // 	  of1 << cand->umin() << " " << cand->vmin() << " 0 ";
+  // 	  of1 << cand->umin() << " " << cand->vmax() << " 0" << std::endl;
+  // 	  of1 << cand->umax() << " " << cand->vmin() << " 0 ";
+  // 	  of1 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
+  // 	  of1 << cand->umin() << " " << cand->vmax() << " 0 ";
+  // 	  of1 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
+  // 	}
+  //    }
+  // std::cout << std::endl;
+  // writeg2Mesh(*srf_, of1);
+
+
+  bool changed = true;
+  while (changed)
+    {
+      changed = false;
+
+      // Reset element flag
+      overload = false;
+      for (auto it1=srf_->elementsBegin(); it1!=srf_->elementsEnd(); ++it1)
+	{
+	  bool curr = it1->second->getOverload();
+	  if (curr)
+	    {
+	      bool found = it1->second->resetOverload();
+	      if (found)
+		overload = true;
+	      if (curr != found)
+		changed = true;
+	    }
+	}
+
+      // if (!overload)
+      // 	break;
+      // if (!changed)
+      // 	break;
+
+      // // Reset B-spline flag
+      // overload = false;
+      // for (auto it2=srf_->basisFunctionsBegin(); it2!=srf_->basisFunctionsEnd(); ++it2)
+      // 	{
+      // 	  bool curr = it2->second->getOverload();
+      // 	  if (curr)
+      // 	    {
+      // 	      bool found = it2->second->checkOverload();
+      // 	      if (found)
+      // 		overload = true;
+      // 	      if (curr != found)
+      // 		changed = true;
+      // 	    }
+      // 	}
+    }
+      
+  // std::ofstream of2("overload_cand2_1.g2");
+  // for (auto it2=srf_->basisFunctionsBegin(); it2!=srf_->basisFunctionsEnd(); ++it2)
+  //   {
+  //     bool curr = it2->second->getOverload();
+  //     if (curr)
+  // 	{
+  // 	  std::cout << it2->second.get() << std::endl;
+  // 	  LRBSpline2D *cand = it2->second.get();
+  // 	  of2 << "410 1 0 4 255 0 0 255" << std::endl;
+  // 	  of2 << "4" << std::endl;
+  // 	  of2 << cand->umin() << " " << cand->vmin() << " 0 ";
+  // 	  of2 << cand->umax() << " " << cand->vmin() << " 0" << std::endl;
+  // 	  of2 << cand->umin() << " " << cand->vmin() << " 0 ";
+  // 	  of2 << cand->umin() << " " << cand->vmax() << " 0" << std::endl;
+  // 	  of2 << cand->umax() << " " << cand->vmin() << " 0 ";
+  // 	  of2 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
+  // 	  of2 << cand->umin() << " " << cand->vmax() << " 0 ";
+  // 	  of2 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
+  // 	}
+  //    }
+  // std::cout << std::endl;
+  // writeg2Mesh(*srf_, of2);
+
+  if (overload)
+    {
+      // Collect overloaded B-splines
+      for (auto it2=srf_->basisFunctionsBegin(); it2!=srf_->basisFunctionsEnd(); ++it2)
+	{
+	  bool curr = it2->second->getOverload();
+	  if (curr)
+	    fun.push_back(it2->second.get());
+	}
+    }
+
+  // Reset flags
+  for (auto it1=srf_->elementsBegin(); it1!=srf_->elementsEnd(); ++it1)
+    it1->second->eraseOverload();
+  for (auto it2=srf_->basisFunctionsBegin(); it2!=srf_->basisFunctionsEnd(); ++it2)
+    it2->second->eraseOverload();
+
+  return fun;
+}
+
+//==============================================================================
+void LRSurfApprox::checkOverloaded(int minNmb, vector<LRBSpline2D*>& funs,
+				   vector<vector<LRBSpline2D*> >& lindep)
+//==============================================================================
+{
+  // Check input
+  size_t nmb_funs = funs.size();
+  while (true)
+    {
+      nmb_funs = funs.size();
+      for (size_t ki=0; ki<funs.size(); )
+	{
+	  bool missing = false;
+	  for (auto it1=funs[ki]->supportedElementBegin();
+	       it1!=funs[ki]->supportedElementEnd(); ++it1)
+	    {
+	      // Count overloaded B-splines
+	      int nmb_overload = 0;
+	      for (auto it2=(*it1)->supportBegin(); it2!=(*it1)->supportEnd(); ++it2)
+		{
+		  size_t kh=0;
+		  for (kh=0; kh<funs.size(); ++kh)
+		    if ((*it2) == funs[kh])
+		      break;
+		  if (kh < funs.size())
+		    nmb_overload++;
+		}
+	      if (nmb_overload < 2)
+		{
+		  //std::cout << "Missing element overload" << std::endl;
+		  missing = true;
+		  break;
+		}
+	    }
+	  if (missing)
+	    funs.erase(funs.begin()+ki);
+	  else
+	    ++ki;
+	}
+      std::cout << "Curr nmb funs: " << funs.size() << std::endl;
+      if (funs.size() == nmb_funs)
+	break;
+    }
+
+  if (funs.size() < minNmb)
+    return;
+  
+  std::ofstream of("overloaded.g2");
+  for (size_t ki=0; ki<funs.size(); ++ki)
+    {
+      of << "410 1 0 4 255 0 0 255" << std::endl;
+      of << "4" << std::endl;
+      of << funs[ki]->umin() << " " << funs[ki]->vmin() << " 0 ";
+      of << funs[ki]->umax() << " " << funs[ki]->vmin() << " 0" << std::endl;
+      of << funs[ki]->umin() << " " << funs[ki]->vmin() << " 0 ";
+      of << funs[ki]->umin() << " " << funs[ki]->vmax() << " 0" << std::endl;
+      of << funs[ki]->umax() << " " << funs[ki]->vmin() << " 0 ";
+      of << funs[ki]->umax() << " " << funs[ki]->vmax() << " 0" << std::endl;
+      of << funs[ki]->umin() << " " << funs[ki]->vmax() << " 0 ";
+      of << funs[ki]->umax() << " " << funs[ki]->vmax() << " 0" << std::endl;
+    }
+  writeg2Mesh(*srf_, of);
+  
+  for (size_t ki=0; ki<funs.size(); ++ki)
+    {
+      // Find all B-splines with support completely inside the support of
+      // this B-spline and count how many are overloaded
+      vector<LRBSpline2D*> inside;
+      inside.push_back(funs[ki]);
+      for (auto it1=funs[ki]->supportedElementBegin();
+	   it1!=funs[ki]->supportedElementEnd(); ++it1)
+	{
+	  for (auto it2=(*it1)->supportBegin(); it2!=(*it1)->supportEnd(); ++it2)
+	    {
+	      if (*it2 == funs[ki])
+		continue;
+	      if (funs[ki]->covers(*it2))
+		{
+		  // Check for overload
+		  size_t kh=0;
+		  for (kh=0; kh<funs.size(); ++kh)
+		    if ((*it2) == funs[kh])
+		      break;
+		  if (kh < funs.size())
+		    {
+		      // Check for multiplicity
+		      size_t kr;
+		      for (kr=0; kr<inside.size(); ++kr)
+			if ((*it2) == inside[kr])
+			  break;
+		      if (kr == inside.size())
+			inside.push_back(*it2);
+		    }
+		}
+	    }
+	}
+      if ((int)inside.size() >= minNmb)
+	lindep.push_back(inside);
+    }
+  std::cout << "Number of linear dependency sources: " << lindep.size() << std::endl;
+  // for (size_t kj=0; kj<lindep.size(); ++kj)
+  //   {
+  //     std::cout << lindep[kj][0]->umin() << " " << lindep[kj][0]->umax() << " ";
+  //     std::cout << lindep[kj][0]->vmin() << " " << lindep[kj][0]->vmax() << std::endl;
+  //   }
 }

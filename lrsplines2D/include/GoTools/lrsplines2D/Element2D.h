@@ -541,10 +541,32 @@ public:
    /// Modify the end of the element domain in the second parameter direction
    void setVmax(double v)                           { stop_v_  = v; };
 
-   bool isOverloaded() const;
-   void resetOverloadCount()    { overloadCount_ = 0;      }
-   int incrementOverloadCount() { return overloadCount_++; }
-   int getOverloadCount() const { return overloadCount_;   }
+   bool isOverloaded();
+   bool initOverload()
+   {
+     if (isOverloaded())
+       overload_ = true;
+     return overload_;
+   }
+   
+   void setOverload(bool overload)
+   {
+     overload_ = overload;
+   }
+   bool getOverload()
+   {
+     return overload_;
+   }
+
+   bool resetOverload();
+  void eraseOverload()
+  {
+    overload_ = false;
+  }
+   
+   // void resetOverloadCount()    { overloadCount_ = 0;      }
+   // int incrementOverloadCount() { return overloadCount_++; }
+   // int getOverloadCount() const { return overloadCount_;   }
 
 
    void updateBasisPointers(std::vector<LRBSpline2D*> &basis) ;
@@ -944,13 +966,12 @@ private:
 
 	std::vector<LRBSpline2D*> support_;
 
-	int overloadCount_ ;
-
 	bool is_modified_;
 
 	// Information used in the context of least squares approximation
 	// with smoothing
 	mutable shared_ptr<LSSmoothData> LSdata_;
+   mutable bool overload_;
 
 	// Get the evaluations of the Bernstein functions up to given degree.
 	// The evaluation of the j-th Bernstein function of degree i will be

@@ -93,7 +93,8 @@ class LRBSpline2D : public Streamable
     gamma_(gamma),
     bspline_u_(bspline_u),
     bspline_v_(bspline_v),
-    coef_fixed_(0)
+      coef_fixed_(0),
+      overload_(false)
     {
       bspline_u_->incrCount();
       bspline_v_->incrCount();
@@ -112,6 +113,7 @@ class LRBSpline2D : public Streamable
     std::swap(bspline_u_, rhs.bspline_u_);
     std::swap(bspline_v_, rhs.bspline_v_);
     std::swap(coef_fixed_,rhs.coef_fixed_);
+    std::swap(overload_,rhs.overload_);
   }
 
   /// Destructor
@@ -369,6 +371,9 @@ class LRBSpline2D : public Streamable
   bool overlaps(Element2D *el) const;
   /// Check if the support of this B-spline overlaps the given domain: umin, umax, vmin, wmax.
     bool overlaps(double domain[]) const;
+  /// Check if the support of this B-spline cover the given domain: umin, umax, vmin, wmax.
+    bool covers(double domain[]) const;
+    bool covers(LRBSpline2D* bsp) const;
   /// Add element to vector of elements in the support
   bool addSupport(Element2D *el) ;
   /// Remove element from vector of elements in the support
@@ -416,6 +421,16 @@ class LRBSpline2D : public Streamable
     return dynamic_cast<const Mesh2D*>(bspline_u_->getMesh());
   }
 
+  bool getOverload()
+  {
+    return overload_;
+  }
+
+  bool checkOverload();
+  void eraseOverload()
+  {
+    overload_ = false;
+  }
 
   // -----------------
   // --- OPERATORS ---
@@ -474,6 +489,7 @@ class LRBSpline2D : public Streamable
   /// \return          a vector with the coefficients
   std::vector<double> unitIntervalBernsteinBasis(double start, double stop, Direction2D d) const;
 
+  mutable bool overload_;
 }; // end class LRBSpline2D
 
  inline std::ostream& operator<<(std::ostream& os, const LRBSpline2D& b) {b.write(os); return os;}

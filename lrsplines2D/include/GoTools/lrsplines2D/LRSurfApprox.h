@@ -725,6 +725,11 @@ private:
 
     // Turn function into a 3D surface
     void turnTo3D();
+
+  std::vector<LRBSpline2D*> fetchUnpeelable();
+  
+  void checkOverloaded(int minNmb, std::vector<LRBSpline2D*>& funs,
+		       std::vector<std::vector<LRBSpline2D*> >& lindep);
 };
 
 }  // namespace Go

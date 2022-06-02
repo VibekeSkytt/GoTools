@@ -163,28 +163,19 @@ struct MeshRectangle {
   // (FIM).
   // ============================================================================
   void construct_first_incidence_matrix( const LRSplineSurface& lrs,
-					 const ElementIndexMap& MImap, 
-					 const BsplineIndexMap& BSmap,
-					 IncidenceMatrix& m1, 
-					 IncidenceMatrix& b1,
-					 vector<pair<Element2D*, vector<LRBSpline2D*> > >& elem_bspl,
-					 vector<pair<LRBSpline2D*, vector<Element2D*> > >& bspl_elem)
+      const ElementIndexMap& MImap, 
+      const BsplineIndexMap& BSmap,
+      IncidenceMatrix& m1, 
+      IncidenceMatrix& b1 )
   {
     // Initialize the Element/Column-wise storage (m1) of the FIM, the
     // B-spline/Row-wise storage (b1) of FIM, and fill in data by
     // looping over first elements and then B-splines.
     m1.resize( lrs.numElements() );
     b1.resize( lrs.numBasisFunctions() );
-    elem_bspl.resize(lrs.numElements());
-    bspl_elem.resize(lrs.numBasisFunctions());
-    int ix_elem = 0;
-    for (auto it_el=lrs.elementsBegin();
+    for (LRSplineSurface::ElementMap::const_iterator it_el=lrs.elementsBegin();
         it_el!=lrs.elementsEnd(); ++it_el) { // Loop 0: over elements.
       Index in_el = MImap.at(it_el->second.get());
-      vector<LRBSpline2D*> tmp(it_el->second->supportBegin(),
-			      it_el->second->supportEnd());
-      elem_bspl[ix_elem] = make_pair(it_el->second.get(), tmp);
-      ++ix_elem;
       for (vector<LRBSpline2D*>::const_iterator it_bs = 
 	     it_el->second->supportBegin();
 	   it_bs != it_el->second->supportEnd(); ++it_bs)
@@ -196,14 +187,6 @@ struct MeshRectangle {
 	  b1[in_bs].push_back(in_el);
 	}
     }
-    int ix_bspl = 0;
-    for (auto it_bspl=lrs.basisFunctionsBegin(); it_bspl!=lrs.basisFunctionsEnd(); ++it_bspl)
-      {
-	vector<Element2D*> tmp(it_bspl->second->supportedElementBegin(),
-			       it_bspl->second->supportedElementEnd());
-	bspl_elem[ix_bspl] = make_pair(it_bspl->second.get(), tmp);
-	++ix_bspl;
-      }
     return;
   }
 
@@ -468,9 +451,7 @@ struct MeshRectangle {
     const ElementIndexMap MImap = construct_elementindex_map( lrs );
     const BsplineIndexMap BSmap = construct_bsplineindex_map( lrs );
     IncidenceMatrix m1, b1;
-    vector<pair<Element2D*, vector<LRBSpline2D*> > > elem_bspl;
-    vector<pair<LRBSpline2D*, vector<Element2D*> > > bspl_elem;
-    construct_first_incidence_matrix( lrs, MImap, BSmap, m1, b1, elem_bspl, bspl_elem);
+    construct_first_incidence_matrix( lrs, MImap, BSmap, m1, b1);
     // Define the maximum number of B-splines allowed on an element
     // defining overloading, initiate empty element (ele_is_on) and
     // B-spline (fun_is_on) SwitchVectors, peel away all
@@ -486,29 +467,27 @@ struct MeshRectangle {
     if ( num_entries ==0 )
       return result;
     
-    // std::ofstream of1("overload_cand1_0.g2");
-    // for (BsplineIndexMap::const_iterator it_bs=BSmap.begin();
-    // 	 it_bs!=BSmap.end(); ++it_bs)   // Loop over: B-splines
-    //   {
-    // 	Index ix = it_bs->second;
-    //   if (fun_is_on[ix]==ON)      // If this function is ON ...
-    // 	{
-    // 	  std::cout << it_bs->first << " " << std::endl;
-    // 	  LRBSpline2D *cand = it_bs->first;
-    // 	  of1 << "410 1 0 4 255 0 0 255" << std::endl;
-    // 	  of1 << "4" << std::endl;
-    // 	  of1 << cand->umin() << " " << cand->vmin() << " 0 ";
-    // 	  of1 << cand->umax() << " " << cand->vmin() << " 0" << std::endl;
-    // 	  of1 << cand->umin() << " " << cand->vmin() << " 0 ";
-    // 	  of1 << cand->umin() << " " << cand->vmax() << " 0" << std::endl;
-    // 	  of1 << cand->umax() << " " << cand->vmin() << " 0 ";
-    // 	  of1 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
-    // 	  of1 << cand->umin() << " " << cand->vmax() << " 0 ";
-    // 	  of1 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
-    // 	}
-    //   }
-    // std::cout << std::endl;
-    // writeg2Mesh(lrs, of1);
+    std::ofstream of1("overload_cand1_0.g2");
+    Index int_bs0 = 0;
+    for (BsplineIndexMap::const_iterator it_bs=BSmap.begin();
+	 it_bs!=BSmap.end(); ++it_bs)   // Loop over: B-splines
+      if (fun_is_on[int_bs0++]==ON)      // If this function is ON ...
+	{
+	  std::cout << it_bs->first << " " << std::endl;
+	  LRBSpline2D *cand = it_bs->first;
+	  of1 << "410 1 0 4 255 0 0 255" << std::endl;
+	  of1 << "4" << std::endl;
+	  of1 << cand->umin() << " " << cand->vmin() << " 0 ";
+	  of1 << cand->umax() << " " << cand->vmin() << " 0" << std::endl;
+	  of1 << cand->umin() << " " << cand->vmin() << " 0 ";
+	  of1 << cand->umin() << " " << cand->vmax() << " 0" << std::endl;
+	  of1 << cand->umax() << " " << cand->vmin() << " 0 ";
+	  of1 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
+	  of1 << cand->umin() << " " << cand->vmax() << " 0 ";
+	  of1 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
+	}
+    std::cout << std::endl;
+    writeg2Mesh(lrs, of1);
     std::cout << "Num first preliminary overloads: " << num_entries << std::endl;
     
     // If we have reached this point, there ARE overloaded B-splines.
@@ -530,32 +509,29 @@ struct MeshRectangle {
     // return, if we have peeled all, i.e., if there are NO unpeelable
     // overloaded B-splines.
 
-    // std::ofstream of2("overload_cand1_1.g2");
-    // int num = 0;
-    // for (BsplineIndexMap::const_iterator it_bs=BSmap.begin();
-    // 	 it_bs!=BSmap.end(); ++it_bs)   // Loop over: B-splines
-    //   {
-    // 	Index ix = it_bs->second;
-    //   if (fun_is_on[ix]==ON)      // If this function is ON ...
-    // 	{
-    // 	  ++num;
-    // 	  std::cout << it_bs->first << " " << std::endl;
-    // 	  LRBSpline2D *cand = it_bs->first;
-    // 	  of2 << "410 1 0 4 255 0 0 255" << std::endl;
-    // 	  of2 << "4" << std::endl;
-    // 	  of2 << cand->umin() << " " << cand->vmin() << " 0 ";
-    // 	  of2 << cand->umax() << " " << cand->vmin() << " 0" << std::endl;
-    // 	  of2 << cand->umin() << " " << cand->vmin() << " 0 ";
-    // 	  of2 << cand->umin() << " " << cand->vmax() << " 0" << std::endl;
-    // 	  of2 << cand->umax() << " " << cand->vmin() << " 0 ";
-    // 	  of2 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
-    // 	  of2 << cand->umin() << " " << cand->vmax() << " 0 ";
-    // 	  of2 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
-    // 	}
-    //   }
-    // std::cout << std::endl;
-    // writeg2Mesh(lrs, of2);
-    int num = numEntriesOn(fun_is_on);
+    std::ofstream of2("overload_cand1_1.g2");
+    int num = 0;
+    int_bs0 = 0;
+    for (BsplineIndexMap::const_iterator it_bs=BSmap.begin();
+	 it_bs!=BSmap.end(); ++it_bs)   // Loop over: B-splines
+      if (fun_is_on[int_bs0++]==ON)      // If this function is ON ...
+	{
+	  ++num;
+	  std::cout << it_bs->first << " " << std::endl;
+	  LRBSpline2D *cand = it_bs->first;
+	  of2 << "410 1 0 4 255 0 0 255" << std::endl;
+	  of2 << "4" << std::endl;
+	  of2 << cand->umin() << " " << cand->vmin() << " 0 ";
+	  of2 << cand->umax() << " " << cand->vmin() << " 0" << std::endl;
+	  of2 << cand->umin() << " " << cand->vmin() << " 0 ";
+	  of2 << cand->umin() << " " << cand->vmax() << " 0" << std::endl;
+	  of2 << cand->umax() << " " << cand->vmin() << " 0 ";
+	  of2 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
+	  of2 << cand->umin() << " " << cand->vmax() << " 0 ";
+	  of2 << cand->umax() << " " << cand->vmax() << " 0" << std::endl;
+	}
+    std::cout << std::endl;
+    writeg2Mesh(lrs, of2);
     std::cout << "Num preliminary overloads: " << num << std::endl;
 
     const MeshRectangleIndexMap MRImap = construct_meshrectangleindex_map( lrs );    
@@ -565,13 +541,11 @@ struct MeshRectangle {
       return result;
     // If we have reached this point, there ARE unpeelable overloaded
     // B-splines. We therefore return these.
+    Index int_bs = 0;
     for (BsplineIndexMap::const_iterator it_bs=BSmap.begin();
 	 it_bs!=BSmap.end(); ++it_bs)   // Loop over: B-splines
-      {
-	Index ix = it_bs->second;
-      if (fun_is_on[ix]==ON)      // If this function is ON ...
+      if (fun_is_on[int_bs++]==ON)      // If this function is ON ...
         result.push_back(it_bs->first); // ... add it to the list of functions
-      }
     return result;
   }
 
