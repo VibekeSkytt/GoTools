@@ -73,6 +73,7 @@ using std::cout;
 using std::endl;
 using std::pair;
 using std::make_pair;
+using std::map;
 using namespace Go;
 
 //==============================================================================
@@ -420,6 +421,10 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 #endif
   int div = 1; //(alter) ? 2 : 1;
   int currdiv = (alter_) ? 1 : 3;
+
+  bool checklindep = true;
+  bool fixlindep = true; //false;
+  int nmbitlindep = 10;
 
   if (srf_->dimension() == 3 && initial_surface_)
     {
@@ -777,93 +782,209 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 	  if (srf_->numBasisFunctions() >= maxLScoef_)
 	    useMBA_ = true;  // Left side matrix too large
 	}
-  
-      // Check for linear independence (overloading)
-      vector<LRBSpline2D*> funs = LinDepUtils::unpeelableBasisFunctions(*srf_);
-      std::cout << "Number of unpeelable functions0: " << funs.size() << std::endl;
-      // for (size_t kr=0; kr<funs.size(); ++kr)
-      // 	std::cout << funs[kr] << " " << std::endl;
-      // std::cout << std::endl;
-      // vector<LRBSpline2D*> funs2 = fetchUnpeelable();
-      
-      // //#ifdef DEBUG
-      // std::cout << "Number of unpeelable functions: " << funs2.size() << std::endl;
-      // for (size_t kr=0; kr<funs2.size(); ++kr)
-      // 	std::cout << funs2[kr] << " " << std::endl;
-      // std::cout << std::endl;
-      
-      std::string extension = ".g2";
-      std::string ver = std::to_string(ki+1);
-      if (funs.size() >= 8)
+
+      if (checklindep)
 	{
-	  vector<vector<LRBSpline2D*> > lindep;
-	  checkOverloaded(8, funs, lindep);
-	  if (lindep.size() > 0)
+	  // Check for linear independence (overloading)
+#if 0
+	  vector<LRBSpline2D*> funs0 = LinDepUtils::unpeelableBasisFunctions(*srf_);
+	  std::cout << "Number of unpeelable functions: " << funs0.size() << std::endl;
+	  for (size_t kr=0; kr<funs0.size(); ++kr)
+	    std::cout << funs0[kr] << " " << std::endl;
+	  std::cout << std::endl;
+#endif
+	  vector<LRBSpline2D*> funs = fetchUnpeelable(8);
+      
+	  // //#ifdef DEBUG
+	  std::cout << "Number of unpeelable functions: " << funs.size() << std::endl;
+	  // for (size_t kr=0; kr<funs.size(); ++kr)
+	  // 	std::cout << funs[kr] << " " << std::endl;
+	  // std::cout << std::endl;
+      
+	  std::string extension = ".g2";
+	  std::string ver = std::to_string(ki+1);
+# if 0
+	  if (funs0.size() >= 8)
 	    {
-	      std::string body = "lindep";
-	      std::string body3 = "lindep2_";
-	      std::string outfile = body + ver + extension;
-	      std::ofstream lin_out(outfile.c_str());
-	      std::string outfile3 = body3 + ver + extension;
-	      std::ofstream lin_out3(outfile3.c_str());
-	      for (size_t kr=0; kr<lindep.size(); ++kr)
+	      vector<vector<LRBSpline2D*> > lindep;
+	      checkOverloaded(8, funs0, lindep);
+	      if (lindep.size() > 0)
 		{
-		  std::cout << "Number of B-splines in relation: " << lindep[kr].size() << std::endl;
-		  LRBSpline2D *cb = lindep[kr][0];
-		  lin_out << "410 1 0 4 0 0 0 255" << std::endl;
-		  lin_out << "4" << std::endl;
-		  lin_out << cb->umin() << " " << cb->vmin() << " 0 ";
-		  lin_out << cb->umax() << " " << cb->vmin() << " 0" << std::endl;
-		  lin_out << cb->umin() << " " << cb->vmin() << " 0 ";
-		  lin_out << cb->umin() << " " << cb->vmax() << " 0" << std::endl;
-		  lin_out << cb->umax() << " " << cb->vmin() << " 0 ";
-		  lin_out << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
-		  lin_out << cb->umin() << " " << cb->vmax() << " 0 ";
-		  lin_out << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
-		  
-		  lin_out3 << "410 1 0 4 0 0 0 255" << std::endl;
-		  lin_out3 << "4" << std::endl;
-		  lin_out3 << cb->umin() << " " << cb->vmin() << " 0 ";
-		  lin_out3 << cb->umax() << " " << cb->vmin() << " 0" << std::endl;
-		  lin_out3 << cb->umin() << " " << cb->vmin() << " 0 ";
-		  lin_out3 << cb->umin() << " " << cb->vmax() << " 0" << std::endl;
-		  lin_out3 << cb->umax() << " " << cb->vmin() << " 0 ";
-		  lin_out3 << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
-		  lin_out3 << cb->umin() << " " << cb->vmax() << " 0 ";
-		  lin_out3 << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
-		  for (size_t kh=1; kh<lindep[kr].size(); ++kh)
+		  std::string body = "lindep2_";
+		  std::string outfile = body + ver + extension;
+		  std::ofstream lin_out(outfile.c_str());
+		  if (lindep.size() > 0)
 		    {
-		      LRBSpline2D *cb3 = lindep[kr][kh];
-		      lin_out3 << "410 1 0 4 0 0 255 255" << std::endl;
-		      lin_out3 << "4" << std::endl;
-		      lin_out3 << cb3->umin() << " " << cb3->vmin() << " 0 ";
-		      lin_out3 << cb3->umax() << " " << cb3->vmin() << " 0" << std::endl;
-		      lin_out3 << cb3->umin() << " " << cb3->vmin() << " 0 ";
-		      lin_out3 << cb3->umin() << " " << cb3->vmax() << " 0" << std::endl;
-		      lin_out3 << cb3->umax() << " " << cb3->vmin() << " 0 ";
-		      lin_out3 << cb3->umax() << " " << cb3->vmax() << " 0" << std::endl;
-		      lin_out3 << cb3->umin() << " " << cb3->vmax() << " 0 ";
-		      lin_out3 << cb3->umax() << " " << cb3->vmax() << " 0" << std::endl;
+		      std::cout << "Number of B-splines in relation: " << std::endl;
+		      for (size_t kr=0; kr<lindep.size(); ++kr)
+			std::cout << lindep[kr].size() << ", ";
+		      std::cout << std::endl;
 		    }
+		  for (size_t kr=0; kr<lindep.size(); ++kr)
+		    {
+		      LRBSpline2D *cb = lindep[kr][0];
+		      lin_out << "410 1 0 4 0 0 0 255" << std::endl;
+		      lin_out << "4" << std::endl;
+		      lin_out << cb->umin() << " " << cb->vmin() << " 0 ";
+		      lin_out << cb->umax() << " " << cb->vmin() << " 0" << std::endl;
+		      lin_out << cb->umin() << " " << cb->vmin() << " 0 ";
+		      lin_out << cb->umin() << " " << cb->vmax() << " 0" << std::endl;
+		      lin_out << cb->umax() << " " << cb->vmin() << " 0 ";
+		      lin_out << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
+		      lin_out << cb->umin() << " " << cb->vmax() << " 0 ";
+		      lin_out << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
+		    }
+		  lin_out << "410 1 0 4 0 100 155 255" << std::endl;
+		  lin_out << "4" << std::endl;
+		  lin_out << srf_->startparam_u() << " " << srf_->startparam_v() << " 0 ";
+		  lin_out << srf_->endparam_u() << " " << srf_->startparam_v() << " 0" << std::endl;
+		  lin_out << srf_->startparam_u() << " " << srf_->startparam_v() << " 0 ";
+		  lin_out << srf_->startparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
+		  lin_out << srf_->endparam_u() << " " << srf_->startparam_v() << " 0 ";
+		  lin_out << srf_->endparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
+		  lin_out << srf_->startparam_u() << " " << srf_->endparam_v() << " 0 ";
+		  lin_out << srf_->endparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
 		}
-	      lin_out << "410 1 0 4 0 100 155 255" << std::endl;
-	      lin_out << "4" << std::endl;
-	      lin_out << srf_->startparam_u() << " " << srf_->startparam_v() << " 0 ";
-	      lin_out << srf_->endparam_u() << " " << srf_->startparam_v() << " 0" << std::endl;
-	      lin_out << srf_->startparam_u() << " " << srf_->startparam_v() << " 0 ";
-	      lin_out << srf_->startparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
-	      lin_out << srf_->endparam_u() << " " << srf_->startparam_v() << " 0 ";
-	      lin_out << srf_->endparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
-	      lin_out << srf_->startparam_u() << " " << srf_->endparam_v() << " 0 ";
-	      lin_out << srf_->endparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
 	    }
+#endif
+      
+	  if (funs.size() >= 8)
+	    {
+	      vector<vector<LRBSpline2D*> > lindep;
+	      checkOverloaded(8, funs, lindep);
+	      if (lindep.size() > 0)
+		{
+		  std::string body = "lindep";
+		  //std::string body3 = "lindep2_";
+		  std::string outfile = body + ver + extension;
+		  std::ofstream lin_out(outfile.c_str());
+		  // std::string outfile3 = body3 + ver + extension;
+		  // std::ofstream lin_out3(outfile3.c_str());
+		  if (lindep.size() > 0)
+		    {
+		      std::cout << "Number linear dependency situations: " << lindep.size() << std::endl;
+		      size_t maxB = 0;
+		      for (size_t kr=0; kr<lindep.size(); ++kr)
+			maxB = std::max(maxB, lindep[kr].size());
+		      std::cout << "Max no B-splines in relation: " << maxB << std::endl;
+		      // 	std::cout << lindep[kr].size() << ", ";
+		      // std::cout << std::endl;
+		    }
+		  //#if 0
+		  for (size_t kr=0; kr<lindep.size(); ++kr)
+		    {
+		      LRBSpline2D *cb = lindep[kr][0];
+		      lin_out << "410 1 0 4 0 0 0 255" << std::endl;
+		      lin_out << "4" << std::endl;
+		      lin_out << cb->umin() << " " << cb->vmin() << " 0 ";
+		      lin_out << cb->umax() << " " << cb->vmin() << " 0" << std::endl;
+		      lin_out << cb->umin() << " " << cb->vmin() << " 0 ";
+		      lin_out << cb->umin() << " " << cb->vmax() << " 0" << std::endl;
+		      lin_out << cb->umax() << " " << cb->vmin() << " 0 ";
+		      lin_out << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
+		      lin_out << cb->umin() << " " << cb->vmax() << " 0 ";
+		      lin_out << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
+		  
+		      // lin_out3 << "410 1 0 4 0 0 0 255" << std::endl;
+		      // lin_out3 << "4" << std::endl;
+		      // lin_out3 << cb->umin() << " " << cb->vmin() << " 0 ";
+		      // lin_out3 << cb->umax() << " " << cb->vmin() << " 0" << std::endl;
+		      // lin_out3 << cb->umin() << " " << cb->vmin() << " 0 ";
+		      // lin_out3 << cb->umin() << " " << cb->vmax() << " 0" << std::endl;
+		      // lin_out3 << cb->umax() << " " << cb->vmin() << " 0 ";
+		      // lin_out3 << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
+		      // lin_out3 << cb->umin() << " " << cb->vmax() << " 0 ";
+		      // lin_out3 << cb->umax() << " " << cb->vmax() << " 0" << std::endl;
+		      // for (size_t kh=1; kh<lindep[kr].size(); ++kh)
+		      //   {
+		      //     LRBSpline2D *cb3 = lindep[kr][kh];
+		      //     lin_out3 << "410 1 0 4 0 0 255 255" << std::endl;
+		      //     lin_out3 << "4" << std::endl;
+		      //     lin_out3 << cb3->umin() << " " << cb3->vmin() << " 0 ";
+		      //     lin_out3 << cb3->umax() << " " << cb3->vmin() << " 0" << std::endl;
+		      //     lin_out3 << cb3->umin() << " " << cb3->vmin() << " 0 ";
+		      //     lin_out3 << cb3->umin() << " " << cb3->vmax() << " 0" << std::endl;
+		      //     lin_out3 << cb3->umax() << " " << cb3->vmin() << " 0 ";
+		      //     lin_out3 << cb3->umax() << " " << cb3->vmax() << " 0" << std::endl;
+		      //     lin_out3 << cb3->umin() << " " << cb3->vmax() << " 0 ";
+		      //     lin_out3 << cb3->umax() << " " << cb3->vmax() << " 0" << std::endl;
+		      //   }
+		    }
+		  lin_out << "410 1 0 4 0 100 155 255" << std::endl;
+		  lin_out << "4" << std::endl;
+		  lin_out << srf_->startparam_u() << " " << srf_->startparam_v() << " 0 ";
+		  lin_out << srf_->endparam_u() << " " << srf_->startparam_v() << " 0" << std::endl;
+		  lin_out << srf_->startparam_u() << " " << srf_->startparam_v() << " 0 ";
+		  lin_out << srf_->startparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
+		  lin_out << srf_->endparam_u() << " " << srf_->startparam_v() << " 0 ";
+		  lin_out << srf_->endparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
+		  lin_out << srf_->startparam_u() << " " << srf_->endparam_v() << " 0 ";
+		  lin_out << srf_->endparam_u() << " " << srf_->endparam_v() << " 0" << std::endl;
+
+		  std::string body4 = "mesh0";
+		  std::string outfile4 = body4 + ver + extension;
+		  std::ofstream mesh_out4(outfile4.c_str());
+		  writeg2Mesh(*srf_, mesh_out4, 1);
+		  //#endif
+		  if (fixlindep)
+		    {
+		      for (int ka=0; ka<nmbitlindep; ++ka)
+			{
+			  // // Remove internal cases
+			  vector<LRBSpline2D*> source;
+			  for (size_t kr=0; kr<lindep.size(); ++kr)
+			    source.push_back(lindep[kr][0]);
+			  //   {
+			  //     size_t kh;
+			  //     for (kh=0; kh<lindep.size(); ++kh)
+			  // 	{
+			  // 	  if (kh == kr)
+			  // 	    continue;
+			  // 	  size_t kv;
+			  // 	  for (kv=1; kv<lindep[kh].size(); ++kv)
+			  // 	    if (lindep[kr][0] == lindep[kh][kv])
+			  // 	      break;
+			  // 	  if (kv < lindep[kh].size())
+			  // 	    break;
+			  // 	}
+			  //     if (kh < lindep.size())
+			  // 	lindep.erase(lindep.begin()+kr);
+			  //     else
+			  // 	{
+			  // 	  source.push_back(lindep[kr][0]);
+			  // 	  ++kr;
+			  // 	}
+			  //   }
+
+			  // Apply structured mesh refinement to linear dependency sources
+			  int num_ref = refineStructuredMesh(source);
+			  std::cout << "Number of new mesh lines: " << num_ref << std::endl;
+
+			  // Check for linear independence (overloading)
+			  //vector<LRBSpline2D*> funs3 = LinDepUtils::unpeelableBasisFunctions(*srf_);
+			  vector<LRBSpline2D*> funs3 = fetchUnpeelable(8);
+			  std::cout << "Number of unpeelable functions after extra refinement: " << funs3.size() << std::endl;
+			  if (funs3.size() < 8)
+			    break;
+			  vector<vector<LRBSpline2D*> > lindep2;
+			  checkOverloaded(8, funs3, lindep2);
+			  std::cout << "Probable linear dependency relations: " << lindep2.size() << std::endl;
+
+			  if (lindep2.size() > 0)
+			    lindep = lindep2;
+			  else
+			    break;
+			}
+		    }
+
+		}
+	    }
+	  std::string body2 = "mesh";
+	  std::string outfile2 = body2 + ver + extension;
+	  std::ofstream mesh_out(outfile2.c_str());
+	  writeg2Mesh(*srf_, mesh_out, 3);
+	  //#endif
 	}
-      std::string body2 = "mesh";
-      std::string outfile2 = body2 + ver + extension;
-      std::ofstream mesh_out(outfile2.c_str());
-      writeg2Mesh(*srf_, mesh_out);
-      //#endif
-     
       // Construct additional ghost points in elements with a low
       // distribution of points
       bool ghost_points_inner = true;
@@ -3193,6 +3314,97 @@ bool LRSurfApprox::defineOutlierPts2(vector<double>& points, int nmb, int del,
 #endif
 
 //==============================================================================
+int LRSurfApprox::modifySplitPar(LRBSpline2D* bspl, Direction2D fixdir, double& par)
+//==============================================================================
+{
+  bool do_modify = false;
+  if (!do_modify)
+    return 0;
+  
+  const Mesh2D* mesh = bspl->getMesh();
+  Direction2D otherdir = flip(fixdir);
+  const vector<int>& kvec = bspl->kvec(fixdir);
+
+  // Identify knot span
+  size_t ki;
+  for (ki=0; ki<kvec.size()-1; ++ki)
+    if (mesh->kval(fixdir, kvec[ki+1]) >= par)
+      break;
+
+  // Collect unused knots in span
+  int pxmin = bspl->suppMin(otherdir);
+  int pxmax = bspl->suppMax(otherdir);
+  double vmin = (otherdir == XFIXED) ? bspl->umin() : bspl->vmin();
+  double vmax = (otherdir == XFIXED) ? bspl->umax() : bspl->vmax();
+  vector<double> cand;
+  for (int ka=kvec[ki]+1; ka<kvec[ki+1]; ++ka)
+    {
+      const vector<GPos> mr = mesh->mrects(fixdir, ka);
+      int nu1, nu2;
+      for (nu1=0; nu1<mr.size()-1; ++nu1)
+	if (mr[nu1+1].ix > pxmin)
+	  break;
+      for (nu2=0; nu2<mr.size(); ++nu2)
+	if (mr[nu2].ix > pxmax)
+	  break;
+
+      for (int kb=nu1; kb<nu2; ++kb)
+	if (mr[kb].mult > 0)
+	  {
+	    int l1 = std::max(pxmin, mr[kb].ix);
+	    int l2 = (kb < mr.size()-1) ? std::min(pxmax, mr[kb+1].ix) : pxmax;
+	    if (l2 > l1)
+	      cand.push_back(ka);
+	  }
+    }
+
+  if (cand.size() == 0)
+    return 0;
+
+  // Compute maximum number of identical candidates
+  int maxgap = 0;
+  int ka, kb;
+  for (ka=0; ka<(int)cand.size(); ka=kb)
+    {
+      for (kb=ka+1; kb<(int)cand.size(); ++kb)
+	{
+	  if (cand[kb] != cand[ka])
+	    break;
+	}
+      maxgap = std::max(maxgap, (kb-ka-1));
+    }
+
+  // Remove identical candidates and candiates with less than the maximum identical values
+  for (ka=cand.size()-1; ka>=0; ka=kb)
+    {
+      for (kb=ka-1; kb>=0; --kb)
+	{
+	  if (cand[kb] != cand[ka])
+	    break;
+	}
+      int nmb = std::min(maxgap, ka-kb);
+      if (nmb > 0)
+	cand.erase(cand.begin()+kb+1, cand.begin()+kb+1+nmb);
+    } 
+
+  // Select the value closest to the existing
+  double mindist = fabs(mesh->kval(fixdir, cand[0]) - par);
+  int minix = 0;
+  for (int ix=1; ix<(int)cand.size(); ++ix)
+    {
+      double dist = fabs(mesh->kval(fixdir, cand[ix]) - par);
+      if (dist < mindist)
+	{
+	  mindist = dist;
+	  minix = ix;
+	}
+    }
+
+  par = mesh->kval(fixdir, cand[minix]);
+  return maxgap + 1;
+}
+
+//==============================================================================
 bool compare_refs(LRSplineSurface::Refinement2D r1, 
 		  LRSplineSurface::Refinement2D r2)
 {
@@ -3225,6 +3437,8 @@ void LRSurfApprox::getRefineExtension(Element2D *elem, Direction2D fixdir,
   if (strategy <= 1 || strategy >=5)
     {
       // All overlapping B-splines
+      vector<double> ppar2(nmb, ppar);
+      vector<int> modified(nmb, 0);
       for (size_t ki=0; ki<nmb; ++ki)
 	{
 	  double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
@@ -3233,7 +3447,44 @@ void LRSurfApprox::getRefineExtension(Element2D *elem, Direction2D fixdir,
 	    bsplines[ki]->umax();
 	  pmin = std::min(pmin, bmin);
 	  pmax = std::max(pmax, bmax);
+	  modified[ki] = modifySplitPar(bsplines[ki], fixdir, ppar2[ki]);
 	}
+      size_t ki, kj;
+      for (ki=0; ki<ppar2.size(); ++ki)
+	for (kj=ki+1; kj<ppar2.size(); ++kj)
+	  {
+	    if (ppar2[ki] > ppar2[kj])
+	      {
+		std::swap(ppar2[ki], ppar2[kj]);
+		std::swap(modified[ki], modified[kj]);
+	      }
+	  }
+
+      // Select modified split parameter
+      double tol = srf_->getKnotTol();
+      int nmbp = 0;
+      int ix = -1;
+      double dd = srf_->paramMax(fixdir) - srf_->paramMin(fixdir);
+      for (ki=0; ki<ppar2.size(); ki=kj)
+	{
+	  for (kj=ki+1; kj<ppar2.size(); ++kj)
+	    {
+	      if (ppar2[kj]-ppar2[ki] > tol)
+		break;
+	    }
+	  int curr_nmb = 0;
+	  for (size_t kr=ki; kr<kj; ++kr)
+	    curr_nmb += modified[kr];
+	  if (curr_nmb > nmbp ||
+	      (curr_nmb == nmbp && fabs(ppar2[ki] - ppar) < dd))
+	    {
+	      nmbp = curr_nmb;
+	      dd = fabs(ppar2[ki] - ppar);
+	      ix = (int)ki;
+	    }
+	}
+      if (ix >= 0)
+	ppar = ppar2[ix];
     }
   else if (strategy == 2)
     {
@@ -3265,6 +3516,8 @@ void LRSurfApprox::getRefineExtension(Element2D *elem, Direction2D fixdir,
 	bsplines[ix]->umin();
       pmax = (fixdir == XFIXED) ? bsplines[ix]->vmax() :
 	bsplines[ix]->umax();
+
+      modifySplitPar(bsplines[ix], fixdir, ppar);
     }
   else if (strategy == 3)
     {
@@ -3319,6 +3572,8 @@ void LRSurfApprox::getRefineExtension(Element2D *elem, Direction2D fixdir,
 	bsplines[ix]->umin();
       pmax = (fixdir == XFIXED) ? bsplines[ix]->vmax() :
 	bsplines[ix]->umax();
+      
+      modifySplitPar(bsplines[ix], fixdir, ppar);
     }
   else // if (strategy == 4)
 	{
@@ -3398,6 +3653,8 @@ void LRSurfApprox::getRefineExtension(Element2D *elem, Direction2D fixdir,
 	bsplines[ix]->umin();
       pmax = (fixdir == XFIXED) ? bsplines[ix]->vmax() :
 	bsplines[ix]->umax();
+      
+      modifySplitPar(bsplines[ix], fixdir, ppar);
    }
 }
 
@@ -3501,6 +3758,7 @@ int LRSurfApprox::refineSurf3(int iter, int& dir, double threshold)
 
 #ifdef DEBUG_REFINE
   std::cout << "Dir: " << dir2 << ", category: " << category1_ << std::endl;
+  std::cout << "min u: " << usize_min_ << ", min v: " << vsize_min_ << std::endl;
 #endif
   set<pair<Element2D*,pair<Direction2D,double> > > unbalanced;
   vector<LRSplineSurface::Refinement2D> refs_x, refs_y;
@@ -3529,7 +3787,7 @@ int LRSurfApprox::refineSurf3(int iter, int& dir, double threshold)
 	  //     std::cout << bsplines[kr]->umin() << " "  << bsplines[kr]->umax() << " ";
 	  //     std::cout << bsplines[kr]->vmin() << " "  << bsplines[kr]->vmax() << std::endl;
 	  //   }
-	  
+
 	  if ((dir2 == 1 || dir2 == 3) && umax-umin > 2.0*usize_min_)
 	    {
 	      double v1, v2, ppar;
@@ -3724,8 +3982,10 @@ int LRSurfApprox::refineSurf4(int& dir, double threshold)
 		  double u2 = mesh->kval(XFIXED, kvec[kj+1]);
 		  if (u2-u1 <= tol)
 		    continue;
+		  double ppar = 0.5*(u1+u2);
+		  modifySplitPar(bspline, XFIXED, ppar);
 		  LRSplineSurface::Refinement2D curr_ref;
-		  curr_ref.setVal(0.5*(u1+u2), bspline->vmin(),
+		  curr_ref.setVal(ppar, bspline->vmin(),
 				  bspline->vmax(), XFIXED, 1);
 		  appendRef(refs_x, curr_ref, tol);
 		}
@@ -3739,8 +3999,10 @@ int LRSurfApprox::refineSurf4(int& dir, double threshold)
 		  double v2 = mesh->kval(YFIXED, kvec[kj+1]);
 		  if (v2-v1 <= tol)
 		    continue;
+		  double ppar = 0.5*(v1+v2);
+		  modifySplitPar(bspline, YFIXED, ppar);
 		  LRSplineSurface::Refinement2D curr_ref;
-		  curr_ref.setVal(0.5*(v1+v2), bspline->umin(),
+		  curr_ref.setVal(ppar, bspline->umin(),
 				  bspline->umax(), YFIXED, 1);
 		  appendRef(refs_y, curr_ref, tol);
 		}
@@ -5038,6 +5300,7 @@ void LRSurfApprox::defineRefs(LRBSpline2D* bspline, double average_out,
 		knotval = init_knots_u_[(kk1+kk2)/2];
 	    }
 
+	  modifySplitPar(bspline, XFIXED, knotval);
 	  LRSplineSurface::Refinement2D curr_ref;
 	  curr_ref.setVal(knotval, bspline->vmin(), bspline->vmax(), XFIXED, 1);
 
@@ -5081,6 +5344,7 @@ void LRSurfApprox::defineRefs(LRBSpline2D* bspline, double average_out,
 		knotval = init_knots_v_[(kk1+kk2)/2];
 	    }
 
+	  modifySplitPar(bspline, YFIXED, knotval);
 	  LRSplineSurface::Refinement2D curr_ref;
 	  curr_ref.setVal(knotval, bspline->umin(), bspline->umax(), YFIXED, 1);
 
@@ -5374,6 +5638,7 @@ int div_x = 0, div_y = 0;
     {
       for (ki=0; ki<nmb; ++ki)
 	{
+	  modifySplitPar(bsplines[ki], XFIXED, u_par);
 	  LRSplineSurface::Refinement2D curr_ref;
 	  curr_ref.setVal(u_par, bsplines[ki]->vmin(), bsplines[ki]->vmax(), XFIXED, xmult);
 	  appendRef(refs_x, curr_ref, tol);
@@ -5385,6 +5650,7 @@ int div_x = 0, div_y = 0;
     {
       for (ki=0; ki<nmb; ++ki)
 	{
+	  modifySplitPar(bsplines[ki], YFIXED, v_par);
 	  LRSplineSurface::Refinement2D curr_ref;
 	  curr_ref.setVal(v_par, bsplines[ki]->umin(), bsplines[ki]->umax(), YFIXED, ymult);
 	  appendRef(refs_y, curr_ref, tol);
@@ -6852,7 +7118,171 @@ void LRSurfApprox::turnTo3D()
 }
 
 //==============================================================================
-vector<LRBSpline2D*> LRSurfApprox::fetchUnpeelable()
+int LRSurfApprox::refineStructuredMesh(vector<LRBSpline2D*>& source)
+//==============================================================================
+{
+  bool reduced = false; //true;
+  bool adjust = false; //true;
+  
+  double tol = srf_->getKnotTol();
+  vector<LRSplineSurface::Refinement2D> refs_x, refs_y;
+  if (source.size() == 0)
+    return 0;
+  const Mesh2D* mesh = source[0]->getMesh();
+  for (size_t ki=0; ki<source.size(); ++ki)
+    {
+      // Refine all knot spans in both parameter directions
+      int size1 = source[ki]->degree(XFIXED)+1;
+      int size2 = source[ki]->degree(YFIXED)+1;
+      const vector<int>& kvec1 = source[ki]->kvec(XFIXED);
+      const vector<int>& kvec2 = source[ki]->kvec(YFIXED);
+      double umin = source[ki]->umin();
+      double umax = source[ki]->umax();
+      int uxmin = source[ki]->suppMin(XFIXED);
+      int uxmax = source[ki]->suppMax(XFIXED);
+      double vmin = source[ki]->vmin();
+      double vmax = source[ki]->vmax();
+      int vxmin = source[ki]->suppMin(YFIXED);
+      int vxmax = source[ki]->suppMax(YFIXED);
+      for (int kj=0; kj<size1; ++kj)
+	{
+	  double u1 = mesh->kval(XFIXED, kvec1[kj]);
+	  double u2 = mesh->kval(XFIXED, kvec1[kj+1]);
+	  if (u2-u1 <= tol)
+	    continue;
+	  double upar;
+	  if (kvec1[kj+1]-kvec1[kj] > 1 && adjust)
+	    {
+	      int ix = kj;
+	      double maxdist = 0.0;
+	      double mid = (mesh->kval(XFIXED, kvec1[kj+1]) +
+			    mesh->kval(XFIXED, kvec1[kj]))/2;
+	      for (int ka=kvec1[kj]+1; ka<kvec1[kj+1]; ++ka)
+		{
+		  const vector<GPos> mr = mesh->mrects(XFIXED, ka);
+		  int nu1, nu2;
+		  for (nu1=0; nu1<mr.size()-1; ++nu1)
+		    if (mr[nu1+1].ix > vxmin)
+		      break;
+		  for (nu2=0; nu2<mr.size(); ++nu2)
+		    if (mr[nu2].ix > vxmax)
+		      break;
+		  double dist = 0.0;
+		  for (int kb=nu1; kb<nu2; ++kb)
+		    if (mr[kb].mult > 0)
+		      {
+			int l1 = std::max(vxmin, mr[kb].ix);
+			int l2 = (kb < mr.size()-1) ? std::min(vxmax, mr[kb+1].ix) : vxmax;
+			dist += fabs(mesh->kval(YFIXED, l2) - mesh->kval(YFIXED, l1));
+		      }
+		  if (fabs(mesh->kval(XFIXED,ka)-mid) < fabs(mesh->kval(XFIXED,ix)-mid) &&
+		      dist > 0.0)
+		    {
+		      ix = ka;
+		      if (dist > maxdist)
+			maxdist = dist;
+		    }
+		  else if (dist > 2.0*maxdist)
+		    {
+		      ix = ka;
+		      maxdist = dist;
+		    }
+		}
+	      if (maxdist > 0.0)
+		upar =  mesh->kval(XFIXED, ix);
+	      else if (reduced)
+		continue;
+	      else
+		upar = 0.5*(u1+u2);
+	    }
+	  else if (reduced)
+	    continue;
+	  else
+	    upar = 0.5*(u1+u2);
+	  LRSplineSurface::Refinement2D curr_ref;
+	  curr_ref.setVal(upar, source[ki]->vmin(),
+			  source[ki]->vmax(), XFIXED, 1);
+	  appendRef(refs_x, curr_ref, tol);
+	}
+      
+      for (int kj=0; kj<size2; ++kj)
+	{
+	  double v1 = mesh->kval(YFIXED, kvec2[kj]);
+	  double v2 = mesh->kval(YFIXED, kvec2[kj+1]);
+	  if (v2-v1 <= tol)
+	    continue;
+	  double vpar;
+	  if (kvec2[kj+1]-kvec2[kj] > 1 && adjust)
+	    {
+	      int ix = kj;
+	      int maxdist = 0.0;
+	      double mid = (mesh->kval(YFIXED, kvec2[kj+1]) +
+			    mesh->kval(YFIXED, kvec2[kj]))/2;
+	      for (int ka=kvec2[kj]+1; ka<kvec2[kj+1]; ++ka)
+		{
+		  const vector<GPos> mr = mesh->mrects(YFIXED, ka);
+		  int nu1, nu2;
+		  for (nu1=0; nu1<mr.size()-1; ++nu1)
+		    if (mr[nu1+1].ix > uxmin)
+		      break;
+		  for (nu2=0; nu2<mr.size(); ++nu2)
+		    if (mr[nu2].ix > uxmax)
+		      break;
+		  double dist = 0.0;
+		  for (int kb=nu1; kb<nu2; ++kb)
+		    if (mr[kb].mult > 0)
+		      {
+			int l1 = std::max(uxmin, mr[kb].ix);
+			int l2 = (kb < mr.size()-1) ? std::min(uxmax, mr[kb+1].ix) : uxmax;
+			dist += fabs(mesh->kval(XFIXED, l2) - mesh->kval(XFIXED, l1));
+		      }
+		  if (fabs(mesh->kval(YFIXED,ka)-mid) < fabs(mesh->kval(YFIXED,ix)-mid) &&
+		      dist > 0.0)
+		    {
+		      ix = ka;
+		      if (dist > maxdist)
+			maxdist = dist;
+		    }
+		  else if (dist > 2.0*maxdist)
+		    {
+		      ix = ka;
+		      maxdist = dist;
+		    }
+		}
+	      if (maxdist > 0.0)
+		vpar =  mesh->kval(YFIXED, ix);
+	      else if (reduced)
+		continue;
+	      else
+		vpar = 0.5*(v1+v2);
+	    }
+	  else if (reduced)
+	    continue;
+	  else
+	    vpar = 0.5*(v1+v2);
+	  LRSplineSurface::Refinement2D curr_ref;
+	  curr_ref.setVal(vpar, source[ki]->umin(),
+			  source[ki]->umax(), YFIXED, 1);
+	  appendRef(refs_y, curr_ref, tol);
+	}
+    }
+  
+  for (size_t kr=0; kr<refs_x.size(); ++kr)
+    {
+      srf_->refine(refs_x[kr], true /*false*/);
+    }
+
+  for (size_t kr=0; kr<refs_y.size(); ++kr)
+    {
+      srf_->refine(refs_y[kr], true /*false*/);
+    }
+  // srf_->refine(refs_x, true);
+  // srf_->refine(refs_y, true);
+  return (int)refs_x.size() + (int)refs_y.size();
+}
+
+//==============================================================================
+vector<LRBSpline2D*> LRSurfApprox::fetchUnpeelable(int minnmb)
 //==============================================================================
 {
   vector<LRBSpline2D*> fun;
@@ -6860,9 +7290,10 @@ vector<LRBSpline2D*> LRSurfApprox::fetchUnpeelable()
   // Initialize elements
   bool overload = false;
   int nmb_el_init = 0;
+  int expected_nmb = (srf_->degree(XFIXED)+1)*(srf_->degree(YFIXED)+1);
   for (auto it1=srf_->elementsBegin(); it1!=srf_->elementsEnd(); ++it1)
     {
-      bool found = it1->second->initOverload();
+      bool found = it1->second->initOverload(expected_nmb);
       if (found)
 	{
 	  overload = true;
@@ -6977,6 +7408,20 @@ vector<LRBSpline2D*> LRSurfApprox::fetchUnpeelable()
   // std::cout << std::endl;
   // writeg2Mesh(*srf_, of2);
 
+  if (!overload)
+    return fun;
+
+  int nmb = 0;
+  for (auto it2=srf_->basisFunctionsBegin(); it2!=srf_->basisFunctionsEnd(); ++it2)
+    {
+      bool curr = it2->second->getOverload();
+      if (curr)
+	++nmb;
+    }
+  std::cout << "Nmb overloaded pre meshrec: " << nmb << std::endl;
+  
+  overload = (nmb >= minnmb) ? overloadedMeshRectangles() : false;
+  
   if (overload)
     {
       // Collect overloaded B-splines
@@ -6997,6 +7442,293 @@ vector<LRBSpline2D*> LRSurfApprox::fetchUnpeelable()
   return fun;
 }
 
+struct Mesh2DRectangle {
+    Direction2D dir; // direction of mesh rectangle
+    int vmin;               // index of lower parameter knot in v
+    int umin;               // index of lower parameter knot in u
+    int mult;               // multiplicity of mesh rectangle
+    inline bool operator<( const Mesh2DRectangle rhs) const {
+      return 
+        (dir  < rhs.dir)  ? true  : // compare direction
+        (dir  > rhs.dir)  ? false :
+        (vmin < rhs.vmin) ? true  : // compare v-knot value
+        (vmin > rhs.vmin) ? false :
+        (umin < rhs.umin) ? true  : // compare u-knot value
+        (umin > rhs.umin) ? false :
+        (mult < rhs.mult) ? true  : // compare multiplicity
+        (mult > rhs.mult) ? false :
+                            false;  // all the same!
+    }
+  };
+  typedef map<Mesh2DRectangle, size_t> MeshRectangleIndexMap;
+
+//==============================================================================
+bool LRSurfApprox::overloadedMeshRectangles()
+//==============================================================================
+{
+  std::cout << "Overloaded mesh rectangles, start." << std::endl;
+  Direction2D ds[2] = {XFIXED, YFIXED};
+  const vector<Direction2D> DirSeq(ds,ds+2);
+  MeshRectangleIndexMap meshrectangles;
+  vector<vector<size_t> > bspl;
+  int numbspl = 0;
+  vector<LRBSpline2D*> overload;
+  for (auto it2=srf_->basisFunctionsBegin(); it2!=srf_->basisFunctionsEnd(); ++it2)
+    {
+      bool curr = it2->second->getOverload();
+      if (!curr)
+	continue;
+
+      numbspl++;
+      overload.push_back(it2->second.get());
+      
+      // Collect associated mesh rectangles
+      map<Direction2D, vector<int> > kvec;
+      map<Direction2D, vector<int> > kmul;
+      map<Direction2D, vector<int> > kall;
+      for (vector<Direction2D>::const_iterator ixy=DirSeq.begin();
+	   ixy!=DirSeq.end(); ++ixy) {
+	vector<int> kvec_all = it2->second->kvec(*ixy);
+	kvec[*ixy] = kvec_all;
+	vector<int>::const_iterator it = unique( kvec[*ixy].begin(), kvec[*ixy].end() );
+	kvec[*ixy].resize( it - kvec[*ixy].begin() );
+	kmul[*ixy].resize( kvec[*ixy].size() );
+	for ( vector<int>::iterator it_mu=kmul[*ixy].begin(), it_uk=kvec[*ixy].begin();
+              (it_mu!=kmul[*ixy].end() && it_uk!=kvec[*ixy].end());
+	      ++it_mu, ++it_uk) {
+	  *it_mu = (int) count(kvec_all.begin(), kvec_all.end(), *it_uk) - 1; // Note: we ensure zero-based multiplicity.
+	}
+	int kmin = kvec[*ixy].front();
+	int kmax = kvec[*ixy].back();
+	kall[*ixy].resize( kmax - kmin ); // Note: we exclude the last knot index.
+	int kv = kmin;
+	for (vector<int>::iterator it_al=kall[*ixy].begin();
+	     it_al!=kall[*ixy].end(); ++it_al)
+	  *it_al = kv++;
+      }
+      
+      // Using the above information for this B-spline, we proceed
+      // to update the MeshPart/column-wise storage of the 
+      // incidence matrix.
+      for (vector<Direction2D>::const_iterator 
+	     ixy=DirSeq.begin(); ixy!=DirSeq.end(); ++ixy)
+	{ // Loop: over directions
+	  // When doing mesh rectangles in a given Direction2D, we must
+	  // loop first over the (p+2) knot indices of the B-spline in
+	  // that Direction2D, and then for each of these loop over ALL
+	  // but the last knot indices spanned by the B-spline.
+	  vector<int> KV = (*ixy==YFIXED) ? kvec[YFIXED] : kall[YFIXED];
+	  vector<int> KU = (*ixy==XFIXED) ? kvec[XFIXED] : kall[XFIXED];
+	  for (unsigned int ikv=0; ikv!=KV.size(); ++ikv)
+	    { // Loop: over v-knots
+	      for (unsigned int iku=0; iku!=KU.size(); ++iku)
+		{// Loop over u-knots
+		  int nmb = kmul[*ixy][(*ixy==XFIXED) ? iku : ikv];
+		  for (int nu=0; nu<=nmb; ++nu)
+		    { // Loop: over multiplicity
+		      Mesh2DRectangle tmprec;
+		      tmprec.dir = *ixy;
+		      tmprec.vmin = KV[ikv];
+		      tmprec.umin = KU[iku];
+		      tmprec.mult = nu;
+
+		      // Check if the mesh rectangle exists already
+		      auto it = meshrectangles.find(tmprec);
+		      if (it == meshrectangles.end())
+			{
+			  // Insert new meshrectangle
+			  meshrectangles[tmprec] = bspl.size();
+			  vector<size_t> tmp;
+			  tmp.push_back(overload.size()-1);
+			  bspl.push_back(tmp);
+			}
+		      else
+			{
+			  bspl[it->second].push_back(overload.size()-1);
+			}
+		    }
+		}
+	    }
+	}
+    }
+
+  std::cout << "Overloaded mesh rectangles, middle. Found: " << numbspl << std::endl;
+  // Remove mesh rectangles that contain less than two overloaded B-splines
+  // and reset the overload flag for associated B-splines
+  bool changed = true;
+  vector<bool> on(bspl.size(), true);
+  vector<size_t> num(bspl.size());
+  for (size_t ki=0; ki<bspl.size(); ++ki)
+    num[ki] = bspl[ki].size();
+
+  size_t num2 = bspl.size();
+  while (changed)
+    {
+      std::cout << num2 << ", ";
+      changed = false;
+      for (size_t ki=0; ki<bspl.size(); ++ki)
+	{
+	  if (!on[ki])
+	    continue;
+	  if (num[ki] < 2)
+	    {
+	      for (size_t kj=0; kj<num[ki]; ++kj)
+		{
+		  for (size_t kr=0; kr<bspl.size(); ++kr)
+		    {
+		      if (!on[ki])
+			continue;
+		      if (kr == ki)
+			continue;
+		      //bspl[kr].remove(bspl[ki][kj]);
+		      auto it = std::find(bspl[kr].begin(), bspl[kr].begin()+num[kr], bspl[ki][kj]);
+		      if (it != bspl[kr].begin()+num[kr])
+			{
+			  std::swap(bspl[kr][num[kr]-1], *it);
+			  --num[kr];
+			}
+			//bspl[kr].erase(it);
+		    }
+		  overload[bspl[ki][kj]]->eraseOverload();
+		}
+	      changed = true;
+	      on[ki] = false;
+	      --num2;
+	    }
+	}
+    }
+  std::cout << std::endl << "Overloaded mesh rectangles, finish" << std::endl;
+  return (bspl.size() > 0);
+}
+#if 0
+//==============================================================================
+bool LRSurfApprox::overloadedMeshRectangles()
+//==============================================================================
+{
+  std::cout << "Overloaded mesh rectangles, start." << std::endl;
+  Direction2D ds[2] = {XFIXED, YFIXED};
+  const vector<Direction2D> DirSeq(ds,ds+2);
+  MeshRectangleIndexMap meshrectangles;
+  vector<vector<LRBSpline2D*> > bspl;
+  int numbspl = 0;
+  for (auto it2=srf_->basisFunctionsBegin(); it2!=srf_->basisFunctionsEnd(); ++it2)
+    {
+      bool curr = it2->second->getOverload();
+      if (!curr)
+	continue;
+
+      numbspl++;
+      
+      // Collect associated mesh rectangles
+      map<Direction2D, vector<int> > kvec;
+      map<Direction2D, vector<int> > kmul;
+      map<Direction2D, vector<int> > kall;
+      for (vector<Direction2D>::const_iterator ixy=DirSeq.begin();
+	   ixy!=DirSeq.end(); ++ixy) {
+	vector<int> kvec_all = it2->second->kvec(*ixy);
+	kvec[*ixy] = kvec_all;
+	vector<int>::const_iterator it = unique( kvec[*ixy].begin(), kvec[*ixy].end() );
+	kvec[*ixy].resize( it - kvec[*ixy].begin() );
+	kmul[*ixy].resize( kvec[*ixy].size() );
+	for ( vector<int>::iterator it_mu=kmul[*ixy].begin(), it_uk=kvec[*ixy].begin();
+              (it_mu!=kmul[*ixy].end() && it_uk!=kvec[*ixy].end());
+	      ++it_mu, ++it_uk) {
+	  *it_mu = (int) count(kvec_all.begin(), kvec_all.end(), *it_uk) - 1; // Note: we ensure zero-based multiplicity.
+	}
+	int kmin = kvec[*ixy].front();
+	int kmax = kvec[*ixy].back();
+	kall[*ixy].resize( kmax - kmin ); // Note: we exclude the last knot index.
+	int kv = kmin;
+	for (vector<int>::iterator it_al=kall[*ixy].begin();
+	     it_al!=kall[*ixy].end(); ++it_al)
+	  *it_al = kv++;
+      }
+      
+      // Using the above information for this B-spline, we proceed
+      // to update the MeshPart/column-wise storage of the 
+      // incidence matrix.
+      for (vector<Direction2D>::const_iterator 
+	     ixy=DirSeq.begin(); ixy!=DirSeq.end(); ++ixy)
+	{ // Loop: over directions
+	  // When doing mesh rectangles in a given Direction2D, we must
+	  // loop first over the (p+2) knot indices of the B-spline in
+	  // that Direction2D, and then for each of these loop over ALL
+	  // but the last knot indices spanned by the B-spline.
+	  vector<int> KV = (*ixy==YFIXED) ? kvec[YFIXED] : kall[YFIXED];
+	  vector<int> KU = (*ixy==XFIXED) ? kvec[XFIXED] : kall[XFIXED];
+	  for (unsigned int ikv=0; ikv!=KV.size(); ++ikv)
+	    { // Loop: over v-knots
+	      for (unsigned int iku=0; iku!=KU.size(); ++iku)
+		{// Loop over u-knots
+		  int nmb = kmul[*ixy][(*ixy==XFIXED) ? iku : ikv];
+		  for (int nu=0; nu<=nmb; ++nu)
+		    { // Loop: over multiplicity
+		      Mesh2DRectangle tmprec;
+		      tmprec.dir = *ixy;
+		      tmprec.vmin = KV[ikv];
+		      tmprec.umin = KU[iku];
+		      tmprec.mult = nu;
+
+		      // Check if the mesh rectangle exists already
+		      auto it = meshrectangles.find(tmprec);
+		      if (it == meshrectangles.end())
+			{
+			  // Insert new meshrectangle
+			  meshrectangles[tmprec] = bspl.size();
+			  vector<LRBSpline2D*> tmp;
+			  tmp.push_back(it2->second.get());
+			  bspl.push_back(tmp);
+			}
+		      else
+			{
+			  bspl[it->second].push_back(it2->second.get());
+			}
+		    }
+		}
+	    }
+	}
+    }
+
+  std::cout << "Overloaded mesh rectangles, middle. Found: " << numbspl << std::endl;
+  // Remove mesh rectangles that contain less than two overloaded B-splines
+  // and reset the overload flag for associated B-splines
+  bool changed = true;
+  while (changed)
+    {
+      std::cout << bspl.size() << ", ";
+      changed = false;
+      for (size_t ki=0; ki<bspl.size(); )
+	{
+	  if (bspl[ki].size() < 2)
+	    {
+	      for (size_t kj=0; kj<bspl[ki].size(); ++kj)
+		{
+		  for (size_t kr=0; kr<bspl.size(); ++kr)
+		    {
+		      if (kr == ki)
+			continue;
+		      //bspl[kr].remove(bspl[ki][kj]);
+		      auto it = std::find(bspl[kr].begin(), bspl[kr].end(), bspl[ki][kj]);
+		      if (it != bspl[kr].end())
+			{
+			  std::swap(bspl[kr][bspl[kr].size()-1], *it);
+			  bspl[kr].pop_back();
+			}
+			//bspl[kr].erase(it);
+		    }
+		  bspl[ki][kj]->eraseOverload();
+		}
+	      changed = true;
+	      bspl.erase(bspl.begin()+ki);
+	    }
+	  else
+	    ++ki;
+	}
+    }
+  std::cout << std::endl << "Overloaded mesh rectangles, finish" << std::endl;
+  return (bspl.size() > 0);
+}
+#endif
 //==============================================================================
 void LRSurfApprox::checkOverloaded(int minNmb, vector<LRBSpline2D*>& funs,
 				   vector<vector<LRBSpline2D*> >& lindep)
@@ -7004,64 +7736,79 @@ void LRSurfApprox::checkOverloaded(int minNmb, vector<LRBSpline2D*>& funs,
 {
   // Check input
   size_t nmb_funs = funs.size();
+#if 0
   while (true)
     {
       nmb_funs = funs.size();
       for (size_t ki=0; ki<funs.size(); )
-	{
-	  bool missing = false;
-	  for (auto it1=funs[ki]->supportedElementBegin();
-	       it1!=funs[ki]->supportedElementEnd(); ++it1)
-	    {
-	      // Count overloaded B-splines
-	      int nmb_overload = 0;
-	      for (auto it2=(*it1)->supportBegin(); it2!=(*it1)->supportEnd(); ++it2)
-		{
-		  size_t kh=0;
-		  for (kh=0; kh<funs.size(); ++kh)
-		    if ((*it2) == funs[kh])
-		      break;
-		  if (kh < funs.size())
-		    nmb_overload++;
-		}
-	      if (nmb_overload < 2)
-		{
-		  //std::cout << "Missing element overload" << std::endl;
-		  missing = true;
-		  break;
-		}
-	    }
-	  if (missing)
-	    funs.erase(funs.begin()+ki);
-	  else
-	    ++ki;
-	}
+  	{
+  	  bool missing = false;
+  	  for (auto it1=funs[ki]->supportedElementBegin();
+  	       it1!=funs[ki]->supportedElementEnd(); ++it1)
+  	    {
+  	      // Count overloaded B-splines
+  	      int nmb_overload = 0;
+  	      for (auto it2=(*it1)->supportBegin(); it2!=(*it1)->supportEnd(); ++it2)
+  		{
+  		  size_t kh=0;
+  		  for (kh=0; kh<funs.size(); ++kh)
+  		    if ((*it2) == funs[kh])
+  		      break;
+  		  if (kh < funs.size())
+  		    nmb_overload++;
+  		}
+  	      if (nmb_overload < 2)
+  		{
+  		  //std::cout << "Missing element overload" << std::endl;
+  		  missing = true;
+  		  break;
+  		}
+  	    }
+  	  if (missing)
+  	    funs.erase(funs.begin()+ki);
+  	  else
+  	    ++ki;
+  	}
       std::cout << "Curr nmb funs: " << funs.size() << std::endl;
       if (funs.size() == nmb_funs)
-	break;
+  	break;
     }
-
+#endif
+  
   if (funs.size() < minNmb)
     return;
   
-  std::ofstream of("overloaded.g2");
-  for (size_t ki=0; ki<funs.size(); ++ki)
-    {
-      of << "410 1 0 4 255 0 0 255" << std::endl;
-      of << "4" << std::endl;
-      of << funs[ki]->umin() << " " << funs[ki]->vmin() << " 0 ";
-      of << funs[ki]->umax() << " " << funs[ki]->vmin() << " 0" << std::endl;
-      of << funs[ki]->umin() << " " << funs[ki]->vmin() << " 0 ";
-      of << funs[ki]->umin() << " " << funs[ki]->vmax() << " 0" << std::endl;
-      of << funs[ki]->umax() << " " << funs[ki]->vmin() << " 0 ";
-      of << funs[ki]->umax() << " " << funs[ki]->vmax() << " 0" << std::endl;
-      of << funs[ki]->umin() << " " << funs[ki]->vmax() << " 0 ";
-      of << funs[ki]->umax() << " " << funs[ki]->vmax() << " 0" << std::endl;
-    }
-  writeg2Mesh(*srf_, of);
+  // std::ofstream of("overloaded.g2");
+  // for (size_t ki=0; ki<funs.size(); ++ki)
+  //   {
+  //     of << "410 1 0 4 255 0 0 255" << std::endl;
+  //     of << "4" << std::endl;
+  //     of << funs[ki]->umin() << " " << funs[ki]->vmin() << " 0 ";
+  //     of << funs[ki]->umax() << " " << funs[ki]->vmin() << " 0" << std::endl;
+  //     of << funs[ki]->umin() << " " << funs[ki]->vmin() << " 0 ";
+  //     of << funs[ki]->umin() << " " << funs[ki]->vmax() << " 0" << std::endl;
+  //     of << funs[ki]->umax() << " " << funs[ki]->vmin() << " 0 ";
+  //     of << funs[ki]->umax() << " " << funs[ki]->vmax() << " 0" << std::endl;
+  //     of << funs[ki]->umin() << " " << funs[ki]->vmax() << " 0 ";
+  //     of << funs[ki]->umax() << " " << funs[ki]->vmax() << " 0" << std::endl;
+  //   }
+  // writeg2Mesh(*srf_, of);
   
   for (size_t ki=0; ki<funs.size(); ++ki)
     {
+      // Check for previous identification
+      size_t kj, kh;
+      for (kj=0; kj<lindep.size(); ++kj)
+	{
+	  for (kh=0; kh<lindep[kj].size(); ++kh)
+	    if (lindep[kj][kh] == funs[ki])
+	      break;
+	  if (kh < lindep[kj].size())
+	    break;
+	}
+      if (kj < lindep.size())
+	continue;
+      
       // Find all B-splines with support completely inside the support of
       // this B-spline and count how many are overloaded
       vector<LRBSpline2D*> inside;
@@ -7076,7 +7823,6 @@ void LRSurfApprox::checkOverloaded(int minNmb, vector<LRBSpline2D*>& funs,
 	      if (funs[ki]->covers(*it2))
 		{
 		  // Check for overload
-		  size_t kh=0;
 		  for (kh=0; kh<funs.size(); ++kh)
 		    if ((*it2) == funs[kh])
 		      break;
@@ -7096,7 +7842,30 @@ void LRSurfApprox::checkOverloaded(int minNmb, vector<LRBSpline2D*>& funs,
       if ((int)inside.size() >= minNmb)
 	lindep.push_back(inside);
     }
-  std::cout << "Number of linear dependency sources: " << lindep.size() << std::endl;
+  
+  // Remove internal cases
+  for (size_t kr=0; kr<lindep.size(); )
+    {
+      size_t kh;
+      for (kh=0; kh<lindep.size(); ++kh)
+	{
+	  if (kh == kr)
+	    continue;
+	  size_t kv;
+	  for (kv=1; kv<lindep[kh].size(); ++kv)
+	    if (lindep[kr][0] == lindep[kh][kv])
+	      break;
+	  if (kv < lindep[kh].size())
+	    break;
+	}
+      if (kh < lindep.size())
+	lindep.erase(lindep.begin()+kr);
+      else
+	{
+	  ++kr;
+	}
+    }
+  //std::cout << "Number of linear dependency sources: " << lindep.size() << std::endl;
   // for (size_t kj=0; kj<lindep.size(); ++kj)
   //   {
   //     std::cout << lindep[kj][0]->umin() << " " << lindep[kj][0]->umax() << " ";

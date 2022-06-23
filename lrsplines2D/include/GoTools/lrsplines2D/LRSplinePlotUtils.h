@@ -54,7 +54,7 @@ namespace Go
 			     const bool close=true);
 
   void  writeg2Mesh(const Go::LRSplineSurface& lr_spline_sf, 
-		    std::ostream &out);
+		    std::ostream &out, int colour = 0);
 
     void writePostscriptMesh(const Go::LRSplineSurface& lr_spline_sf, 
 			     std::vector<shared_ptr<LRSplineSurface> >& lr_sub_sf,

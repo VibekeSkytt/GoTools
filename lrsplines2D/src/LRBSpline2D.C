@@ -626,7 +626,10 @@ bool LRBSpline2D::checkOverload()
   bool overload = true;
   for (size_t ki=0; ki<support_.size(); ++ki)
     if (!support_[ki]->getOverload())
-      overload = false;
+      {
+	overload = false;
+	break;
+      }
 
   overload_ = overload;
   return overload;

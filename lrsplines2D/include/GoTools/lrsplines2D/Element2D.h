@@ -542,9 +542,17 @@ public:
    void setVmax(double v)                           { stop_v_  = v; };
 
    bool isOverloaded();
+   bool isOverloaded(int lowest_nmb);
    bool initOverload()
    {
      if (isOverloaded())
+       overload_ = true;
+     return overload_;
+   }
+   
+   bool initOverload(int lowest_nmb)
+   {
+     if (isOverloaded(lowest_nmb))
        overload_ = true;
      return overload_;
    }

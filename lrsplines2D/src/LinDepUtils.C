@@ -334,19 +334,70 @@ struct MeshRectangle {
   {
     MeshRectangleIndexMap result;
     Index i = 0;
-    for (vector<Direction2D>::const_iterator dirit=DirSeq.begin(); dirit!=DirSeq.end(); ++dirit)
-      for (int vknot=0; vknot!=lrs.mesh().numDistinctKnots(YFIXED); ++vknot)
-        for (int uknot=0; uknot!=lrs.mesh().numDistinctKnots(XFIXED); ++uknot) {
-          int fixed = (*dirit==XFIXED) ? uknot : vknot;
-		  int start = (*dirit==XFIXED) ? vknot : uknot;
-		  for (int mult = 0; mult<=lrs.mesh().nu(*dirit,fixed,start,start+1); ++mult) {
-			  MeshRectangle t_meshrec;
-			  t_meshrec.dir = *dirit; t_meshrec.vmin = vknot; t_meshrec.umin = uknot; t_meshrec.mult = mult;
-			  result[t_meshrec] = i++;
-		  }
-		}
-		return result;
+    const Mesh2D mesh = lrs.mesh();
+    int num1 = mesh.numDistinctKnots(XFIXED);
+    int num2 = mesh.numDistinctKnots(YFIXED);
+    for (int uknot=0; uknot<num1; ++uknot)
+      {
+	const vector<GPos> mr = mesh.mrects(XFIXED, uknot);
+	int mr_ix = 0;
+	for (int vknot=0; vknot<num2; ++vknot)
+	  {
+	    for (; mr_ix<mr.size() && mr[mr_ix].ix<vknot; ++mr_ix);
+	    if (mr_ix == mr.size() || mr[mr_ix].ix > vknot)
+	      --mr_ix;
+	    for (int mult=0; mult<=mr[mr_ix].mult; ++mult)
+	      {
+		MeshRectangle t_meshrec;
+		t_meshrec.dir = XFIXED;
+		t_meshrec.vmin = vknot;
+		t_meshrec.umin = uknot;
+		t_meshrec.mult = mult;
+		result[t_meshrec] = i++;
+	      }
+	  }
+      }
+    
+    for (int vknot=0; vknot<num2; ++vknot)
+      {
+	const vector<GPos> mr = mesh.mrects(YFIXED, vknot);
+	int mr_ix = 0;
+	for (int uknot=0; uknot<num1; ++uknot)
+	  {
+	    for (; mr_ix<mr.size() && mr[mr_ix].ix<uknot; ++mr_ix);
+	    if (mr_ix == mr.size() || mr[mr_ix].ix > uknot)
+	      --mr_ix;
+	    for (int mult=0; mult<=mr[mr_ix].mult; ++mult)
+	      {
+		MeshRectangle t_meshrec;
+		t_meshrec.dir = YFIXED;
+		t_meshrec.vmin = vknot;
+		t_meshrec.umin = uknot;
+		t_meshrec.mult = mult;
+		result[t_meshrec] = i++;
+	      }
+	  }
+      }
+    return result;
   }
+
+  // MeshRectangleIndexMap construct_meshrectangleindex_map( const LRSplineSurface& lrs )
+  // {
+  //   MeshRectangleIndexMap result;
+  //   Index i = 0;
+  //   for (vector<Direction2D>::const_iterator dirit=DirSeq.begin(); dirit!=DirSeq.end(); ++dirit)
+  //     for (int vknot=0; vknot!=lrs.mesh().numDistinctKnots(YFIXED); ++vknot)
+  //       for (int uknot=0; uknot!=lrs.mesh().numDistinctKnots(XFIXED); ++uknot) {
+  //         int fixed = (*dirit==XFIXED) ? uknot : vknot;
+  // 		  int start = (*dirit==XFIXED) ? vknot : uknot;
+  // 		  for (int mult = 0; mult<=lrs.mesh().nu(*dirit,fixed,start,start+1); ++mult) {
+  // 			  MeshRectangle t_meshrec;
+  // 			  t_meshrec.dir = *dirit; t_meshrec.vmin = vknot; t_meshrec.umin = uknot; t_meshrec.mult = mult;
+  // 			  result[t_meshrec] = i++;
+  // 		  }
+  // 		}
+  // 		return result;
+  // }
 
   //============================================================================
   // Constructs relevant parts of the full incidence matrix M=[M1,M2],
@@ -358,7 +409,7 @@ struct MeshRectangle {
   // matrix corresponding to B-splines that are ON are constructed,
   // while all other are skipped, i.e., kept OFF.
   // ============================================================================
-  void construct_unpeeled_rows_of_full_incidence_matrix ( const LRSplineSurface lrs, 
+  void construct_unpeeled_rows_of_full_incidence_matrix ( const LRSplineSurface& lrs, 
     const ElementIndexMap MImap, const MeshRectangleIndexMap MRImap, 
     const SwitchVector fun_is_on, IncidenceMatrix& m, 
     SwitchVector& ele_is_on )
@@ -509,7 +560,7 @@ struct MeshRectangle {
     //   }
     // std::cout << std::endl;
     // writeg2Mesh(lrs, of1);
-    std::cout << "Num first preliminary overloads: " << num_entries << std::endl;
+    //std::cout << "Num first preliminary overloads: " << num_entries << std::endl;
     
     // If we have reached this point, there ARE overloaded B-splines.
     // We therefore try to peel as many of the these as possible based

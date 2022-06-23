@@ -155,7 +155,7 @@ namespace Go
     }
 
   void writeg2Mesh(const Go::LRSplineSurface& lr_spline_sf, 
-			   std::ostream &out)
+		   std::ostream &out, int colour)
     {
       std::streamsize prev = out.precision(15);
       const bool colorDiag = false;
@@ -205,7 +205,16 @@ namespace Go
 	  ++mesh_it;
 	}
 
-      out <<  "410 1 0 4 200 200 0 255" << std::endl;
+      out <<  "410 1 0 4 ";
+      if (colour == 0)
+	out << "200 200 0 255";
+      else if(colour == 1)
+	out << "255 0 0 255";
+      else if (colour == 2)
+	out << "0 255 0 255";
+      else
+	out << "0 0 255 255";
+      out << std::endl;
       out << line.size()/6 << std::endl;
       for (int ki=0; ki<(int)line.size(); ki+=6)
 	{

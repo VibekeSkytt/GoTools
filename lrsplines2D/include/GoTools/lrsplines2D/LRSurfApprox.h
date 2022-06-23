@@ -660,7 +660,7 @@ private:
     //double density);
     /// Refine surface
     int refineSurf(int iter, int& dir, double threshold);
-    int refineSurf3(int iter, int& dir, double threshold);
+  int refineSurf3(int iter, int& dir, double threshold);
     int refineSurf4(int& dir, double threshold);
     void getRefineExtension(Element2D *elem, Direction2D fixdir,
 			    int strategy, double& ppar, double& pmin, double& pmax,
@@ -726,7 +726,13 @@ private:
     // Turn function into a 3D surface
     void turnTo3D();
 
-  std::vector<LRBSpline2D*> fetchUnpeelable();
+  int modifySplitPar(LRBSpline2D* bspl, Direction2D fixdir, double& par);
+
+  int refineStructuredMesh(std::vector<LRBSpline2D*>& source);
+  
+  std::vector<LRBSpline2D*> fetchUnpeelable(int minnmb);
+
+  bool overloadedMeshRectangles();
   
   void checkOverloaded(int minNmb, std::vector<LRBSpline2D*>& funs,
 		       std::vector<std::vector<LRBSpline2D*> >& lindep);

@@ -211,7 +211,11 @@ bool Element2D::resetOverload()
   int nmb = 0;
   for (size_t ki=0; ki<support_.size(); ++ki)
     if (support_[ki]->getOverload())
-      ++nmb;
+      {
+	++nmb;
+	if (nmb == 2)
+	  break;
+      }
 
   overload_ = (nmb >= 2);
   if (!overload_)
@@ -239,6 +243,14 @@ bool Element2D::isOverloaded()  {
 	    return true;
 	}
 	return false;
+}
+
+bool Element2D::isOverloaded(int lowest_nmb)  {
+  int n = (int)support_.size();
+  if(n > lowest_nmb)
+    return true;
+  else
+    return false;
 }
 
   void Element2D::fetchNeighbours(vector<Element2D*>& neighbours) const
