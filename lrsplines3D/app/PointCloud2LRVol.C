@@ -4,6 +4,7 @@
 #include "GoTools/lrsplines3D/LRVolApprox.h"
 #include "GoTools/geometry/ObjectHeader.h"
 #include "GoTools/lrsplines3D/LRSpline3DBezierCoefs.h"
+#include "GoTools/geometry/FileUtils.h"
 #include <boost/timer.hpp>
 #include <time.h>
 
@@ -38,6 +39,8 @@ void print_help_text()
   std::cout << "-feature <ncell1> <ncell2> <ncell3>: Specify 3D grid for feature output  \n";
   std::cout << "-featurelevels <number of levels> <level 1> ... <level n> \n";
   std::cout << "-featuredoc: Show feature documentation \n";
+  std::cout << "-bb <0/1/2>: Output bezier boundary file for visualiation. \n";
+  std::cout << "0 = no bb file (default), 1 = volume output, 2 = output derivative of volume in 3rd parameter direction. \n";
   std::cout << "-h or --help : Write this text\n";
 }
 
@@ -151,6 +154,7 @@ int main (int argc, char *argv[]) {
   int ncell1=0, ncell2=0, ncell3=0;
   bool features = false;
   vector<int> feature_levels;
+  int bb = 0;
 
   int ki, kj;
   vector<bool> par_read(argc-1, false);
@@ -265,6 +269,14 @@ int main (int argc, char *argv[]) {
 	{
 	  print_feature_info();
 	  exit(0);
+	}
+      else if (arg == "-bb")
+	{
+	  int stat = fetchIntParameter(argc, argv, ki, bb, 
+				       nmb_par, par_read);
+	  if (stat < 0)
+	    return 1;
+
 	}
     }
 
@@ -485,11 +497,27 @@ int main (int argc, char *argv[]) {
   ofstream ofs(volfile);
   result->writeStandardHeader(ofs);
   result->write(ofs);
-  
-  // LRSpline3DBezierCoefs bez(*result);
 
-  // bez.getBezierCoefs();
-  // bez.writeToFile("outbez.bb");
+  std::string name;
+  FileUtils::extractPathName(volfile, name);
+  if (bb > 0)
+    {
+      LRSpline3DBezierCoefs bez0(result.get());
+      double noval = minval - (maxval - minval);
+      bez0.getBezierCoefs(noval, 0);
+      std::string bbfile;
+      FileUtils::extendName(name.c_str(), ".bb", bbfile);
+      bez0.writeToFile(bbfile.c_str());
+    }
+  if (bb > 1)
+    {
+      LRSpline3DBezierCoefs bez1(result.get());
+
+      bez1.getBezierCoefs(0.0, 1, 2);
+      std::string bbfile2;
+      FileUtils::extendName(name.c_str(), "_der.bb", bbfile2);
+      bez1.writeToFile(bbfile2.c_str());
+    }
 
   if (field_out)
     {

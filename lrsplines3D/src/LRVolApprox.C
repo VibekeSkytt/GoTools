@@ -876,10 +876,12 @@ shared_ptr<LRSplineVolume> LRVolApprox::getApproxVol(double& maxdist,
 	  
       }
 
+    LRSpline3DUtils::distributeDataPoints(vol_.get(), points_, 
+					  true, true);
     if (recompute_accuracy)
       {
-	LRSpline3DUtils::distributeDataPoints(vol_.get(), points_, 
-					      true, true);
+	// LRSpline3DUtils::distributeDataPoints(vol_.get(), points_, 
+	// 				      true, true);
 	if (omp_for_elements)
 	  computeAccuracy_omp(ghost_elems);
 	else

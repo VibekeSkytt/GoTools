@@ -66,10 +66,10 @@ public:
   LRSpline3DBezierCoefs();
 
   /// Constructor given LRSplineVolume
-  LRSpline3DBezierCoefs(LRSplineVolume& lr_spline);
+  LRSpline3DBezierCoefs(LRSplineVolume *lr_spline);
 
   /// Fetch coefficients of Bezier volumes after extraction.
-  void getBezierCoefs();
+  void getBezierCoefs(double noval, int der=0, int dir=2);
 
   /// Write Bezier coefficients and associated information to stream
   void writeToStream(std::ostream& os);
@@ -83,7 +83,7 @@ private:
 
   void calcMinMaxCoefficientsValue();
 
-  LRSplineVolume lr_spline_; // TODO: remove the need for this
+  LRSplineVolume *lr_spline_; // TODO: remove the need for this
  
   int order_u_;
   int order_v_;

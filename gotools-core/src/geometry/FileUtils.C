@@ -44,6 +44,7 @@
 #include <string.h>
 
 using namespace Go;
+using std::string;
 
 int compare(const char *str1, char str2[][8], int nmb)
 {
@@ -146,3 +147,36 @@ void FileUtils::readTxtPointFile(std::ifstream& is, int del,
     }
 }
  
+//==============================================================================
+void FileUtils::extractPathName(char* file, string& name)
+//==============================================================================
+{
+  char *loc;
+  char *last = 0;
+  loc = strchr(file, '.');
+  while (loc != NULL)
+    {
+      last = loc;
+      loc = strchr(loc+1, '.');
+    }
+  if (last == 0)
+    {
+      name = 'notfound';
+    }
+  else
+    {
+      char outfile[160];
+      strncpy(outfile, file, last-file);
+      name = std::string(outfile);
+    }
+}
+
+//==============================================================================
+void FileUtils::extendName(const char* name, const char* ext, string& compose)
+//==============================================================================
+{
+  char outfile[160];
+  strcpy(outfile, name);
+  strcat(outfile, ext);
+  compose = std::string(outfile);
+}

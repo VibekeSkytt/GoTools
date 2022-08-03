@@ -65,9 +65,9 @@ int main(int argc, char *argv[])
 
   std::cout << "Finished reading LR volume" << std::endl;
   Array<double,6> span = vol->parameterSpan();
-  LRSpline3DBezierCoefs bez(*vol);
+  LRSpline3DBezierCoefs bez(vol.get());
 
-  bez.getBezierCoefs();
+  bez.getBezierCoefs(0.0);
 
   std::cout << "Finished converting volume " << std::endl;
   

@@ -59,19 +59,19 @@ namespace Go
 LRSpline3DBezierCoefs::LRSpline3DBezierCoefs() {}
 
 
-LRSpline3DBezierCoefs::LRSpline3DBezierCoefs(LRSplineVolume& lr_spline)
-    : dim_(lr_spline.dimension())
+LRSpline3DBezierCoefs::LRSpline3DBezierCoefs(LRSplineVolume *lr_spline)
+    : dim_(lr_spline->dimension())
 {
     lr_spline_ = lr_spline; 
-    orig_dom_ = lr_spline.parameterSpan();
-    order_u_ = 1 + lr_spline.degree(XDIR);
-    order_v_ = 1 + lr_spline.degree(YDIR);
-    order_w_ = 1 + lr_spline.degree(ZDIR);
+    orig_dom_ = lr_spline->parameterSpan();
+    order_u_ = 1 + lr_spline->degree(XDIR);
+    order_v_ = 1 + lr_spline->degree(YDIR);
+    order_w_ = 1 + lr_spline->degree(ZDIR);
 
-    num_elements_ = lr_spline.numElements();
+    num_elements_ = lr_spline->numElements();
 
     // Currently only support non-rational LR-splines of degree 2 and 3 
-    assert(!lr_spline.rational());
+    assert(!lr_spline->rational());
     assert(order_u_ <= 4 && order_u_ >= 3);
     assert(order_v_ <= 4 && order_v_ >= 3);
     assert(order_w_ <= 4 && order_w_ >= 3);
@@ -178,7 +178,7 @@ void LRSpline3DBezierCoefs::computeCoefsFromPts(const double *points, double *co
 }
 
 
-void LRSpline3DBezierCoefs::getBezierCoefs() {
+  void LRSpline3DBezierCoefs::getBezierCoefs(double noval, int der, int dir) {
   // Storage for points and coefs
   std::vector<double> points(dim_*order_u_*order_v_*order_w_);
   std::vector<double> coefs(dim_*order_u_*order_v_*order_w_);
@@ -219,10 +219,14 @@ void LRSpline3DBezierCoefs::getBezierCoefs() {
     }
 
     // Sample points in element
-    eval_grid.evaluateGrid(*it, &points[0]);
-    
-    // Compute Bezier coefficients
-    computeCoefsFromPts(&points[0], &coefs[0]);
+    eval_grid.evaluateGrid(*it, der, dir, &points[0]);
+
+    // Check if the element contains data points
+    if ((*it)->hasDataPoints())
+      // Compute Bezier coefficients
+      computeCoefsFromPts(&points[0], &coefs[0]);
+    else
+      std::fill(coefs.begin(), coefs.end(), noval);
 
     for (size_t ix = 0; ix<coefs.size(); ++ix) {
       bezier_coefs_.push_back(coefs[ix]);

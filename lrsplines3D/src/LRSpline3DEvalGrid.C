@@ -53,26 +53,26 @@ LRSpline3DEvalGrid::LRSpline3DEvalGrid()
 }
 
 
-LRSpline3DEvalGrid::LRSpline3DEvalGrid(LRSplineVolume& lr_spline)
-    : dim_(lr_spline.dimension())
+LRSpline3DEvalGrid::LRSpline3DEvalGrid(LRSplineVolume *lr_spline)
+    : dim_(lr_spline->dimension())
 {
-    assert(!lr_spline.rational());
+    assert(!lr_spline->rational());
 
-    orig_dom_ = lr_spline.parameterSpan();
+    orig_dom_ = lr_spline->parameterSpan();
 
-    order_u_ = 1 + lr_spline.degree(XDIR);
-    order_v_ = 1 + lr_spline.degree(YDIR);
-    order_w_ = 1 + lr_spline.degree(ZDIR);
+    order_u_ = 1 + lr_spline->degree(XDIR);
+    order_v_ = 1 + lr_spline->degree(YDIR);
+    order_w_ = 1 + lr_spline->degree(ZDIR);
 
     // We run through the sf and extract the elements.
-    auto iter = lr_spline.elementsBegin();
-    while (iter != lr_spline.elementsEnd())
+    auto iter = lr_spline->elementsBegin();
+    while (iter != lr_spline->elementsEnd())
     {
-	elements_.push_back(*iter->second);
+      elements_.push_back(iter->second.get());
 	++iter;
     }
 
-    mesh_ = lr_spline.mesh(); 
+    mesh_ = lr_spline->mesh(); 
 
 }
 /*

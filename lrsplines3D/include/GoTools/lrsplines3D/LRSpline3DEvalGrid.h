@@ -81,29 +81,28 @@ public:
   // LRSpline3DEvalGrid(int numElements);
 
   /// Constructor given an LR B-spline volume
-  LRSpline3DEvalGrid(LRSplineVolume& lr_spline);
+  LRSpline3DEvalGrid(LRSplineVolume *lr_spline);
 
   /// Iterator to the first element of the LR B-spline volume
-  std::vector<Element3D>::iterator elements_begin()// const
+  std::vector<Element3D*>::iterator elements_begin()// const
     {
       return elements_.begin();
     }
 
   /// Iterator past the last element of the LR B-spline volume
-  std::vector<Element3D>::iterator elements_end()// const
+  std::vector<Element3D*>::iterator elements_end()// const
     {
       return elements_.end();
     }
 
   /// Perform grid evaluation
-    template <class V>
-      void evaluateGrid(V &element, double *points)
+    void evaluateGrid(Element3D *element, int der, int dir, double *points)
       {
 	int order_U = orderU();
 	int order_V = orderV();
 	int order_W = orderW();
-	double ll_x=element.umin(), ll_y=element.vmin(), ll_z=element.wmin();
-	double ur_x=element.umax(), ur_y=element.vmax(), ur_z=element.wmax();
+	double ll_x=element->umin(), ll_y=element->vmin(), ll_z=element->wmin();
+	double ur_x=element->umax(), ur_y=element->vmax(), ur_z=element->wmax();
 	/* low(element, ll_x, ll_y, ll_z); */
 	/* high(element, ur_x, ur_y, ur_z); */
 	
@@ -112,7 +111,7 @@ public:
 	auto dw = (ur_z - ll_z) / (order_W - 1);
 
 	std::fill(points, points+order_U*order_V*order_W*dim_, 0.0);
-	const std::vector<LRBSpline3D*> bfunctions = element.getSupport();
+	const std::vector<LRBSpline3D*> bfunctions = element->getSupport();
 	size_t bsize = bfunctions.size();
 
 	// Evaluate univariate B-splines
@@ -139,7 +138,8 @@ public:
 		    if (ka == order_U-1)
 		      par = ur_x;
 		    const bool on_end = (par == orig_dom_[1]); //bfunctions[ki]->umax());
-		    val1[ki*order_U+ka] = uni1->evalBasisFunction(par, 0, on_end);
+		    val1[ki*order_U+ka] =
+		      uni1->evalBasisFunction(par, (dir==0) ? der : 0, on_end);
 		  }
 	      }
 		
@@ -157,7 +157,8 @@ public:
 		    if (ka == order_V-1)
 		      par = ur_y;
 		    const bool on_end = (par == orig_dom_[3]); //bfunctions[ki]->vmax());
-		    val2[ki*order_V+ka] = uni2->evalBasisFunction(par, 0, on_end);
+		    val2[ki*order_V+ka] =
+		      uni2->evalBasisFunction(par, (dir == 1) ? der : 0, on_end);
 		  }
 	      }
 		
@@ -175,7 +176,8 @@ public:
 		    if (ka == order_W-1)
 		      par = ur_z;
 		    const bool on_end = (par == orig_dom_[5]); //bfunctions[ki]->wmax());
-		    val3[ki*order_W+ka] = uni3->evalBasisFunction(par, 0, on_end);
+		    val3[ki*order_W+ka] =
+		      uni3->evalBasisFunction(par, (dir == 2) ? der : 0, on_end);
 		  }
 	      }
 	  }
@@ -288,11 +290,11 @@ public:
     }
 
   /// Lower left front corner of element
-  void low(const Element3D &e, double &u, double &v, double &w)
+  void low(Element3D *e, double &u, double &v, double &w)
     {
-      u = e.umin();
-      v = e.vmin();
-      w = e.wmin();
+      u = e->umin();
+      v = e->vmin();
+      w = e->wmin();
       u -= orig_dom_[0];
       u /= orig_dom_[1]-orig_dom_[0];
       v -= orig_dom_[2];
@@ -302,11 +304,11 @@ public:
     }
 
   /// Upper right back corner of element
-  void high(const Element3D &e, double &u, double &v, double &w)
+  void high(Element3D *e, double &u, double &v, double &w)
     {
-      u = e.umax();
-      v = e.vmax();
-      w = e.wmax();
+      u = e->umax();
+      v = e->vmax();
+      w = e->wmax();
       u -= orig_dom_[0];
       u /= orig_dom_[1]-orig_dom_[0];
       v -= orig_dom_[2];
@@ -325,7 +327,7 @@ public:
 private:
     // umin, umax, vmin, vmax, wmin, wmax
     Array<double,6> orig_dom_;
-    std::vector<Element3D> elements_;
+    std::vector<Element3D*> elements_;
     int order_u_;
     int order_v_;
     int order_w_;
