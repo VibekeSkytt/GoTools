@@ -138,7 +138,7 @@ int fetchCharParameter(int argc, char *argv[], int ki, char*& parameter,
 int main (int argc, char *argv[]) {
 
   char *pointfile = 0;     // Input point file
-  char *volfile = 0;       // Volume output file
+  string volfile;       // Volume output file
   char *infofile = 0;      // Accuracy information output file
   char *tolfile = 0;       // File specifying varying tolerances
   char *field_out = 0;     // Distance field output file
@@ -494,11 +494,11 @@ int main (int argc, char *argv[]) {
       std::cout << "Maximum distance exceeding tolerance (dist-tol): " << maxout << std::endl;
       std::cout << "Average distance exceeding tolerance (dist-tol): " << avout << std::endl;
      } 
-  ofstream ofs(volfile);
+  ofstream ofs(volfile.c_str());
   result->writeStandardHeader(ofs);
   result->write(ofs);
 
-  std::string name;
+  string name;
   FileUtils::extractPathName(volfile, name);
   if (bb > 0)
     {

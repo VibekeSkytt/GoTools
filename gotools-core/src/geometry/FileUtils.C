@@ -148,17 +148,24 @@ void FileUtils::readTxtPointFile(std::ifstream& is, int del,
 }
  
 //==============================================================================
-void FileUtils::extractPathName(char* file, string& name)
+void FileUtils::extractPathName(string file, string& name)
 //==============================================================================
 {
+  std::cout << file << std::endl;
+  char *f = (char*)file.c_str();
   char *loc;
   char *last = 0;
-  loc = strchr(file, '.');
-  while (loc != NULL)
+  last = loc = strchr(f, '.');
+  if (last != NULL)
+    std::cout << *last << std::endl;
+  //while (loc != NULL)
+  while (loc != NULL && *loc == '.')
     {
       last = loc;
       loc = strchr(loc+1, '.');
     }
+  if (last != NULL)
+    std::cout << *last << std::endl;
   if (last == 0)
     {
       name = 'notfound';
@@ -166,8 +173,11 @@ void FileUtils::extractPathName(char* file, string& name)
   else
     {
       char outfile[160];
-      strncpy(outfile, file, last-file);
+      strncpy(outfile, f, last-f);
+      outfile[last-f] = '\0'; 
+      std::cout << outfile << std::endl;
       name = std::string(outfile);
+      std::cout << name << std::endl;
     }
 }
 
