@@ -156,16 +156,11 @@ void FileUtils::extractPathName(string file, string& name)
   char *loc;
   char *last = 0;
   last = loc = strchr(f, '.');
-  if (last != NULL)
-    std::cout << *last << std::endl;
-  //while (loc != NULL)
-  while (loc != NULL && *loc == '.')
+  while (loc != NULL)
     {
       last = loc;
       loc = strchr(loc+1, '.');
     }
-  if (last != NULL)
-    std::cout << *last << std::endl;
   if (last == 0)
     {
       name = 'notfound';
@@ -175,9 +170,7 @@ void FileUtils::extractPathName(string file, string& name)
       char outfile[160];
       strncpy(outfile, f, last-f);
       outfile[last-f] = '\0'; 
-      std::cout << outfile << std::endl;
       name = std::string(outfile);
-      std::cout << name << std::endl;
     }
 }
 
