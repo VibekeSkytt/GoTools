@@ -791,8 +791,8 @@ int main(int argc, char *argv[])
     {
       double tmp = c1*(extent[2*kj+1]-extent[2*kj]);
       nc[kj] = (int)tmp;
-      //if (tmp - (double)nc[kj] > 0.5)
-      ++nc[kj];
+      if (tmp - (double)nc[kj] > 0.5)
+	++nc[kj];
       nc[kj] = std::max(nc[kj], order);
     }
   double mba_coef = 0.0;
