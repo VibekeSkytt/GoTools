@@ -223,6 +223,7 @@ int main (int argc, char *argv[]) {
 					  nmb_par, par_read);
 	  if (stat < 0)
 	    return 1;
+	  ++nmb_par;
 	}
       else if (arg == "-distributecf")
 	{
