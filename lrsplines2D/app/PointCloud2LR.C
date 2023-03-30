@@ -707,8 +707,9 @@ int main(int argc, char *argv[])
 #endif
 
   // Move point cloud to origo
-  Point mid(0.5*(extent[2*(del-3)] + extent[2*(del-3)+1]),
-	    0.5*(extent[2*(del-2)] + extent[2*(del-2)+1]), 0.0);
+  // Point mid(0.5*(extent[2*(del-3)] + extent[2*(del-3)+1]),
+  // 	    0.5*(extent[2*(del-2)] + extent[2*(del-2)+1]), 0.0);
+    Point mid(0.0, 0.0, 0.0);
   for (ki=0; ki<nmb_pts; ++ki)
     for (kj=del-3; kj<del-1; ++kj)
       {
@@ -940,7 +941,7 @@ int main(int argc, char *argv[])
       outlier_cloud.write(ofo);
       std::ofstream ofr("regular_pts.g2");
       ofr.precision(15);
-      regular_cloud.writeStandardHeader(ofo);
+      regular_cloud.writeStandardHeader(ofr);
       regular_cloud.write(ofr);
     }
       

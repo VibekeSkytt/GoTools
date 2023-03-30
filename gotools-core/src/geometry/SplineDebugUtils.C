@@ -162,8 +162,8 @@ void SplineDebugUtils::writeBoundary(BoundedSurface& bd_sf,
       shared_ptr<ParamCurve> par_cv = cv_on_sf->parameterCurve();
       shared_ptr<ParamCurve> space_cv = cv_on_sf->spaceCurve();
       if (!space_cv.get())
-	    cv_on_sf->ensureSpaceCrvExistence(0.1);  // A rough tolerance
-      if (space_cv.get() && space_cv->dimension() != 1)
+      	    cv_on_sf->ensureSpaceCrvExistence(0.1);  // A rough tolerance
+     if (space_cv.get() && space_cv->dimension() != 1)
 	{
 	  space_cv->writeStandardHeader(os);
 	  space_cv->write(os);

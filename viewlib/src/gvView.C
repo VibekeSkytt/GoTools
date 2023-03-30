@@ -170,7 +170,7 @@ void gvView::initializeGL()
     glEnable(GL_LIGHT0);
     glEnable(GL_LIGHTING);
 
-    glLineWidth(0.5); //1.0); // @@@ var 2 081209
+    glLineWidth(2.0); //1.0); // @@@ var 2 081209
     glPointSize(2.0);
 
     glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 1); // Default value = 0.
