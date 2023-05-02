@@ -127,7 +127,8 @@ namespace Go
       // Distribute given data points to elements
       void distributeDataPoints(LRSplineVolume* vol, std::vector<double>& points, 
                                 bool add_distance_field = false, 
-                                bool primary_points = true);
+                                bool primary_points = true,
+				bool use_sort = false);
       
       // Evaluate all basis functions in a point
       void evalAllBSplines(const std::vector<LRBSpline3D*>& bsplines,
@@ -147,7 +148,27 @@ namespace Go
 			     bool u_at_end, bool v_at_end, bool w_at_end,
 			     std::vector<Point>& result);
 
-      // Comparison functor which only takes into account the support of the LRBSpline3Ds,
+    bool computeCoefsFromPts(std::vector<double>& points, int order_u,
+			     int order_v, int order_w, int dim,
+			     std::vector<double>& coefs);
+
+
+  static constexpr double M3_[9] = // interpolation matrix for quadratic splines
+  {
+    1,   0,   0,
+    -.5,   2, -.5,
+    0,   0,   1
+  };
+  static constexpr double M4_[16] = // interpolation matrix for cubic splines
+  {
+         1,        0,      0,      0,
+    -5/6.0,   18/6.0, -9/6.0,  2/6.0,
+     2/6.0,   -9/6.0, 18/6.0, -5/6.0,
+         0,        0,      0,      1
+  };
+
+
+    // Comparison functor which only takes into account the support of the LRBSpline3Ds,
       // not the coefficient or gamma.  This functor is sometimes useful when generating
       // STL structures that keep track of LRBSpline3Ds with unique support.
       //==============================================================================

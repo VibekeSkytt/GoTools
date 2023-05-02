@@ -1223,7 +1223,8 @@ bool LRSpline3DUtils::support_equal(const LRBSpline3D* b1, const LRBSpline3D* b2
 void LRSpline3DUtils::distributeDataPoints(LRSplineVolume* vol, 
                                            vector<double>& points, 
                                            bool add_distance_field, 
-                                           bool primary_points) 
+                                           bool primary_points,
+					   bool use_sort) 
 //==============================================================================
 {
   int dim = vol->dimension();
@@ -1235,109 +1236,114 @@ void LRSpline3DUtils::distributeDataPoints(LRSplineVolume* vol,
   for (LRSplineVolume::ElementMap::const_iterator it = vol->elementsBegin();
        it != vol->elementsEnd(); ++it)
     it->second->eraseDataPoints();
-#if 1
-  // @obar: This is a simplified version of the 2D implementation, which is slower, but 
-  // probably OK if the initial volume has few elements.
-  // Can generalise the 2D version if a long time is spent here.
-  for (size_t ix=0; ix!=nmb; ix++) {
-    // Fetch associated element
-    Element3D* elem = vol->coveringElement(points[del*ix],points[del*ix+1],points[del*ix+2]);
-    if (add_distance_field)
-      elem->addDataPoints(points.begin()+del*ix, points.begin()+del*(ix+1), del, false);
-    else
-      elem->addDataPoints(points.begin()+del*ix, points.begin()+del*(ix+1), false);
-  }
-#endif
-#if 0
-  // Sort the points according to the u-parameter
-  qsort(&points[0], nmb, del*sizeof(double), compare_u_par);
-
-  // Get all knot values in the u-direction
-  const double* const uknots_begin = vol->mesh().knotsBegin(XDIR);
-  const double* const uknots_end = vol->mesh().knotsEnd(XDIR);
-  int nmb_knots_u = vol->mesh().numDistinctKnots(XDIR);
-  const double* knotu;
-
-  // Construct mesh of element pointers
-  vector<Element3D*> elements;
-  vol->constructElementMesh(elements);
-
-  // Get all knot values in the v-direction
-  const double* const vknots_begin = vol->mesh().knotsBegin(YDIR);
-  const double* const vknots_end = vol->mesh().knotsEnd(YDIR);
-  int nmb_knots_v = vol->mesh().numDistinctKnots(YDIR);
-  const double* knotv;
-
-  // Get all knot values in the w-direction
-  const double* const wknots_begin = vol->mesh().knotsBegin(ZDIR);
-  const double* const wknots_end = vol->mesh().knotsEnd(ZDIR);
-  int nmb_knots_w = vol->mesh().numDistinctKnots(ZDIR);
-  const double* knotw;
-
-  // Traverse points and divide them according to their position in the
-  // u direction
-  int ki, kj, kr;
-  int pp0, pp1;
-  for (ki=0, pp0=0, knotu=uknots_begin, ++knotu; knotu!= uknots_end; 
-       ++knotu, ++ki)
+  if (!use_sort)
     {
-      
-      for (pp1=pp0; pp1<(int)points.size() && points[pp1] < (*knotu); pp1+=del);
-      if (knotu+1 == uknots_end)
-	pp1 = (int)points.size();
+      // @obar: This is a simplified version of the 2D implementation, which is slower, but 
+      // probably OK if the initial volume has few elements.
+      // Can generalise the 2D version if a long time is spent here.
+      for (size_t ix=0; ix!=nmb; ix++) {
+	// Fetch associated element
+	Element3D* elem = vol->coveringElement(points[del*ix],
+					       points[del*ix+1],points[del*ix+2]);
+	if (add_distance_field)
+	  elem->addDataPoints(points.begin()+del*ix,
+			      points.begin()+del*(ix+1), del, false);
+	else
+	  elem->addDataPoints(points.begin()+del*ix,
+			      points.begin()+del*(ix+1), false);
+      }
+    }
+  else
+    {
+      // Sort the points according to the u-parameter
+      qsort(&points[0], nmb, del*sizeof(double), compare_u_par);
 
-      // Sort the current sub set of points according to the v-parameter
-      qsort(&points[0]+pp0, (pp1-pp0)/del, del*sizeof(double), compare_v_par);
+      // Get all knot values in the u-direction
+      const double* const uknots_begin = vol->mesh().knotsBegin(XDIR);
+      const double* const uknots_end = vol->mesh().knotsEnd(XDIR);
+      int nmb_knots_u = vol->mesh().numDistinctKnots(XDIR);
+      const double* knotu;
+
+      // Construct mesh of element pointers
+      vector<Element3D*> elements;
+      vol->constructElementMesh(elements);
+
+      // Get all knot values in the v-direction
+      const double* const vknots_begin = vol->mesh().knotsBegin(YDIR);
+      const double* const vknots_end = vol->mesh().knotsEnd(YDIR);
+      int nmb_knots_v = vol->mesh().numDistinctKnots(YDIR);
+      const double* knotv;
+
+      // Get all knot values in the w-direction
+      const double* const wknots_begin = vol->mesh().knotsBegin(ZDIR);
+      const double* const wknots_end = vol->mesh().knotsEnd(ZDIR);
+      int nmb_knots_w = vol->mesh().numDistinctKnots(ZDIR);
+      const double* knotw;
 
       // Traverse points and divide them according to their position in the
-      // v direction
-      int pp2, pp3;
-      for (kj=0, pp2=pp0, knotv=vknots_begin, ++knotv; knotv!=vknots_end; 
-	   ++knotv, ++kj)
+      // u direction
+      int ki, kj, kr;
+      int pp0, pp1;
+      for (ki=0, pp0=0, knotu=uknots_begin, ++knotu; knotu!= uknots_end; 
+	   ++knotu, ++ki)
 	{
-	  for (pp3=pp2; pp3<pp1 && points[pp3+1] < (*knotv); pp3 += del);
-	  if (knotv+1 == vknots_end)
-	    pp3 = pp1;
-	  
-	  // Sort the current sub set of points according to the w-parameter
-	  qsort(&points[0]+pp2, (pp3-pp2)/del, del*sizeof(double), compare_w_par);
+      
+	  for (pp1=pp0; pp1<(int)points.size() && points[pp1] < (*knotu); pp1+=del);
+	  if (knotu+1 == uknots_end)
+	    pp1 = (int)points.size();
 
-	  // Traverse the relevant points and store them in the associated element
-	  // Note that an extra entry will be added for each point to allow for
-	  // storing the distance between the point and the surface
-	  int pp4, pp5;
-	  for (kr=0, pp4=pp2, knotw=wknots_begin, ++knotw; knotw!=wknots_end; 
-	       ++knotw, ++kr)
+	  // Sort the current sub set of points according to the v-parameter
+	  qsort(&points[0]+pp0, (pp1-pp0)/del, del*sizeof(double), compare_v_par);
+
+	  // Traverse points and divide them according to their position in the
+	  // v direction
+	  int pp2, pp3;
+	  for (kj=0, pp2=pp0, knotv=vknots_begin, ++knotv; knotv!=vknots_end; 
+	       ++knotv, ++kj)
 	    {
-	      for (pp5=pp4; pp5<pp3 && points[pp5+2] < (*knotw); pp5 += del);
-	      if (knotw+1 == wknots_end)
-		pp5 = pp3;
-	      
-	      // Fetch associated element
-	      Element3D* elem = elements[(kr*(nmb_knots_v-1)+kj)*(nmb_knots_u-1)+ki];
+	      for (pp3=pp2; pp3<pp1 && points[pp3+1] < (*knotv); pp3 += del);
+	      if (knotv+1 == vknots_end)
+		pp3 = pp1;
+	  
+	      // Sort the current sub set of points according to the w-parameter
+	      qsort(&points[0]+pp2, (pp3-pp2)/del, del*sizeof(double), compare_w_par);
 
-	      if (elem == NULL)
+	      // Traverse the relevant points and store them in the associated element
+	      // Note that an extra entry will be added for each point to allow for
+	      // storing the distance between the point and the surface
+	      int pp4, pp5;
+	      for (kr=0, pp4=pp2, knotw=wknots_begin, ++knotw; knotw!=wknots_end; 
+		   ++knotw, ++kr)
 		{
-		  std::cout << "Missing element pointer" << std::endl;
-		  std::cout << nmb_knots_u << " " << nmb_knots_v << " " << nmb_knots_w << std::endl;
-		  std::cout << ki << " " << kj << " " << kr << std::endl;
-		  int ix = 0.5*(pp4+pp5)*del;
-		  elem = vol->coveringElement(points[ix], points[ix+1],
-					      points[ix+2]);
+		  for (pp5=pp4; pp5<pp3 && points[pp5+2] < (*knotw); pp5 += del);
+		  if (knotw+1 == wknots_end)
+		    pp5 = pp3;
+	      
+		  // Fetch associated element
+		  Element3D* elem = elements[(kr*(nmb_knots_v-1)+kj)*(nmb_knots_u-1)+ki];
+
+		  if (elem == NULL)
+		    {
+		      std::cout << "Missing element pointer" << std::endl;
+		      std::cout << nmb_knots_u << " " << nmb_knots_v << " " << nmb_knots_w << std::endl;
+		      std::cout << ki << " " << kj << " " << kr << std::endl;
+		      int ix = 0.5*(pp4+pp5)*del;
+		      elem = vol->coveringElement(points[ix], points[ix+1],
+						  points[ix+2]);
+		    }
+		  if (add_distance_field)
+		    elem->addDataPoints(points.begin()+pp4, points.begin()+pp5, 
+					del, false);
+		  else
+		    elem->addDataPoints(points.begin()+pp4, points.begin()+pp5, 
+					false);
+		  pp4 = pp5;
 		}
-	      if (add_distance_field)
-		elem->addDataPoints(points.begin()+pp4, points.begin()+pp5, 
-				    del, false);
-	      else
-		elem->addDataPoints(points.begin()+pp4, points.begin()+pp5, 
-				    false);
-	      pp4 = pp5;
+	      pp2 = pp3;
 	    }
-	  pp2 = pp3;
+	  pp0 = pp1;
 	}
-      pp0 = pp1;
     }
-#endif  
 }
 
 //==============================================================================
@@ -1478,5 +1484,126 @@ void LRSpline3DUtils::evalAllBSplinePos(const vector<LRBSpline3D*>& bsplines,
 	bsplines[ki]->coefTimesGamma();
     }
  }
+
+inline int flat(int i, int j, int k, int l, int I, int J, int K)
+{
+  return (i + I*(j + J*(k + K*l)));
+}
+
+inline int flat(int i, int j, int k, int l, int m, int I, int J, int K, int L) { 
+  return (i + I*(j + J*(k + K*(l + L*m))));
+}
+
+//==============================================================================
+bool LRSpline3DUtils::computeCoefsFromPts(vector<double>& points, int order_u,
+					   int order_v, int order_w, int dim,
+					   vector<double>& coefs)
+//==============================================================================
+{
+  // Supports only degree two and three
+  if (order_u < 3 || order_u > 4 || order_v < 3 || order_v > 4 ||
+      order_w < 3 || order_w > 4)
+    return false;
+
+  coefs.resize(dim*order_u*order_v*order_w);
+    vector<double> tmp_vec_x(dim*order_u*order_v*order_w);
+    if (order_u == 3) {
+      for (int jx=0; jx<order_v; jx++) {
+	for (int kx=0; kx<order_w; kx++) {
+	  for (int d=0; d<dim; d++) {
+	    tmp_vec_x[flat(d,0,jx,kx,dim,order_u,order_v)] = points[flat(d,0,jx,kx,dim,order_u,order_v)];
+	    tmp_vec_x[flat(d,1,jx,kx,dim,order_u,order_v)] = M3_[3]*points[flat(d,0,jx,kx, dim,order_u,order_v)]
+	      + M3_[4]*points[flat(d,1,jx,kx, dim,order_u,order_v)]
+	      + M3_[5]*points[flat(d,2,jx,kx, dim,order_u,order_v)];
+	    tmp_vec_x[flat(d,2,jx,kx,dim,order_u,order_v)] = points[flat(d,2,jx,kx,dim,order_u,order_v)];
+	  }
+	} 
+      }
+    }
+    else {
+      for(int jx=0; jx<order_v; jx++) {
+	for(int kx=0; kx<order_w; kx++) {
+	  for(int d=0; d<dim; d++) {
+	    tmp_vec_x[flat(d,0,jx,kx,dim,order_u,order_v)] =          points[flat(d,0,jx,kx,dim,order_u,order_v)];
+	    tmp_vec_x[flat(d,1,jx,kx,dim,order_u,order_v)] = M4_[ 4]*points[flat(d,0,jx,kx,dim,order_u,order_v)]
+	      + M4_[ 5]*points[flat(d,1,jx,kx,dim,order_u,order_v)]
+	      + M4_[ 6]*points[flat(d,2,jx,kx,dim,order_u,order_v)]
+	      + M4_[ 7]*points[flat(d,3,jx,kx,dim,order_u,order_v)];
+	    tmp_vec_x[flat(d,2,jx,kx,dim,order_u,order_v)] = M4_[ 8]*points[flat(d,0,jx,kx,dim,order_u,order_v)]
+	      + M4_[ 9]*points[flat(d,1,jx,kx,dim,order_u,order_v)]
+	      + M4_[10]*points[flat(d,2,jx,kx,dim,order_u,order_v)]
+	      + M4_[11]*points[flat(d,3,jx,kx,dim,order_u,order_v)];
+	    tmp_vec_x[flat(d,3,jx,kx,dim,order_u,order_v)] =          points[flat(d,3,jx,kx,dim,order_u,order_v)];
+	  }
+	}
+      }
+    }
+
+    std::vector<double> tmp_vec_xy(dim*order_u*order_v*order_w);
+    if (order_v == 3) {
+      for(int ix=0; ix<order_u; ix++) {
+	for(int kx=0; kx<order_w; kx++) {
+	  for(int d=0; d<dim; d++) {
+	    tmp_vec_xy[flat(d,ix,0,kx, dim,order_u,order_v)] =        tmp_vec_x[flat(d,ix,0,kx,dim,order_u,order_v)];
+	    tmp_vec_xy[flat(d,ix,1,kx, dim,order_u,order_v)] = M3_[3]*tmp_vec_x[flat(d,ix,0,kx,dim,order_u,order_v)]
+	      + M3_[4]*tmp_vec_x[flat(d,ix,1,kx,dim,order_u,order_v)]
+	      + M3_[5]*tmp_vec_x[flat(d,ix,2,kx,dim,order_u,order_v)];
+	    tmp_vec_xy[flat(d,ix,2,kx, dim,order_u,order_v)] =        tmp_vec_x[flat(d,ix,2,kx,dim,order_u,order_v)];
+	  }
+	}
+      }
+    }
+    else {
+      for(int ix=0; ix<order_u; ix++) {
+	for(int kx=0; kx<order_w; kx++) {
+	  for(int d=0; d<dim; d++) {
+	    tmp_vec_xy[flat(d,ix,0,kx, dim,order_u,order_v)] =         tmp_vec_x[flat(d,ix,0,kx,dim,order_u,order_v)];
+	    tmp_vec_xy[flat(d,ix,1,kx, dim,order_u,order_v)] = M4_[ 4]*tmp_vec_x[flat(d,ix,0,kx,dim,order_u,order_v)]
+	      + M4_[ 5]*tmp_vec_x[flat(d,ix,1,kx,dim,order_u,order_v)]
+	      + M4_[ 6]*tmp_vec_x[flat(d,ix,2,kx,dim,order_u,order_v)]
+	      + M4_[ 7]*tmp_vec_x[flat(d,ix,3,kx,dim,order_u,order_v)];
+	    tmp_vec_xy[flat(d,ix,2,kx, dim,order_u,order_v)] = M4_[ 8]*tmp_vec_x[flat(d,ix,0,kx,dim,order_u,order_v)]
+	      + M4_[ 9]*tmp_vec_x[flat(d,ix,1,kx,dim,order_u,order_v)]
+	      + M4_[10]*tmp_vec_x[flat(d,ix,2,kx,dim,order_u,order_v)]
+	      + M4_[11]*tmp_vec_x[flat(d,ix,3,kx,dim,order_u,order_v)];
+	    tmp_vec_xy[flat(d,ix,3,kx, dim,order_u,order_v)] =         tmp_vec_x[flat(d,ix,3,kx,dim,order_u,order_v)];
+	  }
+	}
+      }
+    }
+
+    if (order_w == 3) {
+      for(int ix=0; ix<order_u; ix++) {
+	for(int jx=0; jx<order_v; jx++) {
+	  for(int d=0; d<dim; d++) {
+	    coefs[flat(d,ix,jx,0,dim,order_u,order_v)] =        tmp_vec_xy[flat(d,ix,jx,0,dim,order_u,order_v)];
+	    coefs[flat(d,ix,jx,1,dim,order_u,order_v)] = M3_[3]*tmp_vec_xy[flat(d,ix,jx,0,dim,order_u,order_v)]
+	      + M3_[4]*tmp_vec_xy[flat(d,ix,jx,1,dim,order_u,order_v)]
+	      + M3_[5]*tmp_vec_xy[flat(d,ix,jx,2,dim,order_u,order_v)];
+	    coefs[flat(d,ix,jx,2,dim,order_u,order_v)] =        tmp_vec_xy[flat(d,ix,jx,2,dim,order_u,order_v)];
+	  }
+	}
+      }
+    }
+    else {
+      for(int ix=0; ix<order_u; ix++) {
+	for(int jx=0; jx<order_v; jx++) {
+	  for(int d=0; d<dim; d++) {
+	    coefs[flat(d,ix,jx,0,dim,order_u,order_v)] =         tmp_vec_xy[flat(d,ix,jx,0,dim,order_u,order_v)];
+	    coefs[flat(d,ix,jx,1,dim,order_u,order_v)] = M4_[ 4]*tmp_vec_xy[flat(d,ix,jx,0,dim,order_u,order_v)]
+	      + M4_[ 5]*tmp_vec_xy[flat(d,ix,jx,1,dim,order_u,order_v)]
+	      + M4_[ 6]*tmp_vec_xy[flat(d,ix,jx,2,dim,order_u,order_v)]
+	      + M4_[ 7]*tmp_vec_xy[flat(d,ix,jx,3,dim,order_u,order_v)];
+	    coefs[flat(d,ix,jx,2,dim,order_u,order_v)] = M4_[ 8]*tmp_vec_xy[flat(d,ix,jx,0,dim,order_u,order_v)]
+	      + M4_[ 9]*tmp_vec_xy[flat(d,ix,jx,1,dim,order_u,order_v)]
+	      + M4_[10]*tmp_vec_xy[flat(d,ix,jx,2,dim,order_u,order_v)]
+	      + M4_[11]*tmp_vec_xy[flat(d,ix,jx,3,dim,order_u,order_v)];
+	    coefs[flat(d,ix,jx,3,dim,order_u,order_v)] =         tmp_vec_xy[flat(d,ix,jx,3,dim,order_u,order_v)];
+	  }
+	}
+      }
+    }
+    return true;
+}
 
 }; // end namespace Go

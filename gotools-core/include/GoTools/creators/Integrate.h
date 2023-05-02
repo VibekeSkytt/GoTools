@@ -64,6 +64,11 @@ namespace Go
 		       std::vector<double>& parameters,
 		       std::vector<double>& par_weights);
 
+  void GaussQuadValues(int degree,
+		       double start, double end,
+		       std::vector<double>& parameters,
+		       std::vector<double>& par_weights);
+
 
   /** Compute all definite integrals of inner products of
    *  derivatives of B-splines up to a given order where the

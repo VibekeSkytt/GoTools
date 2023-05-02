@@ -428,12 +428,13 @@ int main (int argc, char *argv[]) {
 	++nc[kj];
       nc[kj] = std::max(nc[kj], order);
     }
-  //std::cout << "Number of coefficients: " << nc[0] << ", " << nc[1] << ", " << nc[2] << std::endl;
-  // LRVolApprox vol_approx(nc[0], order, nc[1], order, nc[2], order,
-  // 			 pc4d, dim, domain, epsge, mba_level);
-  std::cout << "Number of coefficients: " << ncoef << ", " << ncoef << ", " << ncoef << std::endl;
-  LRVolApprox vol_approx(ncoef, order, ncoef, order, ncoef, order,
+  nc[2] = std::max(nc[2], 5);
+  std::cout << "Number of coefficients: " << nc[0] << ", " << nc[1] << ", " << nc[2] << std::endl;
+  LRVolApprox vol_approx(nc[0], order, nc[1], order, nc[2], order,
   			 pc4d, dim, domain, epsge, mba_level);
+  //std::cout << "Number of coefficients: " << ncoef << ", " << ncoef << ", " << ncoef << std::endl;
+  // LRVolApprox vol_approx(ncoef, order, ncoef, order, ncoef, order,
+  // 			 pc4d, dim, domain, epsge, mba_level);
   vol_approx.setInitMBA(initMBA);
   if (tolerances.size() > 0)
     vol_approx.setVarTolBox(tolerances);
@@ -459,6 +460,7 @@ int main (int argc, char *argv[]) {
   cout << "Starting approximation..." << endl;
 
   shared_ptr<LRSplineVolume> result = vol_approx.getApproxVol(max,av_all,average,num_out,levels);
+  std::cout << "Resulting number of mesh positions: " << result->mesh().numDistinctKnots(1) << ", " << result->mesh().numDistinctKnots(2) << ", " << result->mesh().numDistinctKnots(3) << ", " << std::endl;
 
   vol_approx.fetchOutsideTolInfo(maxout, avout);
 
@@ -500,11 +502,12 @@ int main (int argc, char *argv[]) {
 
   std::string name;
   FileUtils::extractPathName(volfile, name);
+  std::cout << name << std::endl;
   if (bb > 0)
     {
       LRSpline3DBezierCoefs bez0(result.get());
       double noval = minval - (maxval - minval);
-      bez0.getBezierCoefs(noval, 0);
+      bez0.getBezierCoefs(noval, 0, 0, false, 0.0, false);
       std::string bbfile;
       FileUtils::extendName(name.c_str(), ".bb", bbfile);
       bez0.writeToFile(bbfile.c_str());
@@ -513,7 +516,7 @@ int main (int argc, char *argv[]) {
     {
       LRSpline3DBezierCoefs bez1(result.get());
 
-      bez1.getBezierCoefs(0.0, 1, 2);
+      bez1.getBezierCoefs(0.0, 1, 2, false, 0.0, false);
       std::string bbfile2;
       FileUtils::extendName(name.c_str(), "_der.bb", bbfile2);
       bez1.writeToFile(bbfile2.c_str());

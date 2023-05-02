@@ -211,6 +211,8 @@ public:
   /// found within an epsilon interval
   int getKnotIdx(Direction3D d, const double& par, double eps) const;
 
+  int getKnotIdx(int pardir, const double& par, double eps) const;
+
   /// In a given direction find all consecutive segments of meshrectangles with multiplicities
   /// greater than or equal to a given threshold. Each found segment is represented as an integer pair,
   /// representing the start index of the first meshrectangle in the segment and the one-past-end index

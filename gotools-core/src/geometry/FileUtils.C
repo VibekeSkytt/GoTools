@@ -167,6 +167,7 @@ void FileUtils::extractPathName(char* file, string& name)
     {
       char outfile[160];
       strncpy(outfile, file, last-file);
+      outfile[last-file] = '\0'; 
       name = std::string(outfile);
     }
 }

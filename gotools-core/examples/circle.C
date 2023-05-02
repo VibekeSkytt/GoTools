@@ -105,7 +105,9 @@ int main(int argc, char** argv)
 	 << "\nt = "    << clo_t << "   distance = "     << clo_dist << endl;
 
     // Closest point(). Parameter search from 120 to 210 deg.
-    tmin = 4*twopi/12;    tmax = 7*twopi/12;
+    //tmin = 4*twopi/12;    tmax = 7*twopi/12;
+    tmin = 0;
+    tmax = M_PI;
     circle1.closestPoint(pnt, tmin, tmax, clo_t, clo_pt, clo_dist);
     cout << "\nclosestPoint() between parameters " << tmin << " and " << tmax
 	 << "\nPoint= " << pnt   << "   Closest point= " << clo_pt

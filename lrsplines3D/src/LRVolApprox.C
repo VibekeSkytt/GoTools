@@ -1754,7 +1754,7 @@ bool compare_elems(pair<Element3D*,double> el1, pair<Element3D*,double> el2)
   return (el1.second > el2.second);
 }
 
-int divide(double *err, int *perm, int low, int high)
+int divide_vol(double *err, int *perm, int low, int high)
 {
   int p1 = perm[high];
   int ki = low - 1;
@@ -1770,14 +1770,14 @@ int divide(double *err, int *perm, int low, int high)
   return (ki+1);
 }
 
-void quicksort(double *err, int *perm, int low, int high)
+void quicksort_vol(double *err, int *perm, int low, int high)
 {
   if (low < high)
     {
-      int pos = divide(err, perm, low, high);
+      int pos = divide_vol(err, perm, low, high);
 
-      quicksort(err, perm, low, pos-1);
-      quicksort(err, perm, pos+1, high);
+      quicksort_vol(err, perm, low, pos-1);
+      quicksort_vol(err, perm, pos+1, high);
     }
 }
 
@@ -1979,7 +1979,7 @@ int LRVolApprox::refineVol(double threshold)
   std::cout << "Before sorting B-splines " << std::endl;
 #endif
   // Do the sorting
-  quicksort(&error2[0], &bspl_perm[0], 0, nmb_perm-1);
+  quicksort_vol(&error2[0], &bspl_perm[0], 0, nmb_perm-1);
   // for (ki=0; ki<num_bspl; ++ki)
   //   for (kj=ki+1; kj<num_bspl; ++kj)
   //     {

@@ -956,6 +956,21 @@ int Mesh3D::minMultInLine(Direction3D d, int ix) const
 }
 
 // =============================================================================
+  int Mesh3D::getKnotIdx(int pardir, const double& par, double eps) const
+// =============================================================================
+{
+  if (pardir == 0)
+    return getKnotIdx(XDIR, par, eps);
+  else if (pardir == 1)
+    return getKnotIdx(YDIR, par, eps);
+  else if (pardir == 2)
+    return getKnotIdx(ZDIR, par, eps);
+  else
+    return -1;   // Illegal input
+}
+
+
+// =============================================================================
   int Mesh3D::getKnotIdx(Direction3D d, const double& par, double eps) const
 // =============================================================================
 {
