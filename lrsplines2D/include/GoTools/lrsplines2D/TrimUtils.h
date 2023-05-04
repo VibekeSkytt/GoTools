@@ -63,6 +63,16 @@ namespace Go
     /// than the bounding domain of the parameter points
     TrimUtils(double* points, int nmb_pts, int dim, double domain[]);
 
+    /// Constuctor given a number of parameterized point cloud. The points are given as 
+    /// (u,v,x,y,z) or (x,y,z) if the z-coordinate is parameterized by its x- and y-values.
+    /// Note that the sequence of the points will be changed.
+    /// domain - parameter domain of surface to be trimmed. Must be equal to or larger
+    /// than the bounding domain of the parameter points
+    /// The parameter all indicates if all point clouds need to have points if an area
+    /// is regarded as being inside the trimming loop
+    TrimUtils(std::vector<double*>& points, std::vector<int>& nmb_pts, int dim,
+	      double domain[], bool all);
+
     ~TrimUtils();
 
     /// Using recusion, compute a polygon in the parameter domain surrounding the point 
@@ -103,7 +113,7 @@ namespace Go
 
     /// Check for points left outside of the trimming loop.
     void extractOutsidePoint(shared_ptr<BoundedSurface>& surf,
-			     std::vector<double>& outpoints,
+			     std::vector<std::vector<double> >& outpoints,
 			     int max_nmb);
 
   private:
@@ -111,22 +121,62 @@ namespace Go
     {
       SubCloud()
       {
-	nmb_pts_ = 0;
-	ix1_ = 0; 
-	ix2_ = 0;
 	processed_ = false;
 	limit_[0] = limit_[1] = limit_[2] = limit_[3] = 0;
+	num_with_pts_ = 0;
       }
 
-      void setInfo(int nmb_pts, int ix1, int ix2, double dom[], double bb[])
+      void setSize(size_t num)
+      {
+	nmb_pts_.resize(num);
+	ix1_.resize(num);
+	ix2_.resize(num);
+	bb_.resize(num);
+      }
+      
+      void setInfo(std::vector<int>& nmb_pts, 
+		   std::vector<int>& ix1, std::vector<int>& ix2,
+		   double dom[], std::vector<std::vector<double> >& bb)
       {
 	nmb_pts_ = nmb_pts;
 	ix1_ = ix1;
 	ix2_ = ix2;
+	bb_ = bb;
 	for (int ki=0; ki<4; ++ki)
 	  {
 	    dom_[ki] = dom[ki];
-	    bb_[ki] = bb[ki];
+	  }
+	num_with_pts_ = 0;
+	for (size_t ki=0; ki<nmb_pts_.size(); ++ki)
+	  if (nmb_pts_[ki] > 0)
+	    num_with_pts_++;
+      }
+
+      void setInfo(int idx, int nmb_pts, int ix1, int ix2,
+		   double dom[], std::vector<double>& bb)
+      {
+	if (idx >= 0 && idx < (int)nmb_pts_.size())
+	  {
+	    if (nmb_pts_[idx] > 0)
+	      num_with_pts_--;
+	    if (nmb_pts > 0)
+	      num_with_pts_++;
+	    nmb_pts_[idx] = nmb_pts;
+	    ix1_[idx] = ix1;
+	    ix2_[idx] = ix2;
+	    bb_[idx] = bb;
+	    for (int ki=0; ki<4; ++ki)
+	      {
+		dom_[ki] = dom[ki];
+	      }
+	  }
+      }
+
+      void setDomain(double dom[])
+      {
+	for (int ki=0; ki<4; ++ki)
+	  {
+	    dom_[ki] = dom[ki];
 	  }
       }
 
@@ -164,35 +214,48 @@ namespace Go
 
       bool limitedSupport(double frac)
       {
-	if ((bb_[1]-bb_[0])/(dom_[1]-dom_[0]) < frac)
+	double bb0 = bb_[0][0];
+	double bb1 = bb_[0][1];
+	double bb2 = bb_[0][2];
+	double bb3 = bb_[0][3];
+	for (size_t kj=1; kj<bb_.size(); ++kj)
+	  {
+	    bb0 = std::min(bb0, bb_[kj][0]);
+	    bb1 = std::max(bb1, bb_[kj][1]);
+	    bb2 = std::min(bb2, bb_[kj][2]);
+	    bb3 = std::max(bb3, bb_[kj][3]);
+	  }
+	if ((bb1-bb0)/(dom_[1]-dom_[0]) < frac)
 	  return true;
-	if ((bb_[3]-bb_[2])/(dom_[3]-dom_[2]) < frac)
+	if ((bb3-bb2)/(dom_[3]-dom_[2]) < frac)
 	  return true;
 	return false;
       }
 
       double dom_[4];
-      double bb_[4];
-      int nmb_pts_;
-      int ix1_;
-      int ix2_;
+      std::vector<std::vector<double> > bb_;
+      std::vector<int> nmb_pts_;
+      std::vector<int> ix1_;
+      std::vector<int> ix2_;
       bool processed_;
       short limit_[4];   // Sequence: left, right, lower, upper
+      int num_with_pts_;
     };
 
     double eps2_;   // Equality tolerance
-    double *points_;
-    int nmb_pts_;
+    std::vector<double*> points_;
+    std::vector<int> nmb_pts_;
     int dim_;
     double domain_[4];
     double del_u_;
     double del_v_;
+    bool all_;
 
     void computeTrimInfo(SubCloud& cloud,
 			 int max_level, int nmb_div,
 			 std::vector<std::vector<double> >& seqs);
 
-    void distributePointCloud(int ix1, int ix2,
+    void distributePointCloud(std::vector<int>& ix1, std::vector<int>& ix2,
 			      double domain[4],
 			      int nmb_u, int nmb_v,
 			      std::vector<SubCloud>& sub_clouds);
@@ -217,7 +280,7 @@ namespace Go
 
    void extractOutsidePoint(shared_ptr<BoundedSurface>& surf,
 			    SubCloud& cloud,
-			    std::vector<double>& outpoints,
+			    std::vector<std::vector<double> >& outpoints,
 			    int max_nmb);
 
    };

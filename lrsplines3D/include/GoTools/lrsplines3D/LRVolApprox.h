@@ -304,11 +304,20 @@ class LRVolApprox
     }
 
     /// Set minimum element size
-    void setMinimumElementSize(double usize_min, double vsize_min, double wsize_min)
+  void setMinimumElementSize(int dir, double minsize)
     {
-      usize_min_ = usize_min;
-      vsize_min_ = vsize_min;
-      wsize_min_ = wsize_min;
+      if (dir == 1)
+	usize_min_ = minsize;
+      else if (dir == 2)
+	vsize_min_ = minsize;
+      else if (dir == 3)
+	wsize_min_ = minsize;
+      else
+	{
+	  usize_min_ = minsize;
+	  vsize_min_ = minsize;
+	  wsize_min_ = minsize;
+	}
     }
 
     /// Iteration count on which to switch to MBA (if LS)

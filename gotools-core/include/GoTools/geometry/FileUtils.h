@@ -57,7 +57,7 @@ namespace FileUtils
 			std::vector<double>& extent);
 
   /// Extract the name of the file including the path, but ommit the extension
-  void extractPathName(char* file, std::string& name);
+  void extractPathName(std::string file, std::string& name);
 
   /// Extend name with given extension
   void extendName(const char* name, const char* ext, std::string& compose);
