@@ -43,6 +43,9 @@
 #include "GoTools/lrsplines2D/LRSplineSurface.h"
 #include "GoTools/lrsplines2D/LRSurfApprox.h"
 #include "GoTools/lrsplines2D/LRSurfUtils.h"
+#include "GoTools/lrsplines2D/TrimSurface.h"
+#include "GoTools/lrsplines2D/LRTraceIsocontours.h"
+#include "GoTools/geometry/BoundedSurface.h"
 
 using namespace Go;
 using std::vector;
@@ -246,7 +249,9 @@ void ChangeDetection::extractChangeData()
     }
 }
 
+//===========================================================================
 void ChangeDetection::surfApprox(double tol, int max_iter)
+//===========================================================================
 {
   int order = degree_ + 1;
   int nmb_coef = order;
@@ -319,7 +324,9 @@ void ChangeDetection::surfApprox(double tol, int max_iter)
     }
 }
 
+//===========================================================================
 void ChangeDetection::differenceSurfaces()
+//===========================================================================
 {
   for (size_t ki=0; ki<change_pts_.size(); ++ki)
     {
@@ -352,3 +359,61 @@ void ChangeDetection::differenceSurfaces()
 	}
     }
   }
+
+//===========================================================================
+void ChangeDetection::analyseDiffSurfaces(double threshold, double eps)
+//===========================================================================
+{
+  int tightness = 4;
+  for (size_t ki=0; ki<change_pts_.size(); ++ki)
+    {
+      for (size_t kj=0; kj<change_pts_[ki].pts_seq_ix_.size()-1; ++kj)
+	{
+	  if (fabs(change_pts_[ki].min_diff_[kj]) < threshold &&
+	      fabs(change_pts_[ki].max_diff_[kj]) < threshold)
+	    continue; // Not a significant difference between time acquisitions
+
+	  // Trim difference surface according to the points clouds of
+	  // the two original surfaces
+	  vector<vector<double> > points(2);
+	  points[0] = change_pts_[ki].subseq_pts_[kj];
+	  points[1] = change_pts_[ki].subseq_pts_[kj+1];
+	  bool isotrim[4];
+	  isotrim[0] = isotrim[1] = isotrim[2] = isotrim[3] = true;
+	  shared_ptr<BoundedSurface> bdsurf;
+	  shared_ptr<ParamSurface> currdiff = change_pts_[ki].subseq_diffsfs_[kj];
+	  TrimSurface::makeBoundedSurface(currdiff, isotrim, points, tightness,
+					  bdsurf, false, true);
+
+	  analyseOneDiffSurface(bdsurf, (int)ki, (int)kj, threshold, eps);
+	}
+    }
+}
+
+//===========================================================================
+void ChangeDetection::analyseOneDiffSurface(shared_ptr<BoundedSurface> bdsurf,
+					    int nmb_area, int nmb_diff,
+					    double delta, double eps)
+//===========================================================================
+{
+  // Define isovalues
+  int ka, kb;
+  double min_val = change_pts_[nmb_area].min_diff_[nmb_diff];
+  double max_val = change_pts_[nmb_area].max_diff_[nmb_diff];
+  int nmb_neg = (min_val < 0.0) ? (int)(fabs(min_val)/delta) : 0;
+  int nmb_pos = (max_val > 0.0) ? (int)(max_val/delta) : 0;
+  vector<double> isovals(nmb_neg+nmb_pos);
+  double val;
+  for (ka=0, kb=0, val=-nmb_neg*delta; ka<nmb_neg; ++ka, val+=delta)
+    isovals[kb++] = val;
+  for (ka=0, val=delta; ka<nmb_pos; ++ka, val+=delta)
+    isovals[kb++] = val;
+
+  // Compute contour curves
+  int threshold_missing = 100;
+  const vector<CurveVec> curves = LRTraceIsocontours(bdsurf,
+  						     isovals,
+						     threshold_missing,
+  						     eps);
+
+}

@@ -48,6 +48,8 @@
 namespace Go
 {
 
+  class BoundedSurface;
+  
   class ChangeDetection
   {
     struct SubSeqsInfo
@@ -131,6 +133,12 @@ namespace Go
     std::vector<BoundingBox> change_box_;
 
     std::vector<SubSeqsInfo> change_pts_;
+
+    void analyseDiffSurfaces(double threshold, double eps);
+
+    void analyseOneDiffSurface(shared_ptr<BoundedSurface> bdsurf,
+			       int nmb_area, int nmb_diff,
+			       double delta, double eps);
   };
 
 } // end namespace Go
