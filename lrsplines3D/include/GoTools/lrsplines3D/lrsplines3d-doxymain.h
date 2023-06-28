@@ -37,47 +37,24 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _MESHLR_H
-#define _MESHLR_H
+#ifndef _LRSPLINES3D_DOXYMAIN_H
+#define _LRSPLINES3D_DOXYMAIN_H
+/**
+ \page lrsplines3d GoTools LRsplines3D
 
-#include <iostream>
-#include <vector>
-#include <algorithm>
-#include <assert.h>
-#include "GoTools/geometry/Streamable.h"
-#include "GoTools/lrsplines2D/IndexMesh2DIterator.h"
-
-namespace Go
-{
-
-  /// Base class for LR Mesh corresponding to LR B-spline surfaces and LR B-spline
-  /// volumes
-// =============================================================================
-class MeshLR : public Streamable 
-// =============================================================================
-{
-public:
-
-  /// Get a pointer to the start of the knot vector in the given direction.
-  virtual const double* const knotsBegin(int pardir) const = 0;
-  
-  /// Get a pointer to the one-past-end of the knot vector in the given direction.
-  virtual const double* const knotsEnd  (int pardir) const = 0;
-
-  // Get the number of distinct knot valuess in a given direction (rows: 2, columns: 1).
-  // Note that this is the number of _distinct_ knots, so multiplicities are not taken into
-  // account.
-  virtual int numDistinctKnots(int pardir) const = 0;
-
-  // Return the knot value for the knot with index 'ix' along direction pardir
-  // (rows: 2, columns: 1).
-  virtual double kval(int pardir, int ix) const = 0;
+ This module contains classes and tools for working with LR spline volumes.
 
 
-   
-}; // end class MeshLR
+The module lrsplines3D represents LR-spline volumes.
+This module depends on:
+- GoTools Core library
+- GoTools trivariate
+- GoTools LRSplines2D
+- SISL library
 
+LRSplineVolume inherits \link Go::ParamVolume ParamVolume \endlink and is a spline volume with the property local refinement.
+\link Go::LRVolApprox  LRVolApprox \endlink implements an adaptive and iterative algorithm for approximating a trivariate point 
+cloud with format (x,y,z,f(x,y,z)) by local refinenement and approximation (\link Go::LRSpline3DMBA LRSpline3DMBA \endlink).
 
-}; // end namespace Go
-
-#endif 
+**/
+#endif // _LRSPLINES3D_DOXYMAIN_H

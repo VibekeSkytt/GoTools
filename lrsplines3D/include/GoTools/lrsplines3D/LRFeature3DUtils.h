@@ -38,11 +38,11 @@
  */
 
 
-#ifndef _LFEATUREUTILS_H
-#define _LRFEATUREUTILS_H
+#ifndef _LFEATURE3DUTILS_H
+#define _LRFEATUR3DEUTILS_H
 
 
-#include "GoTools/lrsplines2D/LRSplineSurface.h"
+#include "GoTools/lrsplines3D/LRSplineVolume.h"
 #include <iostream>
 
 
@@ -50,35 +50,38 @@ namespace Go
 {
   /// Given a current LR B-spline surface with associated point cloud,
   /// compute feature output in ncell x ncell grid.
+  /// The entries are scaled to represent a number in the range [0,10]. 
   /// Features (number of column in associated grid cell):
-    /// \param 0: Average slope in cell (9 samples); 
-  ///  \param 1: Average value of surface in cell (9 samples); 
-  /// \param 2: Maximum difference of surface values in cell (9 samples); 
-  /// \param 3: Average distance between surface and points for each cell; 
+  /// \param 0: Average slope in cell (8 samples);
+  /// \param 1: Average value of surface in cell (8 samples);
+  /// \param 2: Maximum difference of surface values in cell (8 samples);
+  /// \param 3: Average distance between surface and points for each cell;
   /// \param 4: Maximum distance between surface and points in cell;
   /// \param 5: Average intensity/height value of points in cell;
   /// \param 6: Maximum difference of intensity values in cell;
   /// \param 7: Standard deviation of distances between point cloud and surface in cell;
   /// \param 8: Standard deviation of intensity values in cell;
   /// \param 9: Average distance between surface and points in cell divided by maximum distance;
-  ///  \param 10: Maximum difference between signed distances between points and surface in cell;
+  /// \param 10: Maximum difference between signed distances between points and surface in cell;
   /// \param 11: Average distance between points with higher intensity than the surface and surface in cell;
   /// \param 12: Average distance between points with lower intensity than the surface and surface in cell;
   /// \param 13: Number of point with lower intensity than the surface where the intensity difference is larger than threshold divided by the number of points in the cell;
   /// \param 14: Number of point with higher intensity than the surface where the intensity difference is larger than threshold divided by the number of points in the cell;
   /// \param 15: Number of surface elements in cell;
-  /// \param 16: Average laplacian in cell (9 samples);
-  /// The entries are scaled to represent a number in the range [0,10]. 
+  /// \param 16: Average Lagrangian in cell (8 samples);
+  /// \param 17: Average absolute value of z-derivative in cell (8 samples);
+  /// \param 18: Maximum absolute value of z-derivative cell (8 samples);
 
-  namespace LRFeatureUtils
+  namespace LRFeature3DUtils
   {
     // Write accuracy features to file
-    void writeCellInfo(const LRSplineSurface& srf, 
-		       double tol, int ncell,
+    void writeCellInfo(const LRSplineVolume& vol, 
+		       double tol, int ncell1, int ncell2, int ncell3,
 		       std::ostream &out);
+    
   };
 
  }; // End namespace Go
 
 
-#endif // _LRFEATUREUTILS_H
+#endif // _LRFEATURE3DUTILS_H
