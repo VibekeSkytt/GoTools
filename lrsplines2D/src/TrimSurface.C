@@ -197,11 +197,10 @@ bool TrimSurface::makeBoundedSurface(shared_ptr<ParamSurface>& surf,
       // Translate back
       trim_surf->setParameterDomain(domain[0]-vec[0], domain[1]-vec[0],
 				    domain[2]-vec[1], domain[3]-vec[1]);
-      surf->setParameterDomain(domain[0]-vec[0], domain[1]-vec[0],
-			       domain[2]-vec[1], domain[3]-vec[1]);
+      surf->setParameterDomain(umin, umax, vmin, vmax);
     }
 
-
+  return found;
 }
 
 
@@ -222,7 +221,8 @@ bool TrimSurface::defineBdSurface(shared_ptr<ParamSurface>& surf,
   double tol = 1.0e-5;
   int nmb_loops = (int)seqs.size();
   vector<vector<shared_ptr<CurveOnSurface> > > loop(nmb_loops);
-  for (int kh=0; kh<nmb_loops; ++kh)
+  int kh;
+  for (kh=0; kh<nmb_loops; ++kh)
     {
       for (int kj=0; kj<4; ++kj)
       	{
@@ -349,52 +349,35 @@ bool TrimSurface::defineBdSurface(shared_ptr<ParamSurface>& surf,
   trim_surf = 
     shared_ptr<BoundedSurface>(new BoundedSurface(surf, loop, epsgeo_bd_sf, 
 						  fix_trim_cvs));
-    int valid_state = 0;
-    bool is_valid = trim_surf->isValid(valid_state);
-    if (!is_valid)
-    {
-	MESSAGE("Created invalid BoundedSurface, valid_state = " << valid_state);
-    }
+  // Parameter not set
+  // int valid_state = 0;
+  // bool is_valid = trim_surf->isValid(valid_state);
+  // if (!is_valid)
+  // {
+  // 	MESSAGE("Created invalid BoundedSurface, valid_state = " << valid_state);
+  // }
 
 #ifdef DEBUG
-    std::ofstream of("translated_trimmed.g2");
-    trim_surf->writeStandardHeader(of);
-    trim_surf->write(of);
+  std::ofstream of("translated_trimmed.g2");
+  trim_surf->writeStandardHeader(of);
+  trim_surf->write(of);
 
-    if (trim_surf->dimension() == 1)
-      {
-	std::ofstream of2("translated_trimmed_3D.g2");
-	shared_ptr<BoundedSurface> tmp_bd(trim_surf->clone());
-	shared_ptr<ParamSurface> tmp_sf = tmp_bd->underlyingSurface();
-	if (tmp_sf.get())
-	  {
-	    shared_ptr<LRSplineSurface> tmp_lr = 
-	      dynamic_pointer_cast<LRSplineSurface, ParamSurface>(tmp_sf);
-	    tmp_lr->to3D();
-	    tmp_bd->writeStandardHeader(of2);
-	    tmp_bd->write(of2);
-	    // std::ofstream of3("translated_trimmed_3D_tp.g2");
-	    // shared_ptr<SplineSurface> tp_sf(tmp_lr->asSplineSurface());
-	    // vector<CurveLoop> loops = tmp_bd->allBoundaryLoops();
-	    // for (size_t ka=0; ka<loops.size(); ++ka)
-	    //   {
-	    // 	int nmb = loops[ka].size();
-	    // 	for (int kb=0; kb<nmb; ++kb)
-	    // 	  {
-	    // 	    shared_ptr<CurveOnSurface> sfcv = 
-	    // 	      dynamic_pointer_cast<CurveOnSurface, ParamCurve>(loops[ka][kb]);
-	    // 	    if (sfcv.get())
-	    // 	      {
-	    // 		sfcv->setUnderlyingSurface(tp_sf);
-	    // 	      }
-	    // 	  }
-	    //   }
-	    // shared_ptr<BoundedSurface> bd_tp(new BoundedSurface(tp_sf, loops));
-
-	    // bd_tp->writeStandardHeader(of3);
-	    // bd_tp->write(of3);
-	  }
-      }
+  if (false)//trim_surf->dimension() == 1)
+    {
+      std::ofstream of2("translated_trimmed_3D.g2");
+      shared_ptr<BoundedSurface> tmp_bd(trim_surf->clone());
+      shared_ptr<ParamSurface> tmp_sf = tmp_bd->underlyingSurface();
+      if (tmp_sf.get())
+	{
+	  shared_ptr<LRSplineSurface> tmp_lr = 
+	    dynamic_pointer_cast<LRSplineSurface, ParamSurface>(tmp_sf);
+	  tmp_lr->to3D();
+	  tmp_bd->writeStandardHeader(of2);
+	  tmp_bd->write(of2);
+	}
+    }
 #endif
+
+    return (trim_surf.get());
 }
 

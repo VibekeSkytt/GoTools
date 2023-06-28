@@ -526,7 +526,7 @@ void LRSurfSmoothLS::setLeastSquares_omp(const double weight,
   // For each element
   int ki;
   LRSplineSurface::ElementMap::const_iterator it;
-#pragma omp parallel default(none) private(ki, it) shared(dim, elem_iters)
+#pragma omp parallel default(none) private(ki, it) shared(dim, elem_iters, significant_factor, weight, num_elem)
   {
       bool has_LS_mat, is_modified;
       size_t nmb, inb, inb1;

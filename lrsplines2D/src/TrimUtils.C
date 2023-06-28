@@ -1087,7 +1087,7 @@ void TrimUtils::mergeTrimSeqs(vector<vector<double> >& seqs,
     } 
 
 }
-
+#if 0
 //==============================================================================
 void TrimUtils::reOrganizeSeqs(vector<vector<double> >& seqs, bool outer_only)
 //==============================================================================
@@ -1124,16 +1124,16 @@ void TrimUtils::reOrganizeSeqs(vector<vector<double> >& seqs, bool outer_only)
 
 	  for (kj=2; kj<seqs[0].size(); kj+=2)
 	    {
-	      if (std::min(seqs[0][kj-1], seqs[0][kj+1]) > p1[1] &&
+	      if (std::min(seqs[0][kj-1], seqs[0][kj+1]) > p1[1] ||
 		  std::max(seqs[0][kj-1], seqs[0][kj+1]) < p1[1])
 		continue; // Not an intersection
 
 	      double u1 = std::min(seqs[0][kj-2], seqs[0][kj]);
 	      double u2 = std::max(seqs[0][kj-2], seqs[0][kj]);
 	      int ix = -1;
-	      if (std::min(seqs[0][kj-2], seqs[0][kj]) > p1[0])
+	      if (u1 > p1[0])
 		ix = 1;
-	      else if (std::max(seqs[0][kj-2], seqs[0][kj]) < p1[0])
+	      else if (u2 < p1[0])
 		ix = 0;
 	      else
 		{
@@ -1176,11 +1176,33 @@ void TrimUtils::reOrganizeSeqs(vector<vector<double> >& seqs, bool outer_only)
 	  for (int ka=0; ka<2; ++ka)
 	    {
 	      if (val_side[ka].size() > 0)
-		std::sort(val_side[ka].begin(), val_side[ka].end());
-	      for (kr=2; kr<val_side[ka].size()-1; )
 		{
-		  if (val_side[ka][kr]-val_side[ka][kr-1] < eps2_)
-		    val_side[ka].erase(val_side[ka].begin()+kr-1, val_side[ka].begin()+kr+1);
+		  std::sort(val_side[ka].begin(), val_side[ka].end());
+		  for (kr=2; kr<val_side[ka].size()-1; )
+		    {
+		      if (val_side[ka][kr]-val_side[ka][kr-1] < eps2_)
+			val_side[ka].erase(val_side[ka].begin()+kr-1, val_side[ka].begin()+kr+1);
+		    }
+		}
+	      for (kr=0; kr<val_side[ix].size(); kr+=2)
+		{
+		  if (u1 > val_side[ix][kr]-eps2_ && u1 < val_side[ix][kr+1]+eps2_)
+		    {
+		      if (u2 > val_side[ix][kr+1]+eps2_)
+			val_side[ix][kr+1] = u2;
+		      break;
+		    }
+		  if (u2 > val_side[ix][kr]-eps2_ && u2 < val_side[ix][kr+1]+eps2_)
+		    {
+		      if (u1 < val_side[ix][kr]-eps2_)
+			val_side[ix][kr] = u1;
+		      break;
+		    }
+		}
+	      if (kr == val_side[ix].size())
+		{
+		  val_side[ix].push_back(u1);
+		  val_side[ix].push_back(u2);
 		}
 	    }
 	  int nmb_left = val_side[0].size()/2;
@@ -1205,6 +1227,339 @@ void TrimUtils::reOrganizeSeqs(vector<vector<double> >& seqs, bool outer_only)
       // for other combination of loops
     }
 }
+#endif
+//==============================================================================
+void TrimUtils::reOrganizeSeqs(vector<vector<double> >& seqs, bool outer_only)
+//==============================================================================
+{ 
+  double tol = 1.0e-6;  // Intersection tolerance
+
+  // Assume that the seqence with most elements is the outer one
+  size_t ki, kj, kh, kr;
+  for (ki=0; ki<seqs.size(); ++ki)
+    for (kj=ki+1; kj<seqs.size(); ++kj)
+      if (seqs[ki].size() < seqs[kj].size())
+	std::swap(seqs[ki], seqs[kj]);
+
+  if (outer_only)
+    {
+      // Close largest loop
+      seqs[0].insert(seqs[0].end(), seqs[0].begin(), seqs[0].begin()+2);
+
+      // Check if the remaining sequences lie internally to the first one
+      for (ki=1; ki<seqs.size(); )
+	{
+	  // Select an arbitrary point and make a horizontal line through
+	  // this point
+	  Point p1(seqs[ki][0], seqs[ki][1]);
+	  double xlen = domain_[1] - domain_[0];
+	  shared_ptr<SplineCurve> 
+	    line1(new SplineCurve(Point(p1[0]-xlen, p1[1]), -1,
+				  Point(p1[0]+xlen, p1[1]), 1));
+
+	  // For each segment in the first loop, check if it intersects the
+	  // line and count the number of intersections to the left and to
+	  // the right
+	  int nmb_left = 0, nmb_right = 0;
+	  for (kj=2; kj<seqs[0].size(); kj+=2)
+	    {
+	      if (std::min(seqs[0][kj-1], seqs[0][kj+1]) > p1[1] ||
+		  std::max(seqs[0][kj-1], seqs[0][kj+1]) < p1[1])
+		continue; // Not an intersection
+
+	      double u1 = std::min(seqs[0][kj-2], seqs[0][kj]);
+	      double u2 = std::max(seqs[0][kj-2], seqs[0][kj]);
+	      if (u1 > p1[0])
+		nmb_left += 2;
+	      else if (u2 < p1[0])
+		nmb_right += 2;
+	      else if (fabs(p1[1]-seqs[0][kj-1]) < tol &&
+		       fabs(p1[1]-seqs[0][kj+1]) < tol)
+		{
+		  nmb_left++;
+		  nmb_right++;
+		}
+	      else
+		{
+		  // Intersect
+		  vector<pair<double,double> > int_pts;
+		  shared_ptr<SplineCurve> 
+		    line2(new SplineCurve(Point(seqs[0][kj-2], seqs[0][kj-1]),
+					  Point(seqs[0][kj], seqs[0][kj+1])));
+		  intersectcurves(line1.get(), line2.get(), tol, int_pts);
+		  for (kh=0; kh<int_pts.size(); ++kh)
+		    {
+		      if (int_pts[kh].first < -tol)
+			nmb_left += 2;
+		      else if (int_pts[kh].first > tol)
+			nmb_right += 2;
+		    }
+		}
+	    }
+
+
+	  if (nmb_left % 4 != 0 || nmb_right % 4 != 0)
+	    {
+	      // If one of the remainders are different from 1, there is an
+	      // ambiguity, probably caused by a corner hit. Corner hits on 
+	      // both sides may also cause false results. Worth a closer
+	      // investigation
+	      // Remove
+	      seqs.erase(seqs.begin()+ki);
+	    }
+	  else
+	    ++ki;
+	}
+
+      // Change largest sequence back to the original
+      seqs[0].erase(seqs[0].end()-2, seqs[0].end());
+
+      // If there is more than one loop left, the same exercise should be done 
+      // for other combination of loops
+    }
+}
+
+#if 0
+//==============================================================================
+void TrimUtils::reOrganizeSeqs(vector<vector<double> >& seqs, vector<int>& outer)
+//==============================================================================
+{ 
+  double tol = 1.0e-6;  // Intersection tolerance
+
+  outer.resize(seqs.size());
+  std::fill(outer.begin(), outer.end(), 0);
+
+  // Assume that the seqence with most elements is the outer one
+  size_t last = seqs.size();
+  for (size_t kr=0; kr<seqs.size(); kr=last)
+    {
+      last = seqs.size();
+      size_t ki, kj, kh;
+      for (ki=kr; ki<seqs.size(); ++ki)
+	for (kj=ki+1; kj<seqs.size(); ++kj)
+	  if (seqs[ki].size() < seqs[kj].size())
+	    std::swap(seqs[ki], seqs[kj]);
+
+
+ 
+      // Close largest loop
+      seqs[kr].insert(seqs[kr].end(), seqs[kr].begin(), seqs[kr].begin()+2);
+      outer[kr] = 1;
+
+      // Check if the remaining sequences lie internally to the first one
+      for (ki=kr+1; ki<last; )
+	{
+	  // Select an arbitrary point and make a horizontal line through
+	  // this point
+	  Point p1(0.5*(seqs[ki][0]+seqs[ki][2]), 0.5*(seqs[ki][1]+seqs[ki][3]));
+	  double xlen = domain_[1] - domain_[0];
+	  shared_ptr<SplineCurve> 
+	    line1(new SplineCurve(Point(p1[0]-xlen, p1[1]), -1,
+				  Point(p1[0]+xlen, p1[1]), 1));
+
+	  // For each segment in the first loop, check if it intersects the
+	  // line and count the number of intersections to the left and to
+	  // the right
+	  vector<vector<double> > val_side(2);
+
+	  for (kj=2; kj<seqs[kr].size(); kj+=2)
+	    {
+	      if (std::min(seqs[kr][kj-1], seqs[kr][kj+1]) > p1[1] ||
+		  std::max(seqs[kr][kj-1], seqs[kr][kj+1]) < p1[1])
+		continue; // Not an intersection
+
+	      double u1 = std::min(seqs[kr][kj-2], seqs[kr][kj]);
+	      double u2 = std::max(seqs[kr][kj-2], seqs[kr][kj]);
+	      int ix = -1;
+	      if (std::min(seqs[kr][kj-2], seqs[kr][kj]) > p1[0])
+		ix = 1;
+	      else if (std::max(seqs[kr][kj-2], seqs[kr][kj]) < p1[0])
+		ix = 0;
+	      else
+		{
+		  // Intersect
+		  vector<pair<double,double> > int_pts;
+		  shared_ptr<SplineCurve> 
+		    line2(new SplineCurve(Point(seqs[kr][kj-2], seqs[kr][kj-1]),
+					  Point(seqs[kr][kj], seqs[kr][kj+1])));
+		  intersectcurves(line1.get(), line2.get(), tol, int_pts);
+		  for (kh=0; kh<int_pts.size(); ++kh)
+		    {
+		      if (int_pts[kh].first < -tol)
+			ix = 0;
+		      else if (int_pts[kh].first > tol)
+			ix = 1;
+		    }
+		}
+	      for (kh=0; kh<val_side[ix].size(); kh+=2)
+		{
+		  if (u1 > val_side[ix][kh]-eps2_ && u1 < val_side[ix][kh+1]+eps2_)
+		    {
+		      if (u2 > val_side[ix][kh+1]+eps2_)
+			val_side[ix][kh+1] = u2;
+		      break;
+		    }
+		  if (u2 > val_side[ix][kh]-eps2_ && u2 < val_side[ix][kh+1]+eps2_)
+		    {
+		      if (u1 < val_side[ix][kh]-eps2_)
+			val_side[ix][kh] = u1;
+		      break;
+		    }
+		}
+	      if (kh == val_side[ix].size())
+		{
+		  val_side[ix].push_back(u1);
+		  val_side[ix].push_back(u2);
+		}
+	    }
+
+	  for (int ka=0; ka<2; ++ka)
+	    {
+	      if (val_side[ka].size() > 0)
+		{
+		  std::sort(val_side[ka].begin(), val_side[ka].end());
+		  for (kh=2; kh<val_side[ka].size()-1; )
+		    {
+		      if (val_side[ka][kh]-val_side[ka][kh-1] < eps2_)
+			val_side[ka].erase(val_side[ka].begin()+kh-1, val_side[ka].begin()+kh+1);
+		      else
+			kh += 2;
+		    }
+		}
+	    }
+	  int nmb_left = val_side[0].size()/2;
+	  int nmb_right = val_side[1].size()/2;
+	  if (nmb_left % 2 == 0 || nmb_right % 2 == 0)
+	    {
+	      // Loop outside the current outer loop. Move to end
+	      std::swap(seqs[ki], seqs[last-1]);
+	      --last;
+	    }
+	  else
+	    ++ki;
+	}
+
+    }
+}
+#endif
+//==============================================================================
+void TrimUtils::reOrganizeSeqs(vector<vector<double> >& seqs, vector<int>& outer)
+//==============================================================================
+{ 
+  double tol = 1.0e-6;  // Intersection tolerance
+
+  outer.resize(seqs.size());
+  std::fill(outer.begin(), outer.end(), 0);
+
+  // Assume that the seqence with most elements is the outer one
+  size_t last = seqs.size();
+  for (size_t kr=0; kr<seqs.size(); kr=last)
+    {
+      last = seqs.size();
+      size_t ki, kj, kh;
+      for (ki=kr; ki<seqs.size(); ++ki)
+	for (kj=ki+1; kj<seqs.size(); ++kj)
+	  if (seqs[ki].size() < seqs[kj].size())
+	    std::swap(seqs[ki], seqs[kj]);
+
+#ifdef DEBUG
+      std::ofstream ofout("outer_seq.g2");
+      (void)ofout.precision(15);
+      ofout << "410 1 0 4 255 0 0 255" << std::endl;
+      ofout << seqs[kr].size()/2-1 << std::endl;
+      for (int kh1=0; kh1<=(int)seqs[kr].size()-4; kh1+=2)
+	{
+	  ofout << seqs[kr][kh1] << " " << seqs[kr][kh1+1] << " " << 0 << " ";
+	  ofout << seqs[kr][kh1+2] << " " << seqs[kr][kh1+3] << " " << 0 << std::endl;
+	}
+#endif
+ 
+      // Close largest loop
+      seqs[kr].insert(seqs[kr].end(), seqs[kr].begin(), seqs[kr].begin()+2);
+      outer[kr] = 1;
+
+      // Check if the remaining sequences lie internally to the first one
+      for (ki=kr+1; ki<last; )
+	{
+#ifdef DEBUG
+	  std::ofstream ofc("curr_seq.g2");
+	  (void)ofc.precision(15);
+	  ofc << "410 1 0 4 0 255 0 255" << std::endl;
+	  ofc << seqs[ki].size()/2-1 << std::endl;
+	  for (int kh1=0; kh1<=(int)seqs[ki].size()-4; kh1+=2)
+	    {
+	      ofc << seqs[ki][kh1] << " " << seqs[ki][kh1+1] << " " << 0 << " ";
+	      ofc << seqs[ki][kh1+2] << " " << seqs[ki][kh1+3] << " " << 0 << std::endl;
+	    }
+#endif
+ 
+	  // Select a point and make a horizontal line through
+	  // this point
+	  for (kj=0; kj<seqs[ki].size(); kj+=4)
+	    if (fabs(seqs[ki][kj+1]-seqs[ki][kj+3]) > tol)
+	      break;
+	  if (kj >= seqs[ki].size())
+	    kj = 0;
+	  Point p1(0.5*(seqs[ki][kj]+seqs[ki][kj+2]), 0.5*(seqs[ki][kj+1]+seqs[ki][kj+3]));
+	  double xlen = domain_[1] - domain_[0];
+	  shared_ptr<SplineCurve> 
+	    line1(new SplineCurve(Point(p1[0]-xlen, p1[1]), -1,
+				  Point(p1[0]+xlen, p1[1]), 1));
+
+	  // For each segment in the first loop, check if it intersects the
+	  // line and count the number of intersections to the left and to
+	  // the right
+
+	  int nmb_left = 0, nmb_right = 0;
+	  for (kj=2; kj<seqs[kr].size(); kj+=2)
+	    {
+	      if (std::min(seqs[kr][kj-1], seqs[kr][kj+1]) > p1[1] ||
+		  std::max(seqs[kr][kj-1], seqs[kr][kj+1]) < p1[1])
+		continue; // Not an intersection
+
+	      double u1 = std::min(seqs[0][kj-2], seqs[0][kj]);
+	      double u2 = std::max(seqs[0][kj-2], seqs[0][kj]);
+	      if (u1 > p1[0])
+		nmb_left += 2;
+	      else if (u2 < p1[0])
+		nmb_right += 2;
+	      else if (fabs(p1[1]-seqs[0][kj-1]) < tol &&
+		       fabs(p1[1]-seqs[0][kj+1]) < tol)
+		{
+		  nmb_left++;
+		  nmb_right++;
+		}
+	      else
+		{
+		  // Intersect
+		  vector<pair<double,double> > int_pts;
+		  shared_ptr<SplineCurve> 
+		    line2(new SplineCurve(Point(seqs[0][kj-2], seqs[0][kj-1]),
+					  Point(seqs[0][kj], seqs[0][kj+1])));
+		  intersectcurves(line1.get(), line2.get(), tol, int_pts);
+		  for (kh=0; kh<int_pts.size(); ++kh)
+		    {
+		      if (int_pts[kh].first < -tol)
+			nmb_left += 2;
+		      else if (int_pts[kh].first > tol)
+			nmb_right += 2;
+		    }
+		}
+	    }
+
+	  if (nmb_left % 4 == 0 || nmb_right % 4 == 0)
+	    {
+	      // Loop outside the current outer loop. Move to end
+	      std::swap(seqs[ki], seqs[last-1]);
+	      --last;
+	    }
+	  else
+	    ++ki;
+	}
+
+    }
+}
+
 
 //==============================================================================
 void TrimUtils::reOrganizeSeqs(vector<vector<double> >& seqs, vector<int>& outer)

@@ -35,8 +35,9 @@ void print_help_text()
   std::cout << "-tolfile: File specifying domains with specific tolerances, global tolerance apply outside domains. PointCloud2LR -tolfile for file format \n";
   std::cout << "-toldoc: Documentation on file format for tolerance domains. \n";
   std::cout << "-outfrac <percentage>: Local measure for when the fraction of points outside the tolerance should lead to volume splitting \n";
-  std::cout << "-feature <ncell1> <ncell2> <ncell3>: Specify 3D grid for feature output \n";
+  std::cout << "-feature <ncell1> <ncell2> <ncell3>: Specify 3D grid for feature output  \n";
   std::cout << "-featurelevels <number of levels> <level 1> ... <level n> \n";
+  std::cout << "-featuredoc: Show feature documentation \n";
   std::cout << "-h or --help : Write this text\n";
 }
 
@@ -53,6 +54,38 @@ void print_tol_file_format()
   std::cout << "Last line (if given): Tolerance, positive or negative float as for previous lines. Value overrules global tolerance. \n";
   std::cout << "Ensure non-overlapping boxes. No test applied. \n";
 }
+
+void print_feature_info()
+{
+  std::cout << "-feature: <ncell1> <ncell2> <ncell3> : Command line parameter to write feature information to file according to given grid resolution \n \n";
+  std::cout << "Compute grid based feature information for the specified iteration level. \n";
+  std::cout << "As the computation can be time consuming (depending on the grid size), select the iteration levels carefully. \n";
+  std::cout << "The information is stored in files called cellinfox where the number x represent the iteration level." << std::endl;
+  std::cout << "The volume is parameterized on x, y and z and the volume value represents intensity/height" << std::endl;
+  std::cout << "If rgb is given the values will be scaled in the range [0,255] and stored as unsigned int, \n";
+  std::cout << "otherwise the values are represented as float in the range [0.0,10.0]" << std::endl;
+  std::cout << "The indicies represents the following information" << std::endl;
+  std::cout << "0: Average slope in cell (8 samples) \n";
+  std::cout << "1: Average value of surface in cell (8 samples)  \n";
+  std::cout << "2: Maximum difference of surface values in cell (8 samples)  \n";
+  std::cout << "3: Average distance between surface and points for each cell \n";
+  std::cout << "4: Maximum distance between surface and points in cell \n";
+  std::cout << "5: Average intensity/height value of points in cell \n";
+  std::cout << "6: Maximum difference of intensity values in cell \n";
+  std::cout << "7: Standard deviation of distances between point cloud and surface in cell \n";
+  std::cout << "8: Standard deviation of intensity values in cell \n";
+  std::cout << "9: Average distance between surface and points in cell divided by maximum distance \n";
+  std::cout << "10: Maximum difference between signed distances between points and surface in cell \n";
+  std::cout << "11: Average distance between points with higher intensity than the surface and surface in cell \n";
+  std::cout << "12: Average distance between points with lower intensity than the surface and surface in cell \n";
+  std::cout << "13: Number of point with lower intensity than the surface where the intensity difference is larger than threshold divided by the number of points in the cell \n";
+  std::cout << "14: Number of point with higher intensity than the surface where the intensity difference is larger than threshold divided by the number of points in the cell \n";
+  std::cout << "15: Number of surface elements in cell \n";
+  std::cout << "16: Average Lagrangian in cell (8 samples) " << std::endl;
+  std::cout << "17: Average absolute value of z-derivative in cell (8 samples) \n";
+  std::cout << "18: Maximum absolute value of z-derivative cell (8 samples) " << std::endl;
+}
+
 
 int fetchIntParameter(int argc, char *argv[], int ki, int& parameter, 
 		      int& nmb_par, vector<bool>& par_read)
@@ -227,6 +260,11 @@ int main (int argc, char *argv[]) {
 	      par_read[ki+ka+1] = true;
 	    }
 	  nmb_par -= (fsize+2);
+	}
+      else if (arg == "-featuredoc")
+	{
+	  print_feature_info();
+	  exit(0);
 	}
     }
 

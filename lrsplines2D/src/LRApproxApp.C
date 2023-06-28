@@ -549,7 +549,7 @@ void LRApproxApp::computeDistPointSpline_omp(vector<double>& points,
   vector<vector<double> > pts_dist(num_kj);
   int ki, kj, kr;
 #pragma omp parallel default(none) private(ki, kj, kr, knotv, knotu, pp0, pp1) \
-  shared(surf, points, num_pts, pts_dist, num_kj, elements, evalsrf)
+  shared(surf, points, num_pts, pts_dist, num_kj, elements, evalsrf, uknots_begin, uknots_end, nmb_knots_u, vknots_begin, vknots_end)
   {
       Point pos;
       int nump;
@@ -820,7 +820,7 @@ void LRApproxApp::classifyCloudFromDist_omp(vector<double>& points,
 
   int kj;
 #pragma omp parallel default(none) private(kj) \
-  shared(surf, points, limits, elements, all_max_above, all_max_below, all_dist, all_nmb_points, all_level_points, evalsrf)
+  shared(surf, points, limits, elements, all_max_above, all_max_below, all_dist, all_nmb_points, all_level_points, evalsrf, uknots_begin, uknots_end, nmb_knots_u, vknots_begin, vknots_end, num_kj)
   {
       Element2D* elem = NULL;
       int ki, kr, ka;
@@ -1125,7 +1125,7 @@ void LRApproxApp::categorizeCloudFromDist_omp(vector<double>& points,
   int kj;
 
 #pragma omp parallel default(none) private(kj) \
-  shared(surf, points, limits, elements, all_max_above, all_max_below, all_dist, all_nmb_points, all_classification, all_nmb_group, evalsrf)
+  shared(surf, points, limits, elements, all_max_above, all_max_below, all_dist, all_nmb_points, all_classification, all_nmb_group, evalsrf, uknots_begin, uknots_end, nmb_knots_u, vknots_begin, vknots_end, num_kj)
   {
       Element2D* elem = NULL;
       int ki, kr, ka;
