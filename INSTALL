@@ -1,6 +1,13 @@
 Installation Instructions
 *************************
 
+Linux
+*****
+
+Install required packages:
+
+$ sudo apt install -y git cmake make build-essential libgl1-mesa-dev freeglut3-dev libpugixml-dev libjsoncpp-dev libboost-test-dev libboost-timer-dev qtbase5-dev qtbase5-dev-tools
+
 Git
 ***
 
@@ -14,15 +21,19 @@ TTL: https://github.com/SINTEF-Geometry/TTL.git.
 
 To clone the GoTools module, run:
 
-$ git clone --recursive https://github.com/SINTEF-Geometry/GoTools.git
+$ git clone https://github.com/SINTEF-Geometry/GoTools.git
 
 Alternatively use ssh:
 
-$ git clone --recursive git@github.com:SINTEF-Geometry/GoTools.git
+$ git clone git@github.com:SINTEF-Geometry/GoTools.git
 
-Initialize the submodules (not necessary if the clone-step used "--recursive"):
+Change to the source directory:
 
-$ git submodule update --init
+$ cd GoTools
+
+Initialize the submodules:
+
+$ git submodule update --init --recursive
 
 The branch 'master' is the only branch. Any releases will be available as tags.
 
@@ -43,7 +54,7 @@ $ ccmake <path_to_source_code>
 
 Follow the instructions of 'ccmake' - the CMake "GUI". Then:
 
-$ make
+$ make -j$(nproc)
 $ sudo make install
 
 Compilers
@@ -118,12 +129,20 @@ PugiXML & JsonCpp:
   change to msvc2015 for Visual Studio 2015).
 
 OpenGL:
-- If cmake does not find the gl.h and glu.h files they may be placed in the '~/Install/include/GL'
-  folder.
+- If cmake does not find the gl.h and glu.h files they may be copied to the '~/Install/include/GL'
+  folder. If you are using Visual Studio and selected the C++ workload option in the installer then
+  the files should be located in a subfolder of "C:/Program Files (x86)/Windows Kits".
 - For computers without working OpenGL drivers (typically the case for virtual machines) MESA may be
   used (software rendering). In the folder with the application there is a library named
   'opengl32sw.dll'. This library should be copied and renamed to 'opengl32.dll', which will then be
   used by the application.
+
+FreeGLUT:
+- Compilation of the sisl viewer requires freeglut. Compilation of the app is off by default.
+- Freeglut may be downloaded and built using Visual Studio:
+  https://github.com/FreeGLUTProject/freeglut
+- The include and library files should be placed in locations in the same manner as for PugiXML &
+  JsonCpp.
 
 CMake:
 - In order to run the testst you should add $CMAKE_DIR/bin to the PATH, allowing ctest.exe to be
