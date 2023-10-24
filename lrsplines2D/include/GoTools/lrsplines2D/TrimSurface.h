@@ -72,6 +72,13 @@ namespace Go
 			    shared_ptr<BoundedSurface>& trim_surf,
 			    bool only_outer=true);
 
+    bool makeBoundedSurface(shared_ptr<ParamSurface>& surf,
+			    bool isotrim[], 
+			    std::vector<std::vector<double> >& points,
+			    int tightness,
+			    shared_ptr<BoundedSurface>& trim_surf,
+			    bool only_outer=true, bool all=false);
+
     /// Given a set of polygons defining the trimming curves (output from TrimUtils), 
     /// define the bounded surface
     bool defineBdSurface(shared_ptr<ParamSurface>& surf,

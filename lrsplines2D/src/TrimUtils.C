@@ -49,7 +49,7 @@ using namespace Go;
 using std::vector;
 using std::pair;
 
-//#define DEBUG
+#define DEBUG
 
 int compare_u_par(const void* el1, const void* el2)
 {
@@ -73,29 +73,49 @@ int compare_v_par(const void* el1, const void* el2)
 
 //==============================================================================
 TrimUtils::TrimUtils(double *points, int nmb_pts, int dim)
-  : eps2_(1.0e-12), points_(points), nmb_pts_(nmb_pts), dim_(dim), 
-    del_u_(0.0), del_v_(0.0)
+  : eps2_(1.0e-12), dim_(dim), all_(false), del_u_(0.0), del_v_(0.0)
 //==============================================================================
 {
+  points_.push_back(points);
+  nmb_pts_.push_back(nmb_pts);
+  
   // Compute the domain corresponding to the point set
   int ki, kj;
   int del = dim_ + 2;
   for (ki=0; ki<2; ++ki)
-    domain_[2*ki] = domain_[2*ki+1] = points_[ki];
-  for (kj=1; kj<nmb_pts_; ++kj)
+    domain_[2*ki] = domain_[2*ki+1] = points_[0][ki];
+
+  for (kj=1; kj<nmb_pts_[0]; ++kj)
     for (ki=0; ki<2; ++ki)
       {
-	domain_[2*ki] = std::min(domain_[2*ki], points_[kj*del+ki]);
-	domain_[2*ki+1] = std::max(domain_[2*ki+1], points_[kj*del+ki]);
+	domain_[2*ki] = std::min(domain_[2*ki], points_[0][kj*del+ki]);
+	domain_[2*ki+1] = std::max(domain_[2*ki+1], points_[0][kj*del+ki]);
       }
 }
 
 //==============================================================================
 TrimUtils::TrimUtils(double *points, int nmb_pts, int dim, double domain[])
-  : eps2_(1.0e-12), points_(points), nmb_pts_(nmb_pts), dim_(dim), 
-    del_u_(0.0), del_v_(0.0)
+  : eps2_(1.0e-12), dim_(dim), all_(false), del_u_(0.0), del_v_(0.0)
 //==============================================================================
 {
+  points_.push_back(points);
+  nmb_pts_.push_back(nmb_pts);
+  
+  // Set domain. The domain is assumed to be equal to or larger than
+  // the domain corresponding to the point set
+  for (int ki=0; ki<4; ++ki)
+    domain_[ki] = domain[ki];
+}
+
+//==============================================================================
+TrimUtils::TrimUtils(vector<double*>& points, vector<int>& nmb_pts,
+		     int dim, double domain[], bool all)
+  : eps2_(1.0e-12), dim_(dim), all_(all), del_u_(0.0), del_v_(0.0)
+//==============================================================================
+{
+  points_ = points;
+  nmb_pts_ = nmb_pts;
+  
   // Set domain. The domain is assumed to be equal to or larger than
   // the domain corresponding to the point set
   for (int ki=0; ki<4; ++ki)
@@ -117,7 +137,13 @@ void TrimUtils::computeTrimSeqs(int max_level, int nmb_div,
   int del = dim_ + 2;
 
   SubCloud cloud;
-  cloud.setInfo(nmb_pts_, 0, nmb_pts_*del, domain_, domain_);
+  vector<int> start(points_.size(), 0);
+  vector<double> bb;
+  bb.insert(bb.end(), &domain_[0], &domain_[4]);
+  vector<vector<double> > all_bb;
+  for (size_t ki=0; ki<points_.size(); ++ki)
+    all_bb.push_back(bb);
+  cloud.setInfo(nmb_pts_, start, nmb_pts_, domain_, all_bb);
   computeTrimInfo(cloud, max_level, nmb_div, seqs);
 
   // Remove fragments
@@ -141,7 +167,13 @@ void TrimUtils::computeAllTrimSeqs(int max_level, int nmb_div,
   int del = dim_ + 2;
 
   SubCloud cloud;
-  cloud.setInfo(nmb_pts_, 0, nmb_pts_*del, domain_, domain_);
+  vector<int> start(points_.size(), 0);
+  vector<double> bb;
+  bb.insert(bb.end(), &domain_[0], &domain_[4]);
+  vector<vector<double> > all_bb;
+  for (size_t ki=0; ki<points_.size(); ++ki)
+    all_bb.push_back(bb);
+  cloud.setInfo(nmb_pts_, start, nmb_pts_, domain_, all_bb);
   vector<vector<double> > seqs;
   computeTrimInfo(cloud, max_level, nmb_div, seqs);
 
@@ -416,97 +448,103 @@ void TrimUtils::cleanTrimResults(int limitsize,
 }
 
 //==============================================================================
-void TrimUtils::distributePointCloud(int ix1, int ix2,
+void TrimUtils::distributePointCloud(vector<int>& ix1, vector<int>& ix2,
 				     double domain[4],
 				     int nmb_u, int nmb_v,
 				     vector<SubCloud>& sub_clouds)
 //==============================================================================
 {
   sub_clouds.resize(nmb_u*nmb_v);
+  for (size_t kh=0; kh<sub_clouds.size(); ++kh)
+    sub_clouds[kh].setSize(points_.size());
   int del = dim_ + 2;
 
   double u_del = (domain[1] - domain[0])/(double)(nmb_u);
   double v_del = (domain[3] - domain[2])/(double)(nmb_v);
 
   // Sort points in v-direction
-  int nmb_pts = (ix2 - ix1)/del;
-  double *points = points_+ix1;
-  qsort(points, nmb_pts, del*sizeof(double), compare_v_par);
+  for (size_t kh=0; kh<points_.size(); ++kh)
+    {
+      int nmb_pts = ix2[kh] - ix1[kh];
+      double *points = points_[kh] + ix1[kh]*del;
+      qsort(points, nmb_pts, del*sizeof(double), compare_v_par);
 
 #ifdef DEBUG
-  std::ofstream of("division_lines.g2");
-  of << "410 1 0 4 255 0 0 255" << std::endl;
-  of << nmb_u+nmb_v+2 << std::endl;
-  for (int ki=0; ki<=nmb_u; ++ki)
-    {
-      Point p1(domain[0]+ki*u_del, domain[2], 0.0);
-      Point p2(domain[0]+ki*u_del, domain[3], 0.0);
-      of << p1 << " " << p2 << std::endl;
-    }
-  for (int ki=0; ki<=nmb_v; ++ki)
-    {
-      Point p1(domain[0], domain[2]+ki*v_del, 0.0);
-      Point p2(domain[1], domain[2]+ki*v_del, 0.0);
-      of << p1 << " " << p2 << std::endl;
-    }
-
+      std::ofstream of("division_lines.g2");
+      of << "410 1 0 4 255 0 0 255" << std::endl;
+      of << nmb_u+nmb_v+2 << std::endl;
+      for (int ki=0; ki<=nmb_u; ++ki)
+	{
+	  Point p1(domain[0]+ki*u_del, domain[2], 0.0);
+	  Point p2(domain[0]+ki*u_del, domain[3], 0.0);
+	  of << p1 << " " << p2 << std::endl;
+	}
+      for (int ki=0; ki<=nmb_v; ++ki)
+	{
+	  Point p1(domain[0], domain[2]+ki*v_del, 0.0);
+	  Point p2(domain[1], domain[2]+ki*v_del, 0.0);
+	  of << p1 << " " << p2 << std::endl;
+	}
+      
 #endif
   
-  // Distribute points into strips
-  int ki, kj, kr;
-  int pp0, pp1, pp2, pp3;
-  int ppmax = ix2 - ix1;
-  double upar, vpar;
-  double subdomain[4];
-  for (kr=0, ki=0, pp0=0, vpar=domain[2]+v_del; ki<nmb_v; 
-       ++ki, vpar+=v_del, pp0=pp1)
-    {
-      subdomain[2] = vpar - v_del;
-      subdomain[3] = vpar;
-
-      if (ki == nmb_v-1)
+      // Distribute points into strips
+      int ki, kj, kr;
+      int pp0, pp1, pp2, pp3;
+      int ppmax = ix2[kh]*del - ix1[kh]*del;
+      double upar, vpar;
+      double subdomain[4];
+      for (kr=0, ki=0, pp0=0, vpar=domain[2]+v_del; ki<nmb_v; 
+	   ++ki, vpar+=v_del, pp0=pp1)
 	{
-	  pp1 = ppmax;
-	}
-      else
-	{
-	  for (pp1=pp0; pp1<ppmax && points[pp1+1]<vpar; pp1+=del);
-	}
-
-      // Sort according to the u-parameter
-      qsort(points+pp0, (pp1-pp0)/del, del*sizeof(double), compare_u_par);
-	   
-      for (kj=0, pp2=pp0, upar=domain[0]+u_del; kj<nmb_u;
-	   ++kj, upar+=u_del, pp2=pp3, ++kr)
-	{
-	  subdomain[0] = upar - u_del;
-	  subdomain[1] = upar;
-
-	  double bb[4];
-	  bb[0] = subdomain[1];
-	  bb[1] = subdomain[0];
-	  bb[2] = subdomain[3];
-	  bb[3] = subdomain[2];
+	  subdomain[2] = vpar - v_del;
+	  subdomain[3] = vpar;
 	  
-	  for (pp3=pp2; pp3<pp1 && points[pp3]<upar; pp3+=del)
+	  if (ki == nmb_v-1)
 	    {
-	      bb[0] = std::min(bb[0], points[pp3]);
-	      bb[1] = std::max(bb[1], points[pp3]);
-	      bb[2] = std::min(bb[2], points[pp3+1]);
-	      bb[3] = std::max(bb[3], points[pp3+1]);
+	      pp1 = ppmax;
 	    }
-	  if (kj == nmb_u-1)
+	  else
 	    {
-	      for (; pp3<pp1; pp3+=del)
+	      for (pp1=pp0; pp1<ppmax && points[pp1+1]<vpar; pp1+=del);
+	    }
+
+	  // Sort according to the u-parameter
+	  qsort(points+pp0, (pp1-pp0)/del, del*sizeof(double), compare_u_par);
+	   
+	  for (kj=0, pp2=pp0, upar=domain[0]+u_del; kj<nmb_u;
+	       ++kj, upar+=u_del, pp2=pp3, ++kr)
+	    {
+	      subdomain[0] = upar - u_del;
+	      subdomain[1] = upar;
+
+	      vector<double> bb(4);
+	      bb[0] = subdomain[1];
+	      bb[1] = subdomain[0];
+	      bb[2] = subdomain[3];
+	      bb[3] = subdomain[2];
+	  
+	      for (pp3=pp2; pp3<pp1 && points[pp3]<upar; pp3+=del)
 		{
 		  bb[0] = std::min(bb[0], points[pp3]);
 		  bb[1] = std::max(bb[1], points[pp3]);
 		  bb[2] = std::min(bb[2], points[pp3+1]);
 		  bb[3] = std::max(bb[3], points[pp3+1]);
 		}
+	      if (kj == nmb_u-1)
+		{
+		  for (; pp3<pp1; pp3+=del)
+		    {
+		      bb[0] = std::min(bb[0], points[pp3]);
+		      bb[1] = std::max(bb[1], points[pp3]);
+		      bb[2] = std::min(bb[2], points[pp3+1]);
+		      bb[3] = std::max(bb[3], points[pp3+1]);
+		    }
+		}
+	      // The same domain for all points sets, but bb might differ
+	      sub_clouds[kr].setInfo((int)kh, (pp3-pp2)/del, pp2/del+ix1[kh],
+				     pp3/del+ix1[kh], subdomain, bb);
 	    }
-	  sub_clouds[kr].setInfo((pp3-pp2)/del, pp2+ix1, pp3+ix1, 
-				 subdomain, bb);
 	}
     }
 }
@@ -570,26 +608,36 @@ void TrimUtils::computeTrimInfo(SubCloud& cloud,
 
   // Traverse the sub clouds and check whether they need to be processed
   // further
-  int ki, kj, kr;
+  int ki, kj, kr, kh;
   double frac = 0.9;
   for (kr=0, kj=0; kj<nmb_v; ++kj)
     {
       for (ki=0; ki<nmb_u; ++ki, ++kr)
 	{
-	  if (sub_clouds[kr].nmb_pts_ == 0)
+	  int num_no = 0;
+	  for (kh=0; kh<sub_clouds[kr].nmb_pts_.size(); ++kh)
+	    if (sub_clouds[kr].nmb_pts_[kh] == 0)
+	      num_no++;
+	  if (num_no == (int)sub_clouds[kr].nmb_pts_.size() ||
+	      (num_no > 0 && all_))
 	    continue;  // No points in sub cloud. Not inside trimming loop
 	  
 #ifdef DEBUG
 	  int del = dim_ + 2;
 	  std::ofstream ofa("sub_cloud_curr.g2");
 	  (void)ofa.precision(15);
-	  ofa << "400 1 0 0" << std::endl;
-	  ofa << sub_clouds[kr].nmb_pts_ << std::endl;
-	  for (int kr1=0; kr1<sub_clouds[kr].nmb_pts_; ++kr1)
+	  for (size_t krr=0; krr<sub_clouds[kr].nmb_pts_.size(); ++krr)
 	    {
-	      for (int kh1=0; kh1<del-1; ++kh1)
-		ofa << points_[sub_clouds[kr].ix1_+kr1*del+kh1] << " ";
-	      ofa << 0 << std::endl;
+	      if (sub_clouds[kr].nmb_pts_[krr] == 0)
+		continue;
+	      ofa << "400 1 0 0" << std::endl;
+	      ofa << sub_clouds[kr].nmb_pts_[krr] << std::endl;
+	      for (int kr1=0; kr1<sub_clouds[kr].nmb_pts_[krr]; ++kr1)
+		{
+		  for (int kh1=0; kh1<del-1; ++kh1)
+		    ofa << points_[krr][(sub_clouds[kr].ix1_[krr]+kr1)*del+kh1] << " ";
+		  ofa << 0 << std::endl;
+		}
 	    }
 #endif
 
@@ -603,7 +651,8 @@ void TrimUtils::computeTrimInfo(SubCloud& cloud,
 	    nmb_nolimits = 4;
 	  else
 	    {
-	      if (ki==0 || sub_clouds[kr-1].nmb_pts_ == 0 ||
+	      if (ki==0 || sub_clouds[kr-1].num_with_pts_ == 0 ||
+		  (sub_clouds[kr-1].num_with_pts_ < sub_clouds[kr-1].nmb_pts_.size() && all_) ||
 		  /*sub_clouds[kr-1].processed_ == true*/ sub_clouds[kr-1].limitedSupport(frac))
 		{
 		  nmb_nolimits++;
@@ -622,7 +671,8 @@ void TrimUtils::computeTrimInfo(SubCloud& cloud,
 		  limitseq.insert(limitseq.end(), bdseq.begin(), bdseq.end());
 		  sub_clouds[kr-1].limit_[1] = 1;
 		}
-	      if (ki==nmb_u-1 || sub_clouds[kr+1].nmb_pts_ == 0 ||
+	      if (ki==nmb_u-1 || sub_clouds[kr+1].num_with_pts_ == 0 ||
+		  (sub_clouds[kr+1].num_with_pts_ < sub_clouds[kr+1].nmb_pts_.size() && all_) ||
 		  sub_clouds[kr+1].limitedSupport(frac))
 		{
 		  nmb_nolimits++;
@@ -634,7 +684,8 @@ void TrimUtils::computeTrimInfo(SubCloud& cloud,
 		  limitseq.insert(limitseq.end(), bdseq.begin(), bdseq.end());
 		  sub_clouds[kr+1].limit_[0] = 1;
 		}
-	      if (kj==0 || sub_clouds[kr-nmb_u].nmb_pts_ == 0 ||
+	      if (kj==0 || sub_clouds[kr-nmb_u].num_with_pts_ == 0 ||
+		  (sub_clouds[kr-nmb_u].num_with_pts_ < sub_clouds[kr-nmb_u].nmb_pts_.size() && all_) ||
 		  /*sub_clouds[kr-nmb_u].processed_ == true*/ sub_clouds[kr-nmb_u].limitedSupport(frac))
 		{
 		  nmb_nolimits++;
@@ -654,7 +705,8 @@ void TrimUtils::computeTrimInfo(SubCloud& cloud,
 		  limitseq.insert(limitseq.end(), bdseq.begin(), bdseq.end());
 		  sub_clouds[kr-nmb_u].limit_[3] = 1;
 		}
-	      if (kj==nmb_v-1 || sub_clouds[kr+nmb_u].nmb_pts_ == 0 ||
+	      if (kj==nmb_v-1 || sub_clouds[kr+nmb_u].num_with_pts_ == 0 ||
+		  (sub_clouds[kr+nmb_u].num_with_pts_ < sub_clouds[kr+nmb_u].nmb_pts_.size() && all_) ||
 		  sub_clouds[kr+nmb_u].limitedSupport(frac))
 		{
 		  nmb_nolimits++;
@@ -1543,54 +1595,80 @@ void TrimUtils::reOrganizeSeqs(vector<vector<double> >& seqs, vector<int>& outer
 
 //==============================================================================
 void TrimUtils::extractOutsidePoint(shared_ptr<BoundedSurface>& surf,
-				    vector<double>& outpoints,
+				    vector<vector<double> >& outpoints,
 				    int max_nmb)
 //==============================================================================
 {
-  outpoints.clear();
+  if (points_.size() == 0)
+    return;
+  
+  outpoints.resize(points_.size());
   int del = surf->dimension() + 2;
+
+  SubCloud cloud;
+  cloud.setSize(points_.size());
 
   int ki, kj;
   double dom[4];
   for (ki=0; ki<2; ++ki)
-    dom[2*ki] = dom[2*ki+1] = points_[ki];
-  for (kj=1; kj<nmb_pts_; ++kj)
-    for (ki=0; ki<2; ++ki)
-      {
-	dom[2*ki] = std::min(dom[2*ki], points_[kj*del+ki]);
-	dom[2*ki+1] = std::max(dom[2*ki+1], points_[kj*del+ki]);
-      }
+    dom[2*ki] = dom[2*ki+1] = points_[0][ki];
+  for (size_t kr=0; kr<points_.size(); ++kr)
+    {
+      vector<double> bb(4);
+      bb[0] = bb[2] = std::numeric_limits<double>::max();
+      bb[1] = bb[3] = std::numeric_limits<double>::lowest();
+      for (kj=0; kj<nmb_pts_[kr]; ++kj)
+	for (ki=0; ki<2; ++ki)
+	  {
+	    dom[2*ki] = std::min(dom[2*ki], points_[kr][kj*del+ki]);
+	    dom[2*ki+1] = std::max(dom[2*ki+1], points_[kr][kj*del+ki]);
+	    bb[2*ki] = std::min(bb[2*ki], points_[kr][kj*del+ki]);
+	    bb[2*ki+1] = std::max(bb[2*ki+1], points_[kr][kj*del+ki]);
+	  }
+    
 
-  SubCloud cloud;
-  cloud.setInfo(nmb_pts_, 0, nmb_pts_*del, dom, dom);
+      cloud.setInfo((int)kr, nmb_pts_[kr], 0, nmb_pts_[kr], dom, bb);
+    }
+  cloud.setDomain(dom);
   extractOutsidePoint(surf, cloud, outpoints, max_nmb);
 }
 
 //==============================================================================
 void TrimUtils::extractOutsidePoint(shared_ptr<BoundedSurface>& surf,
 				    SubCloud& cloud,
-				    vector<double>& outpoints,
+				    vector<vector<double> >& outpoints,
 				    int max_nmb)
 //==============================================================================
 {
   int del = surf->dimension() + 2;
-  if (cloud.nmb_pts_ <= max_nmb)
+  int max_cloud = std::numeric_limits<double>::lowest();
+  int min_cloud = std::numeric_limits<double>::max();
+  for (size_t kr=0; kr<cloud.nmb_pts_.size(); ++kr)
+    {
+      max_cloud = std::max(max_cloud, cloud.nmb_pts_[kr]);
+      min_cloud = std::min(min_cloud, cloud.nmb_pts_[kr]);
+    }
+  int mid_num_cloud = (max_cloud+min_cloud)/2;
+  if (mid_num_cloud <= max_nmb)
     {
       //std::cout << "Bottom \n";
       // Test point for inclusion
-      for (int ki=0; ki<cloud.nmb_pts_; ++ki)
+      for (size_t kr=0; kr<cloud.nmb_pts_.size(); ++kr)
 	{
-	  int ix = cloud.ix1_;
-	  if (!surf->inDomain(points_[ix+ki*del], points_[ix+ki*del+1]))
-	    outpoints.insert(outpoints.end(), points_+ix+ki*del, 
-			     points_+ix+ki*del+del);
+	  for (int ki=0; ki<cloud.nmb_pts_[kr]; ++ki)
+	    {
+	      int ix = cloud.ix1_[kr];
+	      if (!surf->inDomain(points_[kr][(ix+ki)*del], points_[kr][(ix+ki)*del+1]))
+		outpoints[kr].insert(outpoints[kr].end(), &points_[kr][(ix+ki)*del], 
+				     &points_[kr][(ix+ki+1)*del]);
+	    }
 	}
     }
   else
     {
       // Distribute current point cloud into sub clouds
-      int nmb_u = std::max(3, std::min(cloud.nmb_pts_/500, 10));
-      int nmb_v = std::max(3, std::min(cloud.nmb_pts_/500, 10));
+      int nmb_u = std::max(3, std::min(mid_num_cloud/500, 10));
+      int nmb_v = std::max(3, std::min(mid_num_cloud/500, 10));
       vector<SubCloud> sub_clouds;
       distributePointCloud(cloud.ix1_, cloud.ix2_, cloud.dom_,
 			   nmb_u, nmb_v, sub_clouds);
@@ -1601,21 +1679,24 @@ void TrimUtils::extractOutsidePoint(shared_ptr<BoundedSurface>& surf,
       int nmb_processed = 0;
       for (size_t kj=0; kj<sub_clouds.size(); ++kj)
 	{
-	  int ki;
-	  double par[10];
-	  par[0] = par[4] = sub_clouds[kj].bb_[0];
-	  par[2] = par[6] = sub_clouds[kj].bb_[1];
- 	  par[1] = par[3] = sub_clouds[kj].bb_[2];
-	  par[5] = par[7] = sub_clouds[kj].bb_[3];
-	  // par[8] = 0.5*(sub_clouds[kj].bb_[0]+sub_clouds[kj].bb_[1]);
-	  // par[9] = 0.5*(sub_clouds[kj].bb_[2]+sub_clouds[kj].bb_[3]);
 	  int nmb_in=0, nmb_out=0;
-	  for (ki=0; ki<8; ki+=2)
+	  for (size_t kr=0; kr<sub_clouds[kj].nmb_pts_.size(); ++kr)
 	    {
-	      if (surf->inDomain(par[ki], par[ki+1]))
-		++nmb_in;
-	      else
-		++nmb_out;
+	      int ki;
+	      double par[10];
+	      par[0] = par[4] = sub_clouds[kj].bb_[kr][0];
+	      par[2] = par[6] = sub_clouds[kj].bb_[kr][1];
+	      par[1] = par[3] = sub_clouds[kj].bb_[kr][2];
+	      par[5] = par[7] = sub_clouds[kj].bb_[kr][3];
+	      // par[8] = 0.5*(sub_clouds[kj].bb_[0]+sub_clouds[kj].bb_[1]);
+	      // par[9] = 0.5*(sub_clouds[kj].bb_[2]+sub_clouds[kj].bb_[3]);
+	      for (ki=0; ki<8; ki+=2)
+		{
+		  if (surf->inDomain(par[ki], par[ki+1]))
+		    ++nmb_in;
+		  else
+		    ++nmb_out;
+		}
 	    }
 
 	  /*if (nmb_out == 5)
@@ -1632,7 +1713,7 @@ void TrimUtils::extractOutsidePoint(shared_ptr<BoundedSurface>& surf,
 	  //   std::cout << "sub cloud not processed \n";
 	}
 #ifdef DEBUG
-      std::cout << "Nmb pts: " << cloud.nmb_pts_ << ", nmb sub clouds: " << sub_clouds.size();
+      //std::cout << "Nmb pts: " << cloud.nmb_pts_ << ", nmb sub clouds: " << sub_clouds.size();
       std::cout << ", nmb processed. " << nmb_processed << ", nmb out: " <<  outpoints.size()/3 << std::endl;
 #endif
     }

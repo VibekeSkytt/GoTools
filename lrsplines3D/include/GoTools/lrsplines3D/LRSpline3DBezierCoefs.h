@@ -69,19 +69,27 @@ public:
   LRSpline3DBezierCoefs(LRSplineVolume *lr_spline);
 
   /// Fetch coefficients of Bezier volumes after extraction.
-  void getBezierCoefs(double noval, int der=0, int dir=2);
+  void getBezierCoefs(double noval, int der=0, int dir=2, bool both=false,
+		      double limit_der=0.0, bool check_point_existence = true);
 
   /// Write Bezier coefficients and associated information to stream
-  void writeToStream(std::ostream& os);
+  void writeToStream(std::ostream& os, int der = 0);
 
   /// Write Bezier coefficients and associated information to file
-  void writeToFile(const std::string& filename);
+  void writeToFile(const std::string& filename, int der = 0);
+
 
 private:
   
   void computeCoefsFromPts(const double *points, double *coefs);
 
   void calcMinMaxCoefficientsValue();
+
+  void calcElementMinMaxCoefValue(int element,
+				  std::vector<double>& min_val,
+				  std::vector<double>& max_val,
+				  double& min_len, double& max_len,
+				  int dercase=0);
 
   LRSplineVolume *lr_spline_; // TODO: remove the need for this
  
@@ -90,12 +98,19 @@ private:
   int order_w_;
   int dim_;
   int num_elements_;
+  int der_;
+  int dir_;
+  
   
   Array<double,6> orig_dom_;
   std::vector<double> bezier_coefs_; 
   std::vector<double> min_coef_value_;
   std::vector<double> max_coef_value_;
   std::vector<Go::BoundingBox> boxes_;
+
+  std::vector<double> bezier_coefs2_; 
+  std::vector<double> min_coef_value2_;
+  std::vector<double> max_coef_value2_;
 
   double min_box_diagonal_;
   double max_box_diagonal_;

@@ -132,6 +132,32 @@ void GaussQuadValues(const BsplineBasis& basis,  // B-spline basis
 }
 
 
+//===========================================================================
+  void GaussQuadValues(int degree,
+		       double start, double end,
+		       vector<double>& parameters,  // Parameter values for all points
+		       vector<double>& par_weights)  // Weight for each parameter
+//===========================================================================
+
+   //--------------------------------------------------------------------------
+   //     Purpose : Store parameters and weights used for numerical integration
+   //               by Gauss quadrature. 
+   //--------------------------------------------------------------------------
+{
+   int kind = std::min(degree, 5);
+
+   int w_size = indices[kind];
+   parameters.resize(w_size);
+   par_weights.resize(w_size);
+
+   for (int i = 0; i < w_size; ++i)
+     par_weights[i] = 0.5 * weight[kind][i];
+
+   for (int i = 0; i < w_size; ++i)
+     parameters[i] = 0.5 * (sample[kind][i]*(end-start) + end + start);
+}
+
+
 //==============================================================================
 void  GaussQuadInner(const BsplineBasis& basis,  // B-spline basis
 		     int ider,    // Number of derivatives to compute.

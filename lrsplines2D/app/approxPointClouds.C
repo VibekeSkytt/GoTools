@@ -99,6 +99,7 @@ void print_help_text()
   std::cout << "-tolfile: File specifying domains with specific tolerances, global tolerance apply outside domains. PointCloud2LR -tolfile for file format \n";
   std::cout << "-toldoc: Documentation on file format for tolerance domains. \n";
   std::cout << "-refstrat: Print parameter information to define refinement strategy. \n";
+  std::cout << "-diff_sfs <filename> : Compute difference surfaces between successive surfaces \n";
   std::cout << "-h or --help : Write this text\n";
 }
 
@@ -178,6 +179,7 @@ int main(int argc, char *argv[])
   char* input_type = 0;    // Type of point file
   char *pointfile = 0;     // Input point file
   char *surffile = 0;       // Surface output file
+  char *difffile = 0;
   char *infofile = 0;      // Accuracy information output file
   char *tolfile = 0;       // File specifying varying tolerances
   int del = 3;             // Number of entries for each point
@@ -433,6 +435,13 @@ int main(int argc, char *argv[])
 	{
 	  int stat = fetchDoubleParameter(argc, argv, ka, swap, 
 					  nmb_par, par_read);
+	  if (stat < 0)
+	    return 1;
+	}
+      else if (arg == "-diff_sfs")
+	{
+	  int stat = fetchCharParameter(argc, argv, ka, difffile, 
+					nmb_par, par_read);
 	  if (stat < 0)
 	    return 1;
 	}
@@ -798,6 +807,37 @@ int main(int argc, char *argv[])
       sfs[ki]->write(sfout);
 
     }
+
+  if (difffile != 0)
+    {
+      std::ofstream ofd(difffile);
+      for (size_t ki=1; ki<sfs.size(); ++ki)
+	{
+	  shared_ptr<LRSplineSurface> diffsf(new LRSplineSurface(*sfs[ki-1]));
+	  LRSplineSurface::BSplineMap::const_iterator it1 = sfs[ki-1]->basisFunctionsBegin();
+	  LRSplineSurface::BSplineMap::const_iterator it2 = sfs[ki]->basisFunctionsBegin();
+	  LRSplineSurface::BSplineMap::const_iterator it3 = diffsf->basisFunctionsBegin();
+	  double min_diff = std::numeric_limits<double>::max();;
+	  double max_diff = std::numeric_limits<double>::lowest();;
+	  double av_diff = 0.0;
+	  for (; it1 != sfs[ki-1]->basisFunctionsEnd(); ++it1, ++it2, ++it3) 
+	    {
+	      Point c1 = it1->second->Coef();
+	      Point c2 = it2->second->Coef();
+	      Point c3 = c2 - c1;
+	      min_diff = std::min(min_diff, c3[0]);
+	      max_diff = std::max(max_diff, c3[0]);
+	      av_diff += c3[0];
+	      diffsf->setCoef(c3, it3->second.get());
+	    }
+	  diffsf->writeStandardHeader(ofd);
+	  diffsf->write(ofd);
+	  av_diff /= (double)sfs[ki-1]->numBasisFunctions();
+	  std::cout << "min_diff: " << min_diff << ", max_diff: " << max_diff << ", av_diff: " << av_diff << std::endl;
+	}
+    }
+
+  
   return 0;
 }
 

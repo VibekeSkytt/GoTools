@@ -303,6 +303,13 @@ public:
       w /= orig_dom_[5]-orig_dom_[4];
     }
 
+  void origLow(Element3D *e, double &u, double &v, double &w)
+    {
+      u = e->umin();
+      v = e->vmin();
+      w = e->wmin();
+    }
+
   /// Upper right back corner of element
   void high(Element3D *e, double &u, double &v, double &w)
     {
@@ -315,6 +322,13 @@ public:
       v /= orig_dom_[3]-orig_dom_[2];
       w -= orig_dom_[4];
       w /= orig_dom_[5]-orig_dom_[4];
+    }
+
+  void origHigh(Element3D *e, double &u, double &v, double &w)
+    {
+      u = e->umax();
+      v = e->vmax();
+      w = e->wmax();
     }
 
     // Copy and paste from code in r2gl.

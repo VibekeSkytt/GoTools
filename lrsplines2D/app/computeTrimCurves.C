@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 	}
     }
 
-  if (argc != 4)
+  if (argc != 4 && argc != 5)
     {
       std::cout << "ERROR: Number of parameters is not correct" << std::endl;
       print_help_text();
@@ -94,6 +94,9 @@ int main(int argc, char* argv[])
   char *pointfile(argv[1]);
   int tightness = atoi(argv[2]);
   std::ofstream fileout(argv[3]);
+  int nmb_div = -1;
+  if (argc == 5)
+    nmb_div = atoi(argv[4]);
 
 
   // Read point cloud
@@ -143,21 +146,23 @@ int main(int argc, char* argv[])
 
   // Set parameters for computations of trimming sequence
   int max_rec;
-  int nmb_div;
   if (tightness <= 2)
     {
       max_rec = 1;
-      nmb_div = (tightness == 2) ? 20 : 15;
+      if (nmb_div < 0)
+	nmb_div = (tightness == 2) ? 20 : 15;
     }
   else if (tightness <= 5)
     {
       max_rec = 2;
-      nmb_div = (tightness == 3) ? 8 : ((tightness == 4) ? 12 : 15);
+      if (nmb_div < 0)
+	nmb_div = (tightness == 3) ? 8 : ((tightness == 4) ? 12 : 15);
     }
   else
     {
       max_rec = 3;
-      nmb_div = (tightness == 6) ? 10 : ((tightness == 7) ? 12 : 15);
+      if (nmb_div < 0)
+	nmb_div = (tightness == 6) ? 10 : ((tightness == 7) ? 12 : 15);
     }
 
 

@@ -67,6 +67,24 @@ bool TrimSurface::makeBoundedSurface(shared_ptr<ParamSurface>& surf,
 				     bool only_outer)
 //==============================================================================
 {
+  if (points.size() == 0)
+    return false;
+
+  vector<vector<double> > points2(1);
+  points2[0] = points;
+  return makeBoundedSurface(surf, isotrim, points2, tightness, trim_surf,
+			    only_outer, true);
+}
+
+//==============================================================================
+bool TrimSurface::makeBoundedSurface(shared_ptr<ParamSurface>& surf,
+				     bool isotrim[], 
+				     vector<vector<double> >& points,
+				     int tightness,
+				     shared_ptr<BoundedSurface>& trim_surf,
+				     bool only_outer, bool all)
+//==============================================================================
+{
   // Translate surface and points to origo
   RectDomain dom = surf->containingDomain();
   double umin = dom.umin();
@@ -78,28 +96,36 @@ bool TrimSurface::makeBoundedSurface(shared_ptr<ParamSurface>& surf,
   // surface domain
   Point vec(-0.5*(umin+umax), -0.5*(vmin+vmax), 0.0);
   int ptdim = 3;  // Point dimension
-  int nmb_pts = (int)points.size()/ptdim;
-  int ki, kj;
-  for (ki=0, kj=0; kj<nmb_pts; )
+  int all_pts = 0;
+  int max_pts = 0;
+  for (size_t kr=0; kr<points.size(); ++kr)
     {
-      if (points[ki]<umin || points[ki]>umax || 
-  	  points[ki+1]<vmin || points[ki+1]>vmax)
+      int nmb_pts = (int)points[kr].size()/ptdim;
+      all_pts += nmb_pts;
+      int ki, kj;
+      for (ki=0, kj=0; kj<nmb_pts; )
 	{
-	  for (int kk=0; kk<ptdim; ++kk)
-	    std::swap(points[ki+kk], points[ptdim*(nmb_pts-1)+kk]);
-	  nmb_pts--;
+	  if (points[kr][ki]<umin || points[kr][ki]>umax || 
+	      points[kr][ki+1]<vmin || points[kr][ki+1]>vmax)
+	    {
+	      for (int kk=0; kk<ptdim; ++kk)
+		std::swap(points[kr][ki+kk], points[kr][ptdim*(nmb_pts-1)+kk]);
+	      all_pts--;
+	      nmb_pts--;
+	    }
+	  else
+	    {
+	      for (int kk=0; kk<ptdim; ++kk)
+		points[kr][ki+kk] += vec[kk];
+	      ++kj;
+	      ki += ptdim;
+	    }
 	}
-      else
-	{
-	  for (int kk=0; kk<ptdim; ++kk)
-	    points[ki+kk] += vec[kk];
-	  ++kj;
-	  ki += ptdim;
-	}
+      max_pts = std::max(max_pts, nmb_pts);
     }
 
   int min_nmb = 3;
-  if (nmb_pts < min_nmb)
+  if (all_pts < min_nmb || (max_pts < min_nmb && all))
     return true;
 
 #ifdef DEBUG
@@ -150,7 +176,14 @@ bool TrimSurface::makeBoundedSurface(shared_ptr<ParamSurface>& surf,
   domain[3] = dom2.vmax();
   vector<vector<double> > seqs;
   //TrimUtils trimutil(points2, 1, domain);
-  TrimUtils trimutil(&points[0], nmb_pts, 1, domain);
+  vector<double*> point_ptr(points.size());
+  vector<int> point_num(points.size());
+  for (size_t kr=0; kr<points.size(); ++kr)
+    {
+      point_ptr[kr] = &points[kr][0];
+      point_num[kr] = (int)points[kr].size()/ptdim;
+    }
+  TrimUtils trimutil(point_ptr, point_num, 1, domain, all);
   trimutil.computeTrimSeqs(max_rec, nmb_div, seqs, only_outer);
   
   double udel, vdel;
