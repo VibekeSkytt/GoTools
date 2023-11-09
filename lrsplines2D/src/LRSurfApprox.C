@@ -739,11 +739,15 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 	  if (elem_data.size() > 0)
 	    {
 	      vector<double> tmppt;
+	      tmppt.reserve(3*elem_data.size()/del);
 	      if (srf_->dimension() == 1)
-		tmppt = elem_data;
+		{
+		  for (int kr=0; kr<nmb; ++kr)
+		    tmppt.insert(tmppt.end(), elem_data.begin()+kr*del, 
+				 elem_data.begin()+kr*del+3);
+		}
 	      else
 		{
-		  tmppt.reserve(3*elem_data.size()/del);
 		  for (int kr=0; kr<nmb; ++kr)
 		    tmppt.insert(tmppt.end(), elem_data.begin()+kr*del+2, 
 				 elem_data.begin()+(kr+1)*del-back);

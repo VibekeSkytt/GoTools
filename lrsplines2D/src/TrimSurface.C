@@ -52,7 +52,7 @@
 #include <iostream>
 #include <fstream>
 
-//#define DEBUG
+#define DEBUG
 
 using namespace Go;
 using std::vector;
@@ -94,7 +94,8 @@ bool TrimSurface::makeBoundedSurface(shared_ptr<ParamSurface>& surf,
 
   // Translate point cloud and remove points lying outside of the
   // surface domain
-  Point vec(-0.5*(umin+umax), -0.5*(vmin+vmax), 0.0);
+  //Point vec(-0.5*(umin+umax), -0.5*(vmin+vmax), 0.0);
+  Point vec(0.0, 0.0, 0.0);
   int ptdim = 3;  // Point dimension
   int all_pts = 0;
   int max_pts = 0;
@@ -130,13 +131,17 @@ bool TrimSurface::makeBoundedSurface(shared_ptr<ParamSurface>& surf,
 
 #ifdef DEBUG
   std::ofstream of1("translated_cloud.g2");
-  of1 << "400 1 0 0 " << std::endl;
-  of1 << nmb_pts << std::endl;
-  for (ki=0; ki<nmb_pts; ++ki)
+  for (size_t kr=0; kr<points.size(); ++kr)
     {
-      for (kj=0; kj<ptdim; ++kj)
-	of1 << points[ptdim*ki+kj] << " ";
-      of1 << std::endl;
+      int nmb_pts = (int)points[kr].size()/ptdim;
+      of1 << "400 1 0 0 " << std::endl;
+      of1 << nmb_pts << std::endl;
+      for (int ki=0; ki<nmb_pts; ++ki)
+	{
+	  for (int kj=0; kj<ptdim; ++kj)
+	    of1 << points[kr][ptdim*ki+kj] << " ";
+	  of1 << std::endl;
+	}
     }
 #endif
 

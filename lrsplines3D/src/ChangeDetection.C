@@ -42,10 +42,14 @@
 #include "GoTools/lrsplines3D/LRVolApprox.h"
 #include "GoTools/lrsplines2D/LRSplineSurface.h"
 #include "GoTools/lrsplines2D/LRSurfApprox.h"
+#include "GoTools/lrsplines2D/LRApproxApp.h"
 #include "GoTools/lrsplines2D/LRSurfUtils.h"
 #include "GoTools/lrsplines2D/TrimSurface.h"
 #include "GoTools/lrsplines2D/LRTraceIsocontours.h"
 #include "GoTools/geometry/BoundedSurface.h"
+#include "GoTools/geometry/BoundedUtils.h"
+#include "GoTools/geometry/PointCloud.h"
+#include <fstream>
 
 using namespace Go;
 using std::vector;
@@ -53,7 +57,7 @@ using std::vector;
 //==============================================================================
 ChangeDetection::ChangeDetection(vector<vector<double> >& point_clouds, int del)
 //==============================================================================
-  : del_(del), init_num_coef_(6), degree_(2), mba_level_(0.0), der_lim_(0.0)
+  : del_(del), init_num_coef_(8), degree_(2), mba_level_(0.0), der_lim_(0.0)
 {
   point_seqs_.resize(point_clouds.size());
   seq_box_.resize(point_clouds.size());
@@ -162,7 +166,7 @@ void ChangeDetection::volApprox(double tol, int max_iter)
 	++nc[kj];
       nc[kj] = std::max(nc[kj], order);
     }
-  nc[2] = std::max(nc[2], order+1);  // At least one inner knot in the
+  nc[2] = std::max(nc[2], order+3);  // At least one inner knot in the
   // time direction
   std::cout << "Number of coefficients: " << nc[0] << ", " << nc[1] << ", " << nc[2] << std::endl;
 
@@ -277,10 +281,10 @@ void ChangeDetection::surfApprox(double tol, int max_iter)
 
      for (size_t kj=0; kj<change_pts_[ki].subseq_pts_.size(); ++kj)
 	{
-	  LRSurfApprox approx(nc[0], order, nc[1], order,
-			      change_pts_[ki].subseq_pts_[kj],
-			      del_-2, 
-			      domain, tol, false, 0.0, true, true);
+	  vector<double> points(change_pts_[ki].subseq_pts_[kj].begin(),
+				change_pts_[ki].subseq_pts_[kj].end());
+	  LRSurfApprox approx(nc[0], order, nc[1], order, points, 
+			      del_-2, domain, tol, false, 0.0, true, true);
 	  approx.setUseMBA(true);
 	  if (del_ == 3)
 	    {
@@ -292,10 +296,10 @@ void ChangeDetection::surfApprox(double tol, int max_iter)
 		  zmin = std::min(zmin, zval);
 		  zmax = std::max(zmax, zval);
 		}
-	      double zfac = std::max(tol, 0.005*(zmax - zmin));
-	      approx.addLowerConstraint(domain[4] - zfac);
-	      approx.addUpperConstraint(domain[5] + zfac);
-	      approx.setLocalConstraint(zfac);
+	      double zfac = std::max(tol, 0.5*(zmax - zmin));
+	      approx.addLowerConstraint(zmin - zfac);
+	      approx.addUpperConstraint(zmax + zfac);
+	      //approx.setLocalConstraint(zfac);
 	    }
 	  // Refinement strategy: Full span, both parameter directions, no threshold
 	  approx.setRefinementStrategy(1, 0, 0, -100, 0, 0);
@@ -320,6 +324,68 @@ void ChangeDetection::surfApprox(double tol, int max_iter)
 	  change_pts_[ki].avdist_.push_back(avdist_all);
 	  change_pts_[ki].avdistout_.push_back(avdist_out);
 	  change_pts_[ki].nmb_out_.push_back(nmb_out_eps);
+
+	  int nmb_level = 4;
+	  double max_level = 2.0*tol;
+	  vector<double> limits(2*nmb_level+1);
+	  vector<vector<double> > level_points(2*nmb_level+2);
+
+	  // Set distance levels 
+	  double del = max_level/(double)nmb_level;
+	  limits[nmb_level] = 0;
+	  for (int ki=1; ki<=nmb_level; ++ki)
+	    {
+	      limits[nmb_level-ki] = -ki*del;
+	      limits[nmb_level+ki] = ki*del;
+	    }
+
+	  double maxd = 0.0;
+	  double mind = 0.0;
+	  double avd = 0.0;
+	  int nmb;
+	  vector<int> nmb_group;
+	  LRApproxApp::classifyCloudFromDist(change_pts_[ki].subseq_pts_[kj],
+					     surf, limits, maxd, mind,
+					     avd, nmb, level_points, nmb_group,
+					     false);
+
+	  // Write to file
+	  int colors[3][3] = {{0, 255, 0},
+			      {255, 255, 255},
+			      {255, 0, 0}};
+
+	  std::ofstream of("ptdist.g2");
+	  for (int ki=0; ki<(int)level_points.size(); ++ki)
+	    {
+	      std::cout << "Level: " << limits[ki] << ", no. of pts: " << level_points[ki].size()/3 << std::endl;
+	      if (level_points[ki].size() == 0)
+		continue;
+
+	      // Make point cloud
+	      PointCloud3D level_cloud(level_points[ki].begin(), level_points[ki].size()/3);
+
+	      double cc[3];
+	      if (ki <= nmb_level)
+		{
+		  cc[0] = ((nmb_level-ki)*colors[0][0] + ki*colors[1][0])/nmb_level;
+		  cc[1] = ((nmb_level-ki)*colors[0][1] + ki*colors[1][1])/nmb_level;
+		  cc[2] = ((nmb_level-ki)*colors[0][2] + ki*colors[1][2])/nmb_level;
+		}
+	      else
+		{
+		  cc[0] = ((ki-nmb_level-1)*colors[2][0] + 
+			   (2*nmb_level-ki+1)*colors[1][0])/nmb_level;
+		  cc[1] = ((ki-nmb_level-1)*colors[2][1] + 
+			   (2*nmb_level-ki+1)*colors[1][1])/nmb_level;
+		  cc[2] = ((ki-nmb_level-1)*colors[2][2] + 
+			   (2*nmb_level-ki+1)*colors[1][2])/nmb_level;
+		}
+
+	      of << "400 1 0 4 " << cc[0] << " " << cc[1];
+	      of << " " << cc[2] << " 255" << std::endl;
+	      level_cloud.write(of);
+	    }
+	  int stop_break = 1;
 	}
     }
 }
@@ -364,14 +430,21 @@ void ChangeDetection::differenceSurfaces()
 void ChangeDetection::analyseDiffSurfaces(double threshold, double eps)
 //===========================================================================
 {
-  int tightness = 4;
+  int tightness = 2; //4;
+  std::ofstream of("diffsfs.g2");
   for (size_t ki=0; ki<change_pts_.size(); ++ki)
     {
+      if (change_pts_[ki].pts_seq_ix_.size() <= 1)
+	continue;
+      
       for (size_t kj=0; kj<change_pts_[ki].pts_seq_ix_.size()-1; ++kj)
 	{
 	  if (fabs(change_pts_[ki].min_diff_[kj]) < threshold &&
 	      fabs(change_pts_[ki].max_diff_[kj]) < threshold)
 	    continue; // Not a significant difference between time acquisitions
+
+	  change_pts_[ki].subseq_diffsfs_[kj]->writeStandardHeader(of);
+	  change_pts_[ki].subseq_diffsfs_[kj]->write(of);
 
 	  // Trim difference surface according to the points clouds of
 	  // the two original surfaces
@@ -382,12 +455,22 @@ void ChangeDetection::analyseDiffSurfaces(double threshold, double eps)
 	  isotrim[0] = isotrim[1] = isotrim[2] = isotrim[3] = true;
 	  shared_ptr<BoundedSurface> bdsurf;
 	  shared_ptr<ParamSurface> currdiff = change_pts_[ki].subseq_diffsfs_[kj];
-	  TrimSurface::makeBoundedSurface(currdiff, isotrim, points, tightness,
-					  bdsurf, false, true);
+	  // try {
+	  //   TrimSurface::makeBoundedSurface(currdiff, isotrim, points, tightness,
+	  // 				    bdsurf, false, true);
+	  // }
+	  // catch (...)
+	  //   {
+	      double space_eps = 1.0e-6;
+	      bdsurf = BoundedUtils::convertToBoundedSurface(currdiff, space_eps);
+	      //	    }
 
-	  analyseOneDiffSurface(bdsurf, (int)ki, (int)kj, threshold, eps);
+	  analyseOneDiffSurface(bdsurf, (int)ki, (int)kj, 0.5*threshold, eps);
+	  int stop_break1 = 1;
 	}
+      int stop_break2 = 1;
     }
+  int stop_break3 = 1;
 }
 
 //===========================================================================
@@ -415,5 +498,20 @@ void ChangeDetection::analyseOneDiffSurface(shared_ptr<BoundedSurface> bdsurf,
   						     isovals,
 						     threshold_missing,
   						     eps);
-
+  std::ofstream os("iso_cvs.g2");
+  bdsurf->writeStandardHeader(os);
+  bdsurf->write(os);
+  //cout << "Number of curves found: " << endl;
+  for (size_t i = 0; i != curves.size(); ++i) {
+    //cout << "At height " << isovals[i] << ": " << curves[i].size() << " curves." << endl;
+    for (auto cv : curves[i]) {
+      if (cv.second.get())
+	{
+	  cv.second->writeStandardHeader(os);
+	  cv.second->write(os);
+	}
+    }
+  }
+  os.close();
+  int stop_break = 1;
 }

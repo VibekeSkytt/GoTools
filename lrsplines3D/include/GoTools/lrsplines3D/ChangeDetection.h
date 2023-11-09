@@ -109,7 +109,9 @@ namespace Go
 
     void differenceSurfaces();
 
-   private:
+    void analyseDiffSurfaces(double threshold, double eps);
+
+  private:
     std::vector<std::vector<double> > point_seqs_;   // Point clouds for each
     // acquisition
     int del_;   // Number of double for each point
@@ -133,8 +135,6 @@ namespace Go
     std::vector<BoundingBox> change_box_;
 
     std::vector<SubSeqsInfo> change_pts_;
-
-    void analyseDiffSurfaces(double threshold, double eps);
 
     void analyseOneDiffSurface(shared_ptr<BoundedSurface> bdsurf,
 			       int nmb_area, int nmb_diff,

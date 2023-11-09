@@ -157,6 +157,7 @@ namespace Go
   	    }
   	}
     }
+  TrimCrvUtils::translateSurfaceDomain(surf.get(), vec);
 
   return curves2;
 }

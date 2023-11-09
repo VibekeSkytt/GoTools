@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
     }
 
   // Sort point files
-  std::sort(point_file.begin(), point_file.end());
+  //std::sort(point_file.begin(), point_file.end());
 
   int dim;
   vector<vector<double> > point_seqs(point_file.size());
@@ -114,11 +114,14 @@ int main(int argc, char *argv[])
 
   detect.extractChangeData();
 
-  double tol2 = 0.5*tol;
-  int max_iter2 = std::max(4, (int)0.75*max_iter);
+  double tol2 = tol/3.0;
+  int max_iter2 = std::max(2, (int)0.5*max_iter);
   detect.surfApprox(tol2, max_iter2);
 
   detect.differenceSurfaces();
+
+  double eps = 1.0e-4;
+  detect.analyseDiffSurfaces(tol2, eps);
   return 0;
 }
 
