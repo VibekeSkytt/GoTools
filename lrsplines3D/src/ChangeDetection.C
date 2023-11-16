@@ -46,13 +46,16 @@
 #include "GoTools/lrsplines2D/LRSurfUtils.h"
 #include "GoTools/lrsplines2D/TrimSurface.h"
 #include "GoTools/lrsplines2D/LRTraceIsocontours.h"
+#include "GoTools/lrsplines2D/LRContourUtils.h"
 #include "GoTools/geometry/BoundedSurface.h"
 #include "GoTools/geometry/BoundedUtils.h"
+#include "GoTools/geometry/CurveOnSurface.h"
 #include "GoTools/geometry/PointCloud.h"
 #include <fstream>
 
 using namespace Go;
 using std::vector;
+using std::pair;
 
 //==============================================================================
 ChangeDetection::ChangeDetection(vector<vector<double> >& point_clouds, int del)
@@ -507,11 +510,204 @@ void ChangeDetection::analyseOneDiffSurface(shared_ptr<BoundedSurface> bdsurf,
     for (auto cv : curves[i]) {
       if (cv.second.get())
 	{
-	  cv.second->writeStandardHeader(os);
+	  if (i<nmb_neg)
+	    os << "100 1 0 4 0 255 0 255" << std::endl;
+	  else
+	    os << "100 1 0 4 255 0 0 255" << std::endl;
+	  //cv.second->writeStandardHeader(os);
 	  cv.second->write(os);
 	}
     }
   }
   os.close();
+
+  vector<pair<vector<shared_ptr<ParamCurve> >, double> > neg_mat;
+  vector<pair<vector<shared_ptr<ParamCurve> >, double> > pos_mat;
+  if (nmb_neg > 0)
+    {
+      // Compute amount of removed material and corresponding domains
+      materialMove(bdsurf, curves, isovals, nmb_neg-1, -1, neg_mat);
+    }
+  if (nmb_pos > 0)
+    {
+      // Compute amount of added material and corresponding domains
+      materialMove(bdsurf, curves, isovals, nmb_neg, 1, pos_mat);
+    }
   int stop_break = 1;
 }
+
+//===========================================================================
+void
+ChangeDetection::materialMove(shared_ptr<BoundedSurface> bdsurf,
+			      const vector<CurveVec>& curves,
+			      vector<double>& isovals, int ix, int sgn,
+			      vector<pair<vector<shared_ptr<ParamCurve> >, double> > mat)
+//===========================================================================
+{
+  // Extract surface boundary loop
+  double eps = 1.0e-4;
+  // CurveLoop loop = SurfaceTools::outerBoundarySfLoop(bdsurf, eps);
+  
+  // // Fetch parameter curves
+  // int nmb = loop.size();
+  // vector<shared_ptr<ParamCurve> > par_cvs(nmb);
+  // for (int ka=0; ka<nmb; ++ka)
+  //   {
+  //     if (loop[ka]->dimension() == 2)
+  // 	par_cvs[ka] = loop[ka];
+  //     else
+  // 	{
+  // 	  shared_ptr<CurveOnSurface> sf_cv =
+  // 	    dynamic_pointer_cast<CurveOnSurface, ParamCurve>(loop[ka]);
+  // 	  if (!sf_cv.get())
+  // 	    {
+  // 	      THROW("Parameter curve not available");
+  // 	    }
+
+  // 	  if (!sf_cv->hasParameterCurve())
+  // 	    {
+  // 	      sf_cv->ensureParCrvExistence(eps);
+  // 	    }
+  // 	  par_cvs[ka] = sf_cv->parameterCurve();
+  // 	  if (!par_cvs[ka].get())
+  // 	    {
+  // 	      THROW("Parameter loop not available");
+  // 	    }
+  // 	}
+  //   }
+  // CurveLoop parloop(par_cvs, eps);
+
+  int last = (sgn == 1) ? (int)curves.size() : -1;
+  vector<vector<shared_ptr<CurveOnSurface> > > loops;
+  getContourLoops(bdsurf, curves[ix], isovals[ix], sgn, eps, loops);
+
+
+      // // Ensure closed loops
+      // vector<pair<vector<shared_ptr<ParamCurve> >,double> > cvs;
+      // vector<BoundingBox> bbox;
+      // double mass = 0.0;
+      // LRContourUtils::completeContourLoop(curves[ix][ki].first, isovals[ix], 
+      // 					  parloop, eps, cvs, bbox);
+
+  for (size_t kj=0; kj<loops.size(); ++kj)
+    {
+      double mass = 0.0;
+      shared_ptr<CurveLoop> curr_loop(new CurveLoop(loops[kj], eps, false));
+      CurveBoundedDomain dom(curr_loop);
+      
+      vector<shared_ptr<SplineCurve> > tmp_cvs(loops[kj].size());
+      for (size_t kr=0; kr<loops[kj].size(); ++kr)
+	tmp_cvs[kr] =
+	  shared_ptr<SplineCurve>(loops[kj][kr]->parameterCurve()->geometryCurve());
+      double area = LRContourUtils::computeLoopArea(tmp_cvs, eps);
+      mass += fabs(isovals[ix])*area;
+
+      double prev_area = area;
+      for (int ix2=ix+sgn; ix2!=last; ix2+=sgn)
+	{
+	  vector<vector<shared_ptr<CurveOnSurface> > > loops2;
+	  getContourLoops(bdsurf, curves[ix2], isovals[ix2], sgn, eps, loops2);
+	  for (size_t kh=0; kh<loops2.size(); ++kh)
+	    {
+	      // Check if the point is internal to the base loop
+	      Point tmp_pt =
+		loops2[kh][0]->parameterCurve()->point(loops2[kh][0]->startparam());
+	      if (!dom.isInDomain(Vector2D(tmp_pt[0], tmp_pt[1]), eps))
+		continue;
+	      
+	      vector<shared_ptr<SplineCurve> > tmp_cvs2(loops2[kh].size());
+	      for (size_t kr=0; kr<loops2[kh].size(); ++kr)
+		tmp_cvs2[kr] =
+		  shared_ptr<SplineCurve>(loops2[kh][kr]->parameterCurve()->geometryCurve());
+	      double area2 = LRContourUtils::computeLoopArea(tmp_cvs2, eps);
+	      mass += fabs(isovals[ix2]-isovals[ix2-sgn])*0.5*(area2+prev_area);
+	      prev_area = area2;
+	      int stop_break = 1;
+	    }
+	}
+      int stop_break2 = 1;
+    }
+}
+
+ //===========================================================================
+void
+ChangeDetection::getContourLoops(shared_ptr<BoundedSurface> bdsurf,
+				 const CurveVec& curves, double isoval,
+				 int sgn, double eps,
+				 vector<vector<shared_ptr<CurveOnSurface> > >& loops)
+//===========================================================================
+{
+  // Check curve orientation and create CurveOnSurface curves
+  vector<shared_ptr<CurveOnSurface> > bdcrvs;
+  bdcrvs.reserve(curves.size());
+  for (size_t kj=0; kj<curves.size(); ++kj)
+    {
+      shared_ptr<SplineCurve> parcv = curves[kj].first;
+      vector<Point> mid(2);
+      parcv->point(mid, 0.5*(parcv->startparam()+parcv->endparam()), 1);
+      Point invec(mid[1][1], -mid[1][0]);
+      Point sfpar = mid[0] + 0.1*invec;
+      Point sfpt;
+      bdsurf->point(sfpt, sfpar[0], sfpar[1]);
+      if (fabs(sfpt[0]) < fabs(isoval))
+	parcv->reverseParameterDirection();
+      
+      bdcrvs.push_back(shared_ptr<CurveOnSurface>(new CurveOnSurface(bdsurf,
+								     parcv,
+								     true)));
+    }
+
+  bool allclosed = true;
+  for (size_t kj=0; kj<bdcrvs.size(); ++kj)
+    {
+      Point pt1 = bdcrvs[kj]->parameterCurve()->point(bdcrvs[kj]->startparam());
+      Point pt2 = bdcrvs[kj]->parameterCurve()->point(bdcrvs[kj]->endparam());
+      if (pt1.dist(pt2) > eps)
+	{
+	  allclosed = false;
+	  break;
+	}
+    }
+
+  if (allclosed)
+    {
+      for (size_t kj=0; kj<bdcrvs.size(); ++kj)
+	{
+	  vector<shared_ptr<CurveOnSurface> > tmp_cvs;
+	  tmp_cvs.push_back(bdcrvs[kj]);
+	  loops.push_back(tmp_cvs);
+	}
+    }
+  else
+    {
+      size_t nmb = bdcrvs.size();
+      for (size_t kj=0; kj<nmb; ++kj)
+	{
+	  shared_ptr<CurveOnSurface> tmp = 
+	    shared_ptr<CurveOnSurface>(bdcrvs[kj]->clone());
+	  tmp->reverseParameterDirection();
+	  bdcrvs.push_back(tmp);
+	}
+
+      vector<vector<shared_ptr<CurveOnSurface> > > bdloops = 
+	BoundedUtils::getBoundaryLoops(*bdsurf, bdcrvs, eps);
+      
+      // Select inner loops
+      for (size_t kj=0; kj<bdloops.size(); ++kj)
+	{
+	  shared_ptr<CurveLoop> loop(new CurveLoop(bdloops[kj], eps, false));
+	  CurveBoundedDomain dom(loop);
+	  double upar, vpar;
+	  dom.getInternalPoint(upar, vpar);
+	  Point sfpt;
+	  bdsurf->point(sfpt, upar, vpar);
+	  if (sfpt[0] >= sgn*fabs(isoval))
+	    loops.push_back(bdloops[kj]);
+	  int stop_break = 1;
+	}
+    }
+}
+
+
+ 
+ 

@@ -287,6 +287,9 @@ namespace Go
 
     virtual Point closestInDomain(double u, double v) const;
 
+  void outerBoundaryCvs(std::vector<std::pair<shared_ptr<ParamCurve>,
+			  shared_ptr<ParamCurve> > >& bdcvs);
+  
     // inherited from ParamSurface
     virtual CurveLoop outerBoundaryLoop(double degenerate_epsilon
 					  = DEFAULT_SPACE_EPSILON) const;

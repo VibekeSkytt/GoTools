@@ -1153,7 +1153,7 @@ pair<CurvePtr, CurvePtr> curve_from_points(const SplineSurface& surf,
   CurvePtr paramcurve;
   CurvePtr spacecurve;
   try {
-    paramcurve = shared_ptr<const SplineCurve>(new SplineCurve(num_pts, 4, kvec.begin(), coefs.begin(), dim));
+    paramcurve = shared_ptr<SplineCurve>(new SplineCurve(num_pts, 4, kvec.begin(), coefs.begin(), dim));
       
   
     // constructing 3D curve if requested

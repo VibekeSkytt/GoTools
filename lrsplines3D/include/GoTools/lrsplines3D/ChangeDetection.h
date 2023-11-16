@@ -43,6 +43,8 @@
 #include "GoTools/utils/BoundingBox.h"
 #include "GoTools/lrsplines3D/LRSplineVolume.h"
 #include "GoTools/lrsplines2D/LRSplineSurface.h"
+#include "GoTools/lrsplines2D/LRTraceIsocontours.h"
+#include "GoTools/geometry/SurfaceTools.h"
 #include <vector>
 
 namespace Go
@@ -139,6 +141,17 @@ namespace Go
     void analyseOneDiffSurface(shared_ptr<BoundedSurface> bdsurf,
 			       int nmb_area, int nmb_diff,
 			       double delta, double eps);
+    void
+    materialMove(shared_ptr<BoundedSurface> bdsurf,
+		 const std::vector<CurveVec>& curves,
+		 std::vector<double>& isovals, int ix, int sgn,
+		 std::vector<std::pair<std::vector<shared_ptr<ParamCurve> >, double> > mat);
+
+    void
+    getContourLoops(shared_ptr<BoundedSurface> bdsurf,
+		    const CurveVec& curves, double isoval, int sgn, double eps,
+		    std::vector<std::vector<shared_ptr<CurveOnSurface> > >& loops);
+
   };
 
 } // end namespace Go

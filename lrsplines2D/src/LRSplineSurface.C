@@ -2010,6 +2010,32 @@ const RectDomain& LRSplineSurface::parameterDomain() const
   }
 
   //===========================================================================
+void LRSplineSurface::outerBoundaryCvs(vector<pair<shared_ptr<ParamCurve>,
+				       shared_ptr<ParamCurve> > >& bdcvs)
+  //===========================================================================
+{
+  int perm[4] = {2, 1, 3, 0};
+  vector<Point> corners(4);
+  corners[0] = Point(startparam_u(), startparam_v());
+  corners[1] = Point(endparam_u(), startparam_v());
+  corners[2] = Point(endparam_u(), endparam_v());
+  corners[3] = Point(startparam_u(), endparam_v());
+  for (int edgenum = 0; edgenum < 4; ++edgenum)
+    {
+      shared_ptr<ParamCurve> edgecurve (edgeCurve(perm[edgenum]));
+      shared_ptr<ParamCurve> edgepar(new SplineCurve(corners[edgenum],
+						     edgecurve->startparam(),
+						     corners[(edgenum+1)%4],
+						     edgecurve->endparam()));
+      if (perm[edgenum] == 0 || perm[edgenum] == 3)
+	{
+	  edgecurve->reverseParameterDirection();
+	}
+      bdcvs.push_back(std::make_pair(edgecurve,edgepar));
+    }
+}
+
+  //===========================================================================
   CurveLoop LRSplineSurface::outerBoundaryLoop(double degenerate_epsilon) const
   //===========================================================================
   {

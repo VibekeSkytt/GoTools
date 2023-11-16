@@ -127,8 +127,12 @@ CurveOnSurface::CurveOnSurface(shared_ptr<ParamSurface> surf,
   spacecurve_ = curve;
   double t1 = startparam();
   double t2 = endparam();
-  Point pt1 = faceParameter(t1);
-  Point pt2 = faceParameter(t2);
+  Point pt1(2), pt2(2);
+  pt2[constdir_-1] = pt1[constdir_-1] = constval_;
+  pt1[2-constdir_] = t1;
+  pt2[2-constdir_] = t2;
+  // Point pt1 = faceParameter(t1);
+  // Point pt2 = faceParameter(t2);
 
   // Check for orientation
   Point pnt1 = curve->point(t1);

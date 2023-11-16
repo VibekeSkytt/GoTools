@@ -10,7 +10,7 @@ namespace Go
 {
   /// Common typedefs used both by SSurfTraceIsocontours and LRTraceIsocontours
   
-  using CurvePtr = std::shared_ptr<const SplineCurve>;
+  using CurvePtr = std::shared_ptr<SplineCurve>;
 
   // The first curve pointer of the pair represents a 2D curve in the parameter
   // domain of the investigated LR spline function.  The second curve pointer

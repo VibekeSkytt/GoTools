@@ -49,10 +49,10 @@ using namespace Go;
 
 //===========================================================================
 void 
-LRContourUtils::addContourLoop(shared_ptr<ParamCurve> crv, double isoval,
-			       const CurveLoop& parloop, double epsge,
-			       vector<pair<vector<shared_ptr<ParamCurve> >, double> >& crv_loops,
-			       vector<BoundingBox>& bbox)
+LRContourUtils::completeContourLoop(shared_ptr<ParamCurve> crv, double isoval,
+				    const CurveLoop& parloop, double epsge,
+				    vector<pair<vector<shared_ptr<ParamCurve> >, double> >& crv_loops,
+				    vector<BoundingBox>& bbox)
 //===========================================================================
   {
     // Compute distance between curve endpoints

@@ -39,6 +39,7 @@
 
 #include "GoTools/lrsplines2D/LRMinMax.h"
 #include "GoTools/lrsplines2D/LRSplineSurface.h"
+#include "GoTools/lrsplines2D/LRContourUtils.h"
 #include "GoTools/geometry/SplineSurface.h"
 #include "GoTools/geometry/BoundedSurface.h"
 #include "GoTools/geometry/CurveOnSurface.h"
@@ -61,10 +62,10 @@ using std::make_pair;
 using namespace Go;
 
 namespace {
-  void addContourLoop(shared_ptr<ParamCurve> crv, double isoval,
-		     const CurveLoop& loop, double epsge,
-		      vector<pair<vector<shared_ptr<ParamCurve> >, double> >& crv_loops,
-		     vector<BoundingBox>& bbox);
+  // void addContourLoop(shared_ptr<ParamCurve> crv, double isoval,
+  // 		     const CurveLoop& loop, double epsge,
+  // 		      vector<pair<vector<shared_ptr<ParamCurve> >, double> >& crv_loops,
+  // 		     vector<BoundingBox>& bbox);
 
   void extractInnerCurves(vector<pair<vector<shared_ptr<ParamCurve> >, double> >& cvs,
 			  vector<BoundingBox>& bbox,
@@ -132,8 +133,8 @@ LRMinMax::computeMinMaxPoints(shared_ptr<ParamSurface> surface,
   vector<BoundingBox> bbox;
   for (size_t ki=0; ki<contour_crvs.size(); ++ki)
     {
-      addContourLoop(contour_crvs[ki].first, contour_crvs[ki].second, 
-		     parloop, epsge, cvs, bbox);
+      LRContourUtils::completeContourLoop(contour_crvs[ki].first, contour_crvs[ki].second, 
+					   parloop, epsge, cvs, bbox);
     }
 
   // Ensure consistent direction of curves in loop
@@ -461,125 +462,125 @@ int LRMinMax::computeExtremalPoints(shared_ptr<ParamSurface> surface,
 
 namespace {
 
-  void addContourLoop(shared_ptr<ParamCurve> crv, double isoval,
-		      const CurveLoop& parloop, double epsge,
-		      vector<pair<vector<shared_ptr<ParamCurve> >, double> >& crv_loops,
-		      vector<BoundingBox>& bbox)
-  {
-    // Compute distance between curve endpoints
-    Point pos1 = crv->point(crv->startparam());
-    Point pos2 = crv->point(crv->endparam());
+//   void addContourLoop(shared_ptr<ParamCurve> crv, double isoval,
+// 		      const CurveLoop& parloop, double epsge,
+// 		      vector<pair<vector<shared_ptr<ParamCurve> >, double> >& crv_loops,
+// 		      vector<BoundingBox>& bbox)
+//   {
+//     // Compute distance between curve endpoints
+//     Point pos1 = crv->point(crv->startparam());
+//     Point pos2 = crv->point(crv->endparam());
     
-    // Assign bounding boxes
-    BoundingBox bb = crv->boundingBox();
-    vector<shared_ptr<ParamCurve> > contour_loop;
-    contour_loop.push_back(crv);
-    double dist0 = pos1.dist(pos2);
-    if (dist0 > epsge)
-      {
-	// Close the curve loop
-	int ind1, ind2;
-	double par1, par2, dist1, dist2;
-	Point pt1, pt2;
-	parloop.closestPoint(pos1, ind1, par1, pt1, dist1);
-	parloop.closestPoint(pos2, ind2, par2, pt2, dist2);
+//     // Assign bounding boxes
+//     BoundingBox bb = crv->boundingBox();
+//     vector<shared_ptr<ParamCurve> > contour_loop;
+//     contour_loop.push_back(crv);
+//     double dist0 = pos1.dist(pos2);
+//     if (dist0 > epsge)
+//       {
+// 	// Close the curve loop
+// 	int ind1, ind2;
+// 	double par1, par2, dist1, dist2;
+// 	Point pt1, pt2;
+// 	parloop.closestPoint(pos1, ind1, par1, pt1, dist1);
+// 	parloop.closestPoint(pos2, ind2, par2, pt2, dist2);
 
-	if (dist0 < std::min(dist1, dist2))
-	    {
-	      // Close original loop
-	      shared_ptr<ParamCurve> crv2(new SplineCurve(pos1, pos2));
-	      BoundingBox bb2 = crv2->boundingBox();
-	      contour_loop.push_back(crv2);
-	      bb.addUnionWith(bb2);
-	      crv_loops.push_back(make_pair(contour_loop,isoval));
-	      bbox.push_back(bb);
-	    }
-	  else
-	    {
-	      // Include part of surface loop in the curve loop
-	      // Compute curve lengths
-	      double len0 = crv->estimatedCurveLength();
-	      int nmb = parloop.size();
-	      if (ind1 > ind2 || (ind1 == ind2 && par1 > par2))
-		{
-		  std::swap(ind1, ind2);
-		  std::swap(par1, par2);
-		}
-	      double len1 = 
-		parloop[ind1]->estimatedCurveLength(par1, 
-						    (ind2 != ind1) ? 
-						    parloop[ind1]->endparam() : par2);
-	      for (int ka=ind1+1; ka<ind2; ++ka)
-		len1 += parloop[ka]->estimatedCurveLength();
-	      if (ind1 != ind2)
-		len1 += parloop[ind2]->estimatedCurveLength(parloop[ind2]->startparam(),
-							 par2);
+// 	if (dist0 < std::min(dist1, dist2))
+// 	    {
+// 	      // Close original loop
+// 	      shared_ptr<ParamCurve> crv2(new SplineCurve(pos1, pos2));
+// 	      BoundingBox bb2 = crv2->boundingBox();
+// 	      contour_loop.push_back(crv2);
+// 	      bb.addUnionWith(bb2);
+// 	      crv_loops.push_back(make_pair(contour_loop,isoval));
+// 	      bbox.push_back(bb);
+// 	    }
+// 	  else
+// 	    {
+// 	      // Include part of surface loop in the curve loop
+// 	      // Compute curve lengths
+// 	      double len0 = crv->estimatedCurveLength();
+// 	      int nmb = parloop.size();
+// 	      if (ind1 > ind2 || (ind1 == ind2 && par1 > par2))
+// 		{
+// 		  std::swap(ind1, ind2);
+// 		  std::swap(par1, par2);
+// 		}
+// 	      double len1 = 
+// 		parloop[ind1]->estimatedCurveLength(par1, 
+// 						    (ind2 != ind1) ? 
+// 						    parloop[ind1]->endparam() : par2);
+// 	      for (int ka=ind1+1; ka<ind2; ++ka)
+// 		len1 += parloop[ka]->estimatedCurveLength();
+// 	      if (ind1 != ind2)
+// 		len1 += parloop[ind2]->estimatedCurveLength(parloop[ind2]->startparam(),
+// 							 par2);
 
-	      double len2 = 
-		parloop[ind2]->estimatedCurveLength(par2, parloop[ind2]->endparam());
-	      for (int ka=(ind2+1)%nmb; ka!=ind1; ka=(ka+1)%nmb)
-		len2 += parloop[ka]->estimatedCurveLength();
-	      len2 += parloop[ind1]->estimatedCurveLength(parloop[ind1]->startparam(),
-						       par1);
+// 	      double len2 = 
+// 		parloop[ind2]->estimatedCurveLength(par2, parloop[ind2]->endparam());
+// 	      for (int ka=(ind2+1)%nmb; ka!=ind1; ka=(ka+1)%nmb)
+// 		len2 += parloop[ka]->estimatedCurveLength();
+// 	      len2 += parloop[ind1]->estimatedCurveLength(parloop[ind1]->startparam(),
+// 						       par1);
 	      
-	      vector<shared_ptr<ParamCurve> > contour_loop2;
-	      contour_loop2.push_back(shared_ptr<ParamCurve>(crv->clone()));
-	      BoundingBox bb3 = bb;
-	      if (len2 >= len0 + len1)
-		{
-		  for (int ka=ind1; ka<=ind2; ++ka)
-		    {
-		      double t1 = (ka == ind1) ? par1 : parloop[ka]->startparam();
-		      double t2 = (ka == ind2) ? par2 : parloop[ka]->endparam();
+// 	      vector<shared_ptr<ParamCurve> > contour_loop2;
+// 	      contour_loop2.push_back(shared_ptr<ParamCurve>(crv->clone()));
+// 	      BoundingBox bb3 = bb;
+// 	      if (len2 >= len0 + len1)
+// 		{
+// 		  for (int ka=ind1; ka<=ind2; ++ka)
+// 		    {
+// 		      double t1 = (ka == ind1) ? par1 : parloop[ka]->startparam();
+// 		      double t2 = (ka == ind2) ? par2 : parloop[ka]->endparam();
 		      
-		      shared_ptr<ParamCurve> crv2;
-		      if (ka != ind1 && ka != ind2) 
-			crv2 = shared_ptr<ParamCurve>(parloop[ka]->clone());
-		      else if (t2 - t1 >= epsge)
-			crv2 =
-			  shared_ptr<ParamCurve>(parloop[ka]->subCurve(t1, t2));
-		      else
-			continue;
-		      BoundingBox bb2 = crv2->boundingBox();
-		      contour_loop.push_back(crv2);
-		      bb.addUnionWith(bb2);
-		    }
-		  crv_loops.push_back(make_pair(contour_loop,isoval));
-		  bbox.push_back(bb);
-		}
+// 		      shared_ptr<ParamCurve> crv2;
+// 		      if (ka != ind1 && ka != ind2) 
+// 			crv2 = shared_ptr<ParamCurve>(parloop[ka]->clone());
+// 		      else if (t2 - t1 >= epsge)
+// 			crv2 =
+// 			  shared_ptr<ParamCurve>(parloop[ka]->subCurve(t1, t2));
+// 		      else
+// 			continue;
+// 		      BoundingBox bb2 = crv2->boundingBox();
+// 		      contour_loop.push_back(crv2);
+// 		      bb.addUnionWith(bb2);
+// 		    }
+// 		  crv_loops.push_back(make_pair(contour_loop,isoval));
+// 		  bbox.push_back(bb);
+// 		}
 
-	      if (len1 >= len0 + len2)
-		{
-		  int ka, kb;
-		  int nmb2 = nmb - (ind2-ind1);
-		  for (ka=ind2, kb=0; kb<=nmb2; ka=(ka+1)%nmb, ++kb)
-		    {
-		      double t1 = (ka == ind2) ? par2 : parloop[ka]->startparam();
-		      double t2 = (ka == ind1) ? par1 : parloop[ka]->endparam();
+// 	      if (len1 >= len0 + len2)
+// 		{
+// 		  int ka, kb;
+// 		  int nmb2 = nmb - (ind2-ind1);
+// 		  for (ka=ind2, kb=0; kb<=nmb2; ka=(ka+1)%nmb, ++kb)
+// 		    {
+// 		      double t1 = (ka == ind2) ? par2 : parloop[ka]->startparam();
+// 		      double t2 = (ka == ind1) ? par1 : parloop[ka]->endparam();
 		      
-		      shared_ptr<ParamCurve> crv2;
-		      if (ka != ind1 && ka != ind2) 
-			crv2 = shared_ptr<ParamCurve>(parloop[ka]->clone());
-		      else if (t2 - t1 >= epsge)
-			crv2 =
-			  shared_ptr<ParamCurve>(parloop[ka]->subCurve(t1, t2));
-		      else
-			continue;
-		      BoundingBox bb2 = crv2->boundingBox();
-		      contour_loop2.push_back(crv2);
-		      bb3.addUnionWith(bb2);
-		    }
-		  crv_loops.push_back(make_pair(contour_loop2,isoval));
-		  bbox.push_back(bb3);
-		}
-	    }
-	}
-      else
-	{
-	  crv_loops.push_back(make_pair(contour_loop,isoval));
-	  bbox.push_back(bb);
-	}  
-}
+// 		      shared_ptr<ParamCurve> crv2;
+// 		      if (ka != ind1 && ka != ind2) 
+// 			crv2 = shared_ptr<ParamCurve>(parloop[ka]->clone());
+// 		      else if (t2 - t1 >= epsge)
+// 			crv2 =
+// 			  shared_ptr<ParamCurve>(parloop[ka]->subCurve(t1, t2));
+// 		      else
+// 			continue;
+// 		      BoundingBox bb2 = crv2->boundingBox();
+// 		      contour_loop2.push_back(crv2);
+// 		      bb3.addUnionWith(bb2);
+// 		    }
+// 		  crv_loops.push_back(make_pair(contour_loop2,isoval));
+// 		  bbox.push_back(bb3);
+// 		}
+// 	    }
+// 	}
+//       else
+// 	{
+// 	  crv_loops.push_back(make_pair(contour_loop,isoval));
+// 	  bbox.push_back(bb);
+// 	}  
+// }
 
 void 
 extractInnerCurves(vector<pair<vector<shared_ptr<ParamCurve> >, double> >& cvs,

@@ -128,14 +128,15 @@ void IdentifyChanges::getChangeDom(double limit,
   // if (limit2 < 1.0e-4)
   //   limit2 = 1.0e-4;
 
-  vector<double> maxder(eleminfo_.size());
-  vector<double> parder(eleminfo_.size());
+  vector<double> maxder(2*eleminfo_.size());
+  vector<double> parder(2*eleminfo_.size());
   vector<int> type(eleminfo_.size(), 1);
   for (size_t ki=0; ki<eleminfo_.size(); ++ki)
     {
-      maxder[ki] = std::max(fabs(eleminfo_[ki].max_val_),
-			    fabs(eleminfo_[ki].min_val_));
-      parder[ki] = 0.01*ki;
+      maxder[2*ki] = eleminfo_[ki].min_val_;
+      maxder[2*ki+1] = eleminfo_[ki].max_val_;
+      parder[2*ki] = 0.01*ki;
+      parder[2*ki+1] = 0.01*ki;
     }
 
   std::sort(maxder.begin(), maxder.end());
@@ -586,6 +587,8 @@ void IdentifyChanges::analyzeCellFlag()
 	  for (kx=0; kx<num_cell1; kx=kx2)
 	    {
 	      for (; kx<num_cell1 && cell_flag_[kstart+kx] == FLAT; ++kx);
+	      if (kx == num_cell1)
+		break;
 	      int flag = cell_flag_[kstart+kx];
 	      int no_pos = (flag == UP);
 	      int no_neg = (flag == DOWN);
@@ -1272,24 +1275,39 @@ void IdentifyChanges::resolveOverlap(size_t ix1, size_t ix2)
       dom1 *= (dlim[ix+1]-dlim[ix]+1);
       dom2 *= (dlim[6+ix+1]-dlim[6+ix]+1);
     }
+  int tot_dom = ((int)knots_u_.size()-1)*((int)knots_v_.size()-1)*((int)knots_w_.size()-1);
   double domain_frac = (double)(dom1+dom2-overlap)/(double)extended;
   double extended_frac = (double)extended/(double)extended2;
+  double tot_frac = (double)extended/(double)tot_dom;
 
   double frac1 = (double)std::min(change_dom_[ix1].no_pos_, change_dom_[ix1].no_neg_)/
     (double)std::max(change_dom_[ix1].no_pos_, change_dom_[ix1].no_neg_);
   double frac2 = (double)std::min(change_dom_[ix2].no_pos_, change_dom_[ix2].no_neg_)/
     (double)std::max(change_dom_[ix2].no_pos_, change_dom_[ix2].no_neg_);
   double frac3 = (double)std::min(no_pos2, no_neg2)/(double)std::max(no_pos2, no_neg2);
-  double fac = 1.5;
-  bool split = false;
-  if (frac3 > fac*std::max(frac1, frac2))
-    split = true;
-
-  if (split)
+  int dir = -1;
+  int del = std::max(elim[1]-elim[0], std::max(elim[3]-elim[2], elim[5]-elim[4]));
+  for (ix=0; ix<3; ++ix)
     {
-      int dir = (alim[1]-alim[0] < std::min(alim[3]-alim[2], alim[5]-alim[4])) ? 0 :
-	((alim[3]-alim[2] < alim[5]-alim[4]) ? 1 : 2);
-      int sz1=1, sz2=1;
+      if (dlim[2*ix]>=dlim[6+2*ix] && dlim[2*ix]<=dlim[6+2*ix+1] &&
+	  dlim[2*ix+1]>=dlim[6+2*ix] && dlim[2*ix+1]<=dlim[6+2*ix+1])
+	continue;
+      if (dlim[6+2*ix]>=dlim[2*ix] && dlim[6+2*ix]<=dlim[2*ix+1] &&
+	  dlim[6+2*ix+1]>=dlim[2*ix] && dlim[6+2*ix+1]<=dlim[2*ix+1])
+	continue;
+      if (alim[2*ix+1]-alim[2*ix] < del)
+	{
+	  dir = ix;
+	  del = alim[2*ix+1]-alim[2*ix];
+	}
+    }
+  
+  double fac = 1.1;
+  double dom_fac = (tot_frac < 0.5) ? 0.8 : 0.95;
+  bool split = false;
+  int sz1=1, sz2=1;
+  if (dir >= 0)
+    {
       for (ix=0; ix<3; ++ix)
 	{
 	  if (dir == ix)
@@ -1297,7 +1315,13 @@ void IdentifyChanges::resolveOverlap(size_t ix1, size_t ix2)
 	  sz1 *= (dlim[2*ix+1] - dlim[2*ix] + 1);
 	  sz2 *= (dlim[6+2*ix+1] - dlim[6+2*ix] + 1);
 	}
+    }
 
+  if (frac3 > fac*std::max(frac1, frac2) || domain_frac < dom_fac && dir>=0)
+    split = true;
+
+  if (split)
+    {
       int wf;
       bool first = ((no_pos > no_neg && change_dom_[ix1].getMainFlag() == UP) ||
 		    (no_pos < no_neg && change_dom_[ix1].getMainFlag() == DOWN));
@@ -1426,16 +1450,18 @@ void IdentifyChanges::resolveAdjacency(size_t ix1, size_t ix2)
       dom1 *= (dlim[ix+1]-dlim[ix]+1);
       dom2 *= (dlim[6+ix+1]-dlim[6+ix]+1);
     }
+  int tot_dom = ((int)knots_u_.size()-1)*((int)knots_v_.size()-1)*((int)knots_w_.size()-1);
   double domain_frac = (double)(dom1+dom2)/(double)extended;
   double extended_frac = (double)extended/(double)extended2;
+  double tot_frac = (double)extended/(double)tot_dom;
 
   double frac1 = (double)std::min(change_dom_[ix1].no_pos_, change_dom_[ix1].no_neg_)/
     (double)std::max(change_dom_[ix1].no_pos_, change_dom_[ix1].no_neg_);
   double frac2 = (double)std::min(change_dom_[ix2].no_pos_, change_dom_[ix2].no_neg_)/
     (double)std::max(change_dom_[ix2].no_pos_, change_dom_[ix2].no_neg_);
   double frac3 = (double)std::min(no_pos, no_neg)/(double)std::max(no_pos, no_neg);
-  double fac = 1.5;
-  double ext_fac = 0.8;
+  double fac = 1.1;
+  double ext_fac = (tot_frac < 0.5) ? 0.8 : 0.95;
   
   if (frac3 <= fac*std::max(frac1, frac2) && extended_frac > ext_fac &&
       domain_frac > ext_fac)

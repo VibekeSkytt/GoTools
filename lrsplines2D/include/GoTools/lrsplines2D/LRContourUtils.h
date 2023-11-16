@@ -60,14 +60,14 @@ namespace Go
   // LR B-spline surfaces and corresponding contour curves
   namespace LRContourUtils
   {
-    void addContourLoop(shared_ptr<ParamCurve> crv, double isoval,
-			const CurveLoop& loop, double epsge,
-			std::vector<std::pair<std::vector<shared_ptr<ParamCurve> >, double> >& crv_loops,
-			std::vector<BoundingBox>& bbox);
+    void completeContourLoop(shared_ptr<ParamCurve> crv, double isoval,
+			     const CurveLoop& loop, double epsge,
+			     std::vector<std::pair<std::vector<shared_ptr<ParamCurve> >, double> >& crv_loops,
+			     std::vector<BoundingBox>& bbox);
 
     double computeLoopArea(std::vector<shared_ptr<SplineCurve> >& curves,
 			   double eps);
-    
+
    }; // end namespace LRContourUtils
 
 
