@@ -118,6 +118,8 @@ namespace Go
     void surfaceCreation(int pass);
 
     void buildSurfaces();
+
+    void validateSurfaces();
       
     shared_ptr<SurfaceModel> createModel();
 
@@ -341,14 +343,20 @@ namespace Go
     void surfaceExtractOutput(int idx,
 			      std::vector<std::vector<RevEngPoint*> > out_groups,
 			      std::vector<HedgeSurface*> prev_surfs);
-    void updateRegionsAndSurfaces(size_t& ix, std::vector<RevEngRegion*>& grown_regions,
+    bool integratePlanarInHelix(int& ix, shared_ptr<ElementarySurface> surf,
+				std::vector<std::pair<shared_ptr<ElementarySurface>, RevEngRegion*> > adj);
+
+    bool adjustWithAdjacent(int& ix, int min_point_in, double angtol,
+			    std::vector<std::pair<shared_ptr<ElementarySurface>, RevEngRegion*> >& adj);
+    
+    void updateRegionsAndSurfaces(int& ix, std::vector<RevEngRegion*>& grown_regions,
 				  std::vector<HedgeSurface*>& adj_surfs);
 
     bool segmentComposite(int& ix, int min_point_in, double angtol);
     bool segmentByPlaneGrow(int ix, int min_point_in, double angtol);
     bool segmentByAxis(int ix, int min_point_in);
     bool segmentByContext(int ix, int min_point_in, double angtol, bool first);
-    void growSurface(size_t& ix, int pass = 1);
+    void growSurface(int& ix, int pass = 1);
     void mergeSurfaces();
     void mergeSplineSurfaces();
     shared_ptr<HedgeSurface> doMerge(std::vector<size_t>& cand_ix,

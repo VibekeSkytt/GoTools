@@ -82,17 +82,18 @@ int colors[MAX_COLORS][3] = {
   {0, 255, 128},
 };
 
-//#define DEBUG_DIV
+#define DEBUG_DIV
 //#define DEBUG_EDGE
 //#define DEBUG_MONGE
 //#define DEBUG_ENHANCE
 //#define DEBUG_SEG
-//#define DEBUG
-//#define DEBUGONE
-//#define DEBUG_CHECK
+#define DEBUG
+#define DEBUGONE
+#define DEBUG_CHECK
 //#define DEBUG_PLANAR
 //#define DEBUG_AXIS
 //#define DEBUG_GROW
+#define DEBUG_VALIDATE
 
 //===========================================================================
 RevEng::RevEng(shared_ptr<ftPointSet> tri_sf, double mean_edge_len)
@@ -1625,7 +1626,7 @@ void RevEng::segmentIntoRegions()
   std::swap(single_points_, remaining_single);
 
   // Merge adjacent planar regions
-  for (size_t ki=0; ki<regions_.size(); ++ki)
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
     {
       if (regions_[ki]->feasiblePlane(zero_H_, zero_K_))
 	{
@@ -1781,7 +1782,17 @@ void RevEng::initialSurfaces()
       std::ofstream ofm("mid_regions3.g2");
       std::ofstream ofs("small_regions3.g2");
       writeRegionStage(of, ofm, ofs);
-     }
+      std::ofstream of0("regions3_helix.g2");
+      for (int ki=0; ki<(int)regions_.size(); ++ki)
+	{
+	  if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+	    {
+	      regions_[ki]->writeRegionInfo(of0);
+	      if (regions_[ki]->hasSurface())
+		regions_[ki]->writeSurface(of0);
+	    }
+	}
+    }
   
   if (single_points_.size() > 0)
     {
@@ -1856,7 +1867,7 @@ void RevEng::initialSurfaces()
       std::cout << "Pre join. Number of regions: " << regions_.size() << std::endl;
 #endif
       // int num_reg = (int)regions_.size();
-      for (size_t ki=0; ki<regions_.size(); ++ki)
+      for (int ki=0; ki<(int)regions_.size(); ++ki)
 	{
 #ifdef DEBUG
       std::ofstream of0("init_join.g2");
@@ -1920,6 +1931,16 @@ void RevEng::initialSurfaces()
 	      std::ofstream of("regsurf4.g2");
 	      writeRegionWithSurf(of);
 	    }
+	  std::ofstream of0("regions4_helix.g2");
+	  for (int ki=0; ki<(int)regions_.size(); ++ki)
+	    {
+	      if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+		{
+		  regions_[ki]->writeRegionInfo(of0);
+		  if (regions_[ki]->hasSurface())
+		    regions_[ki]->writeSurface(of0);
+		}
+	    }
 	}
 #endif
     }
@@ -1951,7 +1972,7 @@ void RevEng::initialSurfaces()
     }
 
 
-  for (size_t ki=0; ki<regions_.size(); ++ki)
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
     {
       if (regions_[ki]->hasSurface())
 	{
@@ -1994,6 +2015,16 @@ void RevEng::initialSurfaces()
 	  std::ofstream ofm("mid_regions4_2.g2");
 	  std::ofstream ofs("small_regions4_2.g2");
 	  writeRegionStage(of, ofm, ofs);
+	  std::ofstream of0("regions4_2_helix.g2");
+	  for (int ki=0; ki<(int)regions_.size(); ++ki)
+	    {
+	      if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+		{
+		  regions_[ki]->writeRegionInfo(of0);
+		  if (regions_[ki]->hasSurface())
+		    regions_[ki]->writeSurface(of0);
+		}
+	    }
 	}
       if (surfaces_.size() > 0)
 	{
@@ -2012,7 +2043,7 @@ void RevEng::initialSurfaces()
       regions_[ki]->setRegionAdjacency();
     }
 
-  for (size_t ki=0; ki<regions_.size(); ++ki)
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
     {
 #ifdef DEBUG
       std::ofstream ofp("init_growplane.g2");
@@ -2049,6 +2080,16 @@ void RevEng::initialSurfaces()
 	  std::ofstream ofm("mid_regions4_3.g2");
 	  std::ofstream ofs("small_regions4_3.g2");
 	  writeRegionStage(of, ofm, ofs);
+	  std::ofstream of0("regions4_3_helix.g2");
+	  for (int ki=0; ki<(int)regions_.size(); ++ki)
+	    {
+	      if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+		{
+		  regions_[ki]->writeRegionInfo(of0);
+		  if (regions_[ki]->hasSurface())
+		    regions_[ki]->writeSurface(of0);
+		}
+	    }
 	}
       if (surfaces_.size() > 0)
 	{
@@ -2195,7 +2236,20 @@ void RevEng::updateAxesAndSurfaces()
 	int stop_break0 = 1;
     }
   
-  for (size_t ki=0; ki<regions_.size(); ++ki)
+#ifdef DEBUG
+  std::ofstream of0("regions5_2_0_helix.g2");
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
+    {
+      if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+	{
+	  regions_[ki]->writeRegionInfo(of0);
+	  if (regions_[ki]->hasSurface())
+	    regions_[ki]->writeSurface(of0);
+	}
+    }
+#endif
+	  
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
     {
       if (regions_[ki]->hasSurface())
 	{
@@ -2225,11 +2279,21 @@ void RevEng::updateAxesAndSurfaces()
 	  std::ofstream ofm("mid_regions5_2.g2");
 	  std::ofstream ofs("small_regions5_2.g2");
 	  writeRegionStage(of, ofm, ofs);
-      if (surfaces_.size() > 0)
-	{
-	  std::ofstream of("regsurf5_2.g2");
-	  writeRegionWithSurf(of);
-	}
+	  std::ofstream of0("regions5_2_helix.g2");
+	  for (int ki=0; ki<(int)regions_.size(); ++ki)
+	    {
+	      if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+		{
+		  regions_[ki]->writeRegionInfo(of0);
+		  if (regions_[ki]->hasSurface())
+		    regions_[ki]->writeSurface(of0);
+		}
+	    }
+	  if (surfaces_.size() > 0)
+	    {
+	      std::ofstream of("regsurf5_2.g2");
+	      writeRegionWithSurf(of);
+	    }
 	}
 #endif
       
@@ -2374,7 +2438,7 @@ void RevEng::updateRegionStructure()
 #ifdef DEBUG_DIV
   std::cout << "Merge adjacent regions" << std::endl;
 #endif
-  for (size_t ki=0; ki<regions_.size(); ++ki)
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
     {
       if (regions_[ki]->hasSurface())
 	{
@@ -2391,7 +2455,7 @@ void RevEng::updateRegionStructure()
 #ifdef DEBUG_DIV
   std::cout << "Merge adjacent regions" << std::endl;
 #endif
-  for (size_t ki=0; ki<regions_.size(); ++ki)
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
     {
       if (regions_[ki]->hasSurface())
 	{
@@ -2429,7 +2493,7 @@ void RevEng::updateRegionStructure()
 #ifdef DEBUG
   std::cout << "Pre join. Number of regions: " << regions_.size() << std::endl;
 #endif
-  for (size_t ki=0; ki<regions_.size(); ++ki)
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
     {
       if (regions_[ki]->numPoints() < min_point_region_)
 	continue;   // Grow into larger
@@ -2915,6 +2979,245 @@ void RevEng::recognizeSurfaces(int min_point_in, int pass)
 
 }
 
+//===========================================================================
+void RevEng::validateSurfaces()
+//===========================================================================
+{
+#ifdef DEBUG_VALIDATE
+  std::ofstream of0("init_helix.g2");
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
+    {
+      if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+	{
+	  regions_[ki]->writeRegionInfo(of0);
+	  if (regions_[ki]->hasSurface())
+	    regions_[ki]->writeSurface(of0);
+	}
+    }
+#endif
+  int min_point_in = 50;   // Should be a class parameter
+  double angfac = 5.0;
+  double angtol = angfac*anglim_;
+  double fracfac = 1.5;
+  std::sort(regions_.begin(), regions_.end(), sort_region);
+  bool do_adjust = true;
+  int no_adjust = -1;
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
+    {
+      if (regions_[ki]->hasSurface() &&
+	  regions_[ki]->getSurfaceFlag() > ACCURACY_OK)
+	{
+	  shared_ptr<ParamSurface> surf = regions_[ki]->getSurface(0)->surface();
+	  int classtype = surf->instanceType();
+	  shared_ptr<ElementarySurface> elem =
+	    dynamic_pointer_cast<ElementarySurface,ParamSurface>(surf);
+	  if (!elem.get())
+	    continue;
+	  
+	  vector<pair<shared_ptr<ElementarySurface>, RevEngRegion*> > adj_elem, adj_elem_base;;
+	  regions_[ki]->getAdjacentElemInfo(adj_elem, adj_elem_base);
+	  
+#ifdef DEBUG_VALIDATE
+	  std::ofstream of1("validatesurf.g2");
+	  regions_[ki]->writeRegionInfo(of1);
+	  regions_[ki]->writeSurface(of1);
+	  std::ofstream of2("adj_validate.g2");
+	  for (size_t kj=0; kj<adj_elem.size(); ++kj)
+	    {
+	      adj_elem[kj].second->writeRegionPoints(of2);
+	      adj_elem[kj].second->writeSurface(of2);
+	    }
+#endif
+	  // Check if the region is connected
+	  if (!regions_[ki]->isConnected())
+	    {
+	      vector<vector<RevEngPoint*> > sep_groups;
+	      regions_[ki]->splitRegion(sep_groups);
+	      if (sep_groups.size() > 0)
+		{
+		  vector<HedgeSurface*> dummy_sfs;
+		  surfaceExtractOutput(ki, sep_groups, dummy_sfs);
+		  regions_[ki]->updateInfo(approx_tol_, angtol);
+		  regions_[ki]->checkReplaceSurf(mainaxis_, min_point_region_,
+						 approx_tol_, angtol);
+		  --ki;
+		  continue;
+		}
+	    }
+	  
+	  double in_frac1 = regions_[ki]->getFracNorm();
+	  double in_frac2 = regions_[ki]->getFracNormTriang();
+	  if (classtype == Class_Plane && in_frac1 > fracfac*in_frac2)
+	    {
+	      bool update = integratePlanarInHelix(ki, elem, adj_elem);
+	      if (update)
+		continue;
+	    }
+
+	  // Check for significant axis
+	  if (adj_elem.size() > 0)
+	    {
+	      if (no_adjust != ki)
+		{
+		  bool update = adjustWithAdjacent(ki, min_point_in,
+						   angtol, adj_elem);
+		  if (update)
+		    {
+		      no_adjust = ki;
+		      --ki;
+		      continue;
+		    }
+		}
+
+	      Point axis, axis2, pos;
+	      bool found = regions_[ki]->identifySignificantAxis(adj_elem, pos,
+								 axis, axis2);
+	      if (found)
+		{
+		  regions_[ki]->analyseRotated(pos, axis, axis2);
+		  int stop_break0 = 1;
+		}
+	    }
+	  int stop_break = 1;
+	}
+    }
+#ifdef DEBUG
+  checkConsistence("Regions12");
+
+   std::cout << "Finished validate surf, regions: " << regions_.size() << ", surfaces: " << surfaces_.size() << std::endl;
+   if (regions_.size() > 0)
+    {
+      std::cout << "Regions12" << std::endl;
+      std::ofstream of("regions12.g2");
+      std::ofstream ofm("mid_regions12.g2");
+      std::ofstream ofs("small_regions12.g2");
+      writeRegionStage(of, ofm, ofs);
+      std::ofstream of0("regions12_helix.g2");
+      for (int ki=0; ki<(int)regions_.size(); ++ki)
+	{
+	  if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+	    {
+	      regions_[ki]->writeRegionInfo(of0);
+	      if (regions_[ki]->hasSurface())
+		regions_[ki]->writeSurface(of0);
+	    }
+	}
+      if (surfaces_.size() > 0)
+	{
+	  std::ofstream of("regsurf12.g2");
+	  writeRegionWithSurf(of);
+	}
+     }
+#endif
+}
+
+//===========================================================================
+bool RevEng::adjustWithAdjacent(int& ix, int min_point_in, double angtol,
+				vector<pair<shared_ptr<ElementarySurface>, RevEngRegion*> >& adj)
+//===========================================================================
+{
+  // Identify reliable adjacent surfaces
+  vector<RevEngRegion*> adj_reg;
+  for (size_t ki=0; ki<adj.size(); ++ki)
+    if (adj[ki].second->getSurfaceFlag() < ACCURACY_POOR)
+      adj_reg.push_back(adj[ki].second);
+
+  if (adj_reg.size() == 0)
+    return false;
+
+  vector<vector<RevEngPoint*> > added_groups;
+  int num_pt = regions_[ix]->numPoints();
+  bool changed = regions_[ix]->segmentByAdjSfContext(mainaxis_, min_point_in,
+						     min_point_region_,
+						     approx_tol_, angtol,
+						     adj_reg, added_groups);
+
+  if (added_groups.size() > 0)
+    {
+      vector<HedgeSurface*> dummy_sfs;
+      surfaceExtractOutput(ix, added_groups, dummy_sfs);
+    }
+
+  // Check if remaining region is connected
+  if (!regions_[ix]->isConnected())
+    {
+      vector<vector<RevEngPoint*> > sep_groups;
+      regions_[ix]->splitRegion(sep_groups);
+      if (sep_groups.size() > 0)
+	{
+	  vector<HedgeSurface*> dummy_sfs;
+	  surfaceExtractOutput(ix, sep_groups, dummy_sfs);
+	}
+    }
+
+  if (regions_[ix]->numPoints() < num_pt)
+    {
+      regions_[ix]->updateInfo(approx_tol_, angtol);
+      regions_[ix]->checkReplaceSurf(mainaxis_, min_point_region_,
+				     approx_tol_, angtol);
+      return true;
+    }
+  else
+    return false;
+}
+
+
+//===========================================================================
+bool RevEng::integratePlanarInHelix(int& ix, shared_ptr<ElementarySurface> surf,
+				    vector<pair<shared_ptr<ElementarySurface>, RevEngRegion*> > adj)
+//===========================================================================
+{
+  // Check for a feasible adjacent regions
+  double pihalf = 0.5*M_PI;
+  double anglim = 0.1*M_PI;
+  vector<RevEngRegion*> adj_reg;
+  Point norm = surf->direction();
+  for (size_t ki=0; ki<adj.size(); ++ki)
+    {
+      if ((adj[ki].first->instanceType() == Class_Cylinder ||
+	   adj[ki].first->instanceType() == Class_Cone) &&
+	  adj[ki].second->getSurfaceFlag() == PROBABLE_HELIX)
+	{
+	  // Check for roughly orthogonal axis/normal
+	  Point axis = adj[ki].first->direction();
+	  double ang = norm.angle(axis);
+	  if (fabs(pihalf-ang) <= anglim)
+	    adj_reg.push_back(adj[ki].second);
+	}
+    }
+
+  if (adj_reg.size() == 0)
+    return false;  // No feasible candidate
+
+  for (size_t ki=0; ki<adj_reg.size(); ++ki)
+    for (size_t kj=ki+1; kj<adj_reg.size(); ++kj)
+      if (adj_reg[kj]->numPoints() > adj_reg[ki]->numPoints())
+	std::swap(adj_reg[ki], adj_reg[kj]);
+
+  double angtol = 5.0*anglim_;
+  for (size_t ki=0; ki<adj_reg.size(); ++ki)
+    {
+      vector<RevEngRegion*> grown_regions;
+      vector<HedgeSurface*> adj_surfs;
+      bool done = adj_reg[ki]->includeAdjacent(regions_[ix].get(),
+					       mainaxis_, approx_tol_,
+					       angtol, grown_regions,
+					       adj_surfs);
+      if (done)
+	{
+#ifdef DEBUG_VALIDATE
+	  std::ofstream of("update_val.g2");
+	  adj_reg[ki]->writeRegionPoints(of);
+	  adj_reg[ki]->writeSurface(of);
+#endif
+	  int ix2 = ix+1;  // To force the function to remove
+	  updateRegionsAndSurfaces(ix2, grown_regions, adj_surfs);
+	  --ix;
+	  return true;
+	}
+    }
+  return false;
+}
 
 //===========================================================================
 bool RevEng::segmentComposite(int& ix, int min_point_in, double angtol)
@@ -3045,36 +3348,37 @@ bool RevEng::segmentComposite(int& ix, int min_point_in, double angtol)
     }
 	  
 #endif
-	  if (!segmented)
-	    {
-	      // Extend with cylindrical
-	      vector<RevEngRegion*> adj_cyl =
-		regions_[ix]->fetchAdjacentCylindrical();
-	      if (adj_cyl.size() > 0)
-		adj_planar.insert(adj_planar.end(), adj_cyl.begin(),
-				  adj_cyl.end());
-	      if (adj_planar.size() > 0)
-		segmented =
-		  regions_[ix]->segmentByAdjSfContext(mainaxis_, min_point_in,
-						      min_point_region_,
-						      approx_tol_, angtol,
-						      adj_planar, separate_groups);
+	}
+      
+      if (!segmented)
+	{
+	  // Extend with cylindrical
+	  vector<RevEngRegion*> adj_cyl =
+	    regions_[ix]->fetchAdjacentCylindrical();
+	  if (adj_cyl.size() > 0)
+	    adj_planar.insert(adj_planar.end(), adj_cyl.begin(),
+			      adj_cyl.end());
+	  if (adj_planar.size() > 0)
+	    segmented =
+	      regions_[ix]->segmentByAdjSfContext(mainaxis_, min_point_in,
+						  min_point_region_,
+						  approx_tol_, angtol,
+						  adj_planar, separate_groups);
 #ifdef DEBUG_CHECK
-	      for (int ki=0; ki<(int)regions_.size(); ++ki)
-		{
-		  std::set<RevEngPoint*> tmpset4(regions_[ki]->pointsBegin(), regions_[ki]->pointsEnd());
-		  if (tmpset4.size() != regions_[ki]->numPoints())
-		    std::cout << "Point number mismatch, composite 4. " << ki << " " << tmpset4.size() << " " << regions_[ki]->numPoints() << std::endl;
-		}
-	      for (size_t kr=0; kr<adj_planar.size(); ++kr)
-		{
-		  std::set<RevEngPoint*> tmpset(adj_planar[kr]->pointsBegin(),
-						adj_planar[kr]->pointsEnd());
-		  if (tmpset.size() != adj_planar[kr]->numPoints())
-		    std::cout << "Point number mismatch (ByAdjSfContext). " << kr << " " << tmpset.size() << " " << adj_planar[kr]->numPoints() << std::endl;
-		}
-#endif
+	  for (int ki=0; ki<(int)regions_.size(); ++ki)
+	    {
+	      std::set<RevEngPoint*> tmpset4(regions_[ki]->pointsBegin(), regions_[ki]->pointsEnd());
+	      if (tmpset4.size() != regions_[ki]->numPoints())
+		std::cout << "Point number mismatch, composite 4. " << ki << " " << tmpset4.size() << " " << regions_[ki]->numPoints() << std::endl;
 	    }
+	  for (size_t kr=0; kr<adj_planar.size(); ++kr)
+	    {
+	      std::set<RevEngPoint*> tmpset(adj_planar[kr]->pointsBegin(),
+					    adj_planar[kr]->pointsEnd());
+	      if (tmpset.size() != adj_planar[kr]->numPoints())
+		std::cout << "Point number mismatch (ByAdjSfContext). " << kr << " " << tmpset.size() << " " << adj_planar[kr]->numPoints() << std::endl;
+	    }
+#endif
 	}
     }
   
@@ -3210,6 +3514,16 @@ void RevEng::surfaceCreation(int pass)
       std::ofstream ofm("mid_regions9.g2");
       std::ofstream ofs("small_regions9.g2");
       writeRegionStage(of, ofm, ofs);
+      std::ofstream of0("regions9_helix.g2");
+      for (int ki=0; ki<(int)regions_.size(); ++ki)
+	{
+	  if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+	    {
+	      regions_[ki]->writeRegionInfo(of0);
+	      if (regions_[ki]->hasSurface())
+		regions_[ki]->writeSurface(of0);
+	    }
+	}
       if (surfaces_.size() > 0)
 	{
 	  std::ofstream of("regsurf9.g2");
@@ -3220,7 +3534,7 @@ void RevEng::surfaceCreation(int pass)
    std::cout << "Merge adjacent regions, regions: " << regions_.size() << ", surfaces: " << surfaces_.size() << std::endl;
 #endif
    double angtol = 5.0*anglim_;
-  for (size_t ki=0; ki<regions_.size(); ++ki)
+   for (int ki=0; ki<(int)regions_.size(); ++ki)
     {
       if (regions_[ki]->hasSurface())
 	{
@@ -3244,7 +3558,17 @@ void RevEng::surfaceCreation(int pass)
       std::ofstream ofm("mid_regions10.g2");
       std::ofstream ofs("small_regions10.g2");
       writeRegionStage(of, ofm, ofs);
-      if (surfaces_.size() > 0)
+      std::ofstream of0("regions10_helix.g2");
+      for (int ki=0; ki<(int)regions_.size(); ++ki)
+	{
+	  if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+	    {
+	      regions_[ki]->writeRegionInfo(of0);
+	      if (regions_[ki]->hasSurface())
+		regions_[ki]->writeSurface(of0);
+	    }
+	}
+        if (surfaces_.size() > 0)
 	{
 	  std::ofstream of("regsurf10.g2");
 	  writeRegionWithSurf(of);
@@ -3261,7 +3585,7 @@ void RevEng::surfaceCreation(int pass)
       regions_[ki]->setRegionAdjacency();
     }
 
-#ifdef DEBUG
+#ifdef DEBUG_CHECK
   for (int ka=0; ka<(int)regions_.size(); ++ka)
     {
       std::set<RevEngPoint*> tmpset(regions_[ka]->pointsBegin(), regions_[ka]->pointsEnd());
@@ -3274,7 +3598,7 @@ void RevEng::surfaceCreation(int pass)
     }
 #endif
 
-  for (size_t ki=0; ki<regions_.size(); ++ki)
+  for (int ki=0; ki<(int)regions_.size(); ++ki)
     {
       if (regions_[ki]->hasSurface())
 	{
@@ -3324,7 +3648,17 @@ void RevEng::surfaceCreation(int pass)
       std::ofstream ofm("mid_regions11.g2");
       std::ofstream ofs("small_regions11.g2");
       writeRegionStage(of, ofm, ofs);
-      if (surfaces_.size() > 0)
+      std::ofstream of0("regions11_helix.g2");
+      for (int ki=0; ki<(int)regions_.size(); ++ki)
+	{
+	  if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+	    {
+	      regions_[ki]->writeRegionInfo(of0);
+	      if (regions_[ki]->hasSurface())
+		regions_[ki]->writeSurface(of0);
+	    }
+	}
+        if (surfaces_.size() > 0)
 	{
 	  std::ofstream of("regsurf11.g2");
 	  writeRegionWithSurf(of);
@@ -4256,7 +4590,7 @@ bool RevEng::segmentByContext(int ix, int min_point_in, double angtol, bool firs
 }
 
 //===========================================================================
-void RevEng::growSurface(size_t& ix, int pass)
+void RevEng::growSurface(int& ix, int pass)
 //===========================================================================
 {
   vector<RevEngRegion*> grown_regions;
@@ -4272,7 +4606,7 @@ void RevEng::growSurface(size_t& ix, int pass)
 
 
 //===========================================================================
-void RevEng::updateRegionsAndSurfaces(size_t& ix, vector<RevEngRegion*>& grown_regions,
+void RevEng::updateRegionsAndSurfaces(int& ix, vector<RevEngRegion*>& grown_regions,
 				      vector<HedgeSurface*>& adj_surfs)
 //===========================================================================
 {

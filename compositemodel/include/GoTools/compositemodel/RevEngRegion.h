@@ -161,7 +161,7 @@ namespace Go
 		   int num_inside2=-1);
     
     // Update overview information
-    void updateInfo();
+    void updateInfo(double tol=-1.0, double angtol=-1.0);
 
     // Extend region with adjacent points having the same classification
     void collect(RevEngPoint *pt, RevEngRegion* prev=0);
@@ -214,6 +214,11 @@ namespace Go
     // void growLocal(RevEngPoint* seed, double tol, double radius, int min_close,
     // 		   std::vector<RevEngPoint*>& out);
 
+    bool includeAdjacent(RevEngRegion* adj, Point mainaxis[3], 
+			 double tol, double angtol,
+			 std::vector<RevEngRegion*>& grown_regions,
+			 std::vector<HedgeSurface*>& adj_surfs);
+    
     void growWithSurf(Point mainaxis[3], int max_nmb, int min_pt_reg,
 		      double tol, double angtol,
 		      std::vector<RevEngRegion*>& grown_regions,
@@ -507,7 +512,12 @@ namespace Go
       return normalcone_;
     }
 
-    void getPrincipalCurvatureInfo(double& mink1, double& maxk1, double& mink2, double& maxk2)
+     const DirectionCone& getNormalConeTriang()
+    {
+      return normalcone2_;
+    }
+
+   void getPrincipalCurvatureInfo(double& mink1, double& maxk1, double& mink2, double& maxk2)
     {
       mink1 = mink1_;
       maxk1 = maxk1_;
@@ -524,6 +534,11 @@ namespace Go
     }
 
     Point getMeanNormal()
+    {
+      return avnorm_;
+    }
+    
+    Point getMeanNormalTriang()
     {
       return avnorm_;
     }
@@ -658,6 +673,11 @@ namespace Go
       adjacent.insert(adjacent.end(), adjacent_regions_.begin(), adjacent_regions_.end());
     }
 
+    bool identifySignificantAxis(std::vector<std::pair<shared_ptr<ElementarySurface>, RevEngRegion*> >& adj,
+				 Point& pos, Point& axis, Point& axis2);
+
+    void analyseRotated(Point& pos, Point& axis, Point& axis2);
+    
     std::vector<RevEngRegion*> fetchAdjacentPlanar();
 
     std::vector<RevEngRegion*> fetchAdjacentCylindrical();
@@ -715,6 +735,11 @@ namespace Go
       return frac_norm_in_;
     }
     
+    double getFracNormTriang()
+    {
+      return frac_norm_in2_;
+    }
+    
     bool hasBaseSf()
     {
       return basesf_.get();
@@ -755,7 +780,10 @@ namespace Go
 
     bool hasEdgeBetween(RevEngRegion* adj);
 
-    void writeRegionInfo(std::ostream& of);
+    void checkReplaceSurf(Point mainaxis[3], int min_pt_reg, double tol,
+			  double angtol, bool always=false);
+    
+     void writeRegionInfo(std::ostream& of);
     void writeRegionPoints(std::ostream& of);
     void writeAdjacentPoints(std::ostream& of);
     void writeUnitSphereInfo(std::ostream& of);
@@ -778,9 +806,12 @@ namespace Go
     double mink1_, maxk1_, mink2_, maxk2_;
     double avH_, avK_, MAH_, MAK_;
     BoundingBox bbox_;
-    DirectionCone normalcone_;
-    double frac_norm_in_;
-    Point avnorm_;
+    DirectionCone normalcone_;  // Monge normal
+    DirectionCone normalcone2_; // Triangulation normal
+    double frac_norm_in_; // Monge normal
+    double frac_norm_in2_; // Triangulation normal
+    Point avnorm_;   // Monge normal
+    Point avnorm2_;  // Triangulation normal
     double maxdist_, avdist_, variance_;
     int num_inside_, num_inside2_;
     std::set<RevEngRegion*> adjacent_regions_;
@@ -850,9 +881,7 @@ namespace Go
 			       double& maxd, double& avd,
 			       std::vector<RevEngPoint*>& in,
 			       std::vector<RevEngPoint*>& out);
-    void checkReplaceSurf(Point mainaxis[3], int min_pt_reg, double tol,
-			  double angtol, bool always=false);
-    bool parameterizeOnSurf(shared_ptr<ParamSurface> surf,
+   bool parameterizeOnSurf(shared_ptr<ParamSurface> surf,
 			    std::vector<double>& data,
 			    std::vector<double>& param,
 			    int& inner1, int& inner2, bool& close1, bool& close2);
