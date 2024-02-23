@@ -182,7 +182,7 @@ public:
 	      shared_ptr<BoundedSurface>& bdsf,
 	      double tol,
 	      std::vector<shared_ptr<HedgeSurface> >& added_sfs);
-  void limitSurf();
+  void limitSurf(double diag = -1.0);
   void trimWithPoints(double aeps);
 
   void store(std::ostream& os) const;

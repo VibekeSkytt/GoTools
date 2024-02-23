@@ -52,9 +52,12 @@
 #include "GoTools/geometry/Sphere.h"
 #include "GoTools/geometry/Torus.h"
 #include "GoTools/geometry/Plane.h"
+#include "GoTools/geometry/Line.h"
 #include "GoTools/geometry/BoundedSurface.h"
 #include "GoTools/geometry/SISLconversion.h"
 #include "GoTools/geometry/GeometryTools.h"
+#include "GoTools/geometry/GoIntersections.h"
+#include "GoTools/geometry/SplineDebugUtils.h"
 #include "sislP.h"
 #include "newmat.h"
 #include "newmatap.h"
@@ -65,6 +68,7 @@ using std::vector;
 using std::pair;
 
 //#define DEBUG
+#define DEBUG_BLEND
 
 typedef MatrixXD<double, 3> Matrix3D;
 
@@ -1624,20 +1628,20 @@ void RevEngUtils::computePlane(vector<pair<vector<RevEngPoint*>::iterator,
 //===========================================================================
 void RevEngUtils::projectToPlane(vector<RevEngPoint*>& points,
 				 Point& axis, Point& mid, std::vector<Point>& projected,
-				 double& maxdist, double& avdist)
+				 double& maxdist, double& avdist, double dlen)
 //===========================================================================
 {
   vector<pair<vector<RevEngPoint*>::iterator,
 	      vector<RevEngPoint*>::iterator> > points2;
   points2.push_back(std::make_pair(points.begin(), points.end()));
-  projectToPlane(points2, axis, mid, projected, maxdist, avdist);
+  projectToPlane(points2, axis, mid, projected, maxdist, avdist, dlen);
 }
 
 //===========================================================================
 void RevEngUtils::projectToPlane(std::vector<std::pair<std::vector<RevEngPoint*>::iterator,
 				 std::vector<RevEngPoint*>::iterator> >& points,
 				 Point& axis, Point& mid, std::vector<Point>& projected,
-				 double& maxdist, double& avdist)
+				 double& maxdist, double& avdist, double dlen)
 //===========================================================================
 {
   maxdist = 0.0;
@@ -1653,7 +1657,10 @@ void RevEngUtils::projectToPlane(std::vector<std::pair<std::vector<RevEngPoint*>
 	  Vector3D pnt = pt->getPoint();
 	  Point curr(pnt[0], pnt[1], pnt[2]);
 	  Point curr2 = curr - mid;
-	  curr2 -= ((curr2*axis)*axis);
+	  double dd = curr2*axis;
+	  if (dlen > 0.0 && dd > dlen)
+	    continue;
+	  curr2 -= (dd*axis);
 	  curr2 += mid;
 	  projected.push_back(curr2);
 	  double dist = curr.dist(curr2);
@@ -1842,6 +1849,200 @@ void RevEngUtils::distToCurve(vector<Point>& points,
       ++num;
     }
   avdist /= (double)num;
+}
+
+
+//===========================================================================
+shared_ptr<Plane> RevEngUtils::planeWithAxis(vector<RevEngPoint*>& points,
+					     Point axis, Point init_loc,
+					     Point mainaxis[3])
+//===========================================================================
+{
+  Point mid(0.0, 0.0, 0.0);
+  double wgt = 1.0/(double)points.size();
+  for (size_t ki=0; ki<points.size(); ++ki)
+    {
+      Vector3D pos0 = points[ki]->getPoint();
+      Point pos(pos0[0], pos0[1], pos0[2]);
+      Point vec = pos - init_loc;
+      Point pos2 = init_loc + (vec*axis)*axis;
+      mid += wgt*pos2;
+    }
+
+  int ix=-1;
+  double min_ang = M_PI;
+  for (int ka=0; ka<3; ++ka)
+    {
+      double ang = axis.angle(mainaxis[ka]);
+      ang = std::min(ang, M_PI-ang);
+      if (ang < min_ang)
+	{
+	  min_ang = ang;
+	  ix = ka;
+	}
+    }
+  shared_ptr<Plane> plane(new Plane(mid, axis, mainaxis[(ix+1)%3]));
+  return plane;
+}
+
+//===========================================================================
+shared_ptr<Cylinder> RevEngUtils::cylinderWithAxis(vector<RevEngPoint*>& points,
+						   Point axis, Point low, 
+						   Point high, Point mainaxis[3])
+//===========================================================================
+{
+  int ix=-1;
+  double min_ang = M_PI;
+  for (int ka=0; ka<3; ++ka)
+    {
+      double ang = axis.angle(mainaxis[ka]);
+      ang = std::min(ang, M_PI-ang);
+      if (ang < min_ang)
+	{
+	  min_ang = ang;
+	  ix = ka;
+	}
+    }
+
+  Point Cx = mainaxis[(ix+2)%3].cross(axis);
+  Cx.normalize();
+  Point Cy = axis.cross(Cx);
+  Cy.normalize();
+
+  Point pos;
+  double rad;
+  vector<pair<vector<RevEngPoint*>::iterator,
+	      vector<RevEngPoint*>::iterator> > group;
+  group.push_back(std::make_pair(points.begin(), points.end()));
+  RevEngUtils::computeCylPosRadius(group, low, high, axis, Cx, Cy, pos, rad);
+
+  shared_ptr<Cylinder> cyl(new Cylinder(rad, pos, axis, Cy));
+  return cyl;
+}
+
+//===========================================================================
+shared_ptr<Torus> RevEngUtils::torusWithAxis(vector<RevEngPoint*>& points,
+					     Point axis, Point loc, 
+					     Point mainaxis[3])
+//===========================================================================
+{
+  int ix=-1;
+  double min_ang = M_PI;
+  for (int ka=0; ka<3; ++ka)
+    {
+      double ang = axis.angle(mainaxis[ka]);
+      ang = std::min(ang, M_PI-ang);
+      if (ang < min_ang)
+	{
+	  min_ang = ang;
+	  ix = ka;
+	}
+    }
+
+  Point Cx = mainaxis[(ix+2)%3].cross(axis);
+  Cx.normalize();
+  Point Cy = axis.cross(Cx);
+  Cy.normalize();
+
+  vector<Point> rotated;
+  vector<pair<vector<RevEngPoint*>::iterator,
+	      vector<RevEngPoint*>::iterator> > group;
+  group.push_back(std::make_pair(points.begin(), points.end()));
+  rotateToPlane(group, Cy, axis, loc, rotated);
+  
+  // Approximate rotated points with a circle
+  Point centre;
+  double radius;
+  computeCircPosRadius(rotated, Cx, Cy, axis, centre, radius);
+
+  Point axis_pt = loc + ((centre - loc)*axis)*axis;
+  double dist = centre.dist(axis_pt);
+  shared_ptr<Torus> torus(new Torus(dist, radius, axis_pt, axis, Cx));
+
+  return torus;
+ }
+
+//===========================================================================
+shared_ptr<Sphere> RevEngUtils::sphereWithAxis(vector<RevEngPoint*>& points,
+					       Point axis, 
+					       Point mainaxis[3])
+//===========================================================================
+{
+  vector<pair<vector<RevEngPoint*>::iterator,
+	      vector<RevEngPoint*>::iterator> > group;
+  group.push_back(std::make_pair(points.begin(), points.end()));
+  Point centre;
+  double radius;
+  try {
+    computeSphereProp(group, centre, radius);
+  }
+  catch (...)
+    {
+      shared_ptr<Sphere> dummy;
+      return dummy;
+    }
+
+  // Define x-axis
+  int ix = -1;
+  double minang = M_PI;
+  for (int ka=0; ka<3; ++ka)
+    {
+      double ang = mainaxis[ka].angle(axis);
+      ang = std::min(ang, M_PI-ang);
+      if (ang < minang)
+	{
+	  minang = ang;
+	  ix = ka;
+	}
+    }
+
+  Point Cy = mainaxis[(ix+1)%3].cross(axis);
+  Point Cx = axis.cross(Cy);
+  
+  shared_ptr<Sphere> sph(new Sphere(radius, centre, axis, Cx));
+  //cyl->setParamBoundsV(-len, len);
+  return sph;
+}
+
+//===========================================================================
+shared_ptr<Cone> RevEngUtils::coneWithAxis(vector<RevEngPoint*>& points,
+					   Point axis, Point low, 
+					   Point high, Point mainaxis[3])
+//===========================================================================
+{
+  shared_ptr<Cylinder> cyl =
+    RevEngUtils::cylinderWithAxis(points, axis, low, high, mainaxis);
+  Point pnt = cyl->location();
+  Point Cx, Cy, Cz;
+  cyl->getCoordinateAxes(Cx, Cy, Cz);
+  double rad = cyl->getRadius();
+
+  vector<Point> rotated;
+  vector<pair<vector<RevEngPoint*>::iterator,
+	      vector<RevEngPoint*>::iterator> > group;
+  group.push_back(std::make_pair(points.begin(), points.end()));
+  RevEngUtils::rotateToPlane(group, Cy, axis, pnt, rotated);
+
+  double len = low.dist(high);
+  shared_ptr<Line> line(new Line(pnt, axis));
+  line->setParameterInterval(-len, len);
+  
+  Point pt1 = line->ParamCurve::point(-len);
+  Point pt2 = line->ParamCurve::point(len);
+  shared_ptr<SplineCurve> line_cv(new SplineCurve(pt1, -len, pt2, len));
+  shared_ptr<SplineCurve> cv1;
+  curveApprox(rotated, line_cv, 2, 2, cv1);
+
+  double tclose, dclose;
+  Point ptclose;
+  cv1->closestPoint(pnt, cv1->startparam(), cv1->endparam(), tclose,
+		    ptclose, dclose);
+  vector<Point> der(2);
+  cv1->point(der, tclose, 1);
+  double phi = der[1].angle(axis);
+  shared_ptr<Cone> cone(new Cone(dclose, pnt, axis, Cy, phi));
+
+  return cone;
 }
 
 //===========================================================================
@@ -2078,6 +2279,55 @@ shared_ptr<SplineCurve> RevEngUtils::midCurve(shared_ptr<SplineCurve>& cv1,
 
 
 //===========================================================================
+void  RevEngUtils::curveApprox(vector<Point>& points,
+			       shared_ptr<ParamCurve> cvin,
+			       int ik, int in, 
+			       shared_ptr<SplineCurve>& curve)
+//===========================================================================
+{
+  vector<double> pts;
+  vector<double> param;
+  double tmin = cvin->startparam();
+  double tmax = cvin->endparam();
+  double tmin2 = tmax;
+  double tmax2 = tmin;
+  for (size_t ki=0; ki<points.size(); ++ki)
+    {
+      double tpar, dist;
+      Point close;
+      cvin->closestPoint(points[ki], tmin, tmax, tpar, close, dist);
+      pts.insert(pts.end(), points[ki].begin(), points[ki].end());
+      param.push_back(tpar);
+      tmin2 = std::min(tmin2, tpar);
+      tmax2 = std::max(tmax2, tpar);
+    }
+
+  double tdel = (tmax2 - tmin2)/(double)(in - ik + 1);
+  vector<double> et(ik+in);
+  for (int ka=0; ka<ik; ++ka)
+    {
+      et[ka] = tmin2;
+      et[in+ka] = tmax2;
+    }
+  for (int ka=ik; ka<in; ++ka)
+    et[ka] = tmin2 + (ka-ik+1)*tdel;
+
+  vector<double> ecoef(3*in, 0.0);
+  shared_ptr<SplineCurve> cv(new SplineCurve(in, ik, &et[0], &ecoef[0], 3));
+
+  SmoothCurve smooth(3);
+  vector<int> cfn(in, 0);
+  vector<double> wgts(param.size(), 1.0);
+  smooth.attach(cv, &cfn[0]);
+
+  smooth.setOptim(0.0, 0.001, 0.001);
+  smooth.setLeastSquares(pts, param, wgts, 0.998);
+
+  smooth.equationSolve(curve);
+  int stop_break = 1;
+}
+
+//===========================================================================
 shared_ptr<SplineCurve> RevEngUtils::createCurve(vector<RevEngPoint*>& points,
 						 int degree, double tol, int maxiter)
 //===========================================================================
@@ -2201,3 +2451,342 @@ void RevEngUtils::extractLinearPoints(vector<RevEngPoint*>& points,
     remaining.push_back(points[perm[kb]]);
   int stop_break = 1;
 }
+
+struct LinInfo
+{
+  double t1_, t2_;
+  double mind_, maxd_, avd_, avd2_;
+  int nmb_;
+
+  LinInfo()
+  {
+    t1_ = t2_ = mind_ = maxd_ = avd_ = avd2_ = 0.0;
+    nmb_ = 0;
+  }
+
+  LinInfo(double t1, double t2, int nmb, double mind, double maxd,
+	  double avd, double avd2)
+  {
+    t1_ = t1;
+    t2_ = t2;
+    nmb_ = nmb;
+    mind_ = mind;
+    maxd_ = maxd;
+    avd_ = avd;
+    avd2_ = avd2;
+  }
+};
+
+//===========================================================================
+bool RevEngUtils::extractLinearPoints(vector<Point>& points,
+				      shared_ptr<Line>& line, Point norm,
+				      double tol, bool start, double& splitpar,
+				      vector<Point>& linear, 
+				      vector<Point>& remaining)
+//===========================================================================
+{
+  // Parametarize the points according to axis
+  vector<double> param(points.size());
+  vector<double> distance(points.size());
+  vector<int> perm(points.size());
+
+  double tmin = line->startparam();
+  double tmax = line->endparam();
+  for (size_t ki=0; ki<points.size(); ++ki)
+    {
+      double tpar, dist;
+      Point close;
+      line->closestPoint(points[ki], line->startparam(), line->endparam(),
+			 tpar, close, dist);
+      param[ki] = tpar;
+      int sgn = ((close-points[ki])*norm > 0.0) ? 1 : -1;
+      distance[ki] = sgn*dist;
+      perm[ki] = (int)ki;
+      tmin = std::min(tmin, tpar);
+      tmax = std::max(tmax, tpar);
+    }
+
+  // Sort
+  for (size_t ki=0; ki<perm.size(); ++ki)
+    for (size_t kj=ki+1; kj<perm.size(); ++kj)
+      if (param[perm[kj]] < param[perm[ki]])
+	std::swap(perm[ki], perm[kj]);
+
+  int ndiv = 100;
+  double tdel = (tmax - tmin)/(double)ndiv;
+  vector<LinInfo> info(ndiv);
+  double t1, t2;
+  int ka;
+  size_t kj=0;
+  for (ka=0, t1=tmin, t2=t1+tdel; ka<ndiv; ++ka, t1+=tdel, t2+=tdel)
+    {
+      int nmb = 0;
+      double maxd = std::numeric_limits<double>::lowest();
+      double mind = std::numeric_limits<double>::max();
+      double avd = 0.0, avd2 = 0.0;
+      for (; kj<perm.size() && param[perm[kj]] <= t2; ++kj)
+	{
+	  avd += fabs(distance[perm[kj]]);
+	  avd2 += distance[perm[kj]];
+	  maxd = std::max(maxd, distance[perm[kj]]);
+	  mind = std::min(mind, distance[perm[kj]]);
+	  ++nmb;
+	}
+      if (nmb > 0)
+	{
+	  avd /= (double)nmb;
+	  avd2 /= (double)nmb;
+	}
+      else
+	{
+	  mind = maxd = avd = avd2 = 0.0;
+	}
+      LinInfo curr_info(t1, t2, nmb, mind, maxd, avd, avd2);
+      info[ka] = curr_info;
+    }
+
+  // Count number of information entities without any points
+  int num_zero = 0;
+  for (size_t ki=0; ki<info.size(); ++ki)
+    if (info[ki].nmb_ == 0)
+      num_zero++;
+
+  int zero_lim = ndiv/3;
+  if (num_zero > zero_lim)
+    return false;
+  
+  vector<double> par;
+  vector<double> range;
+  vector<double> avdist1;
+  vector<double> avdist2;
+  for (int ka=0; ka<ndiv; ++ka)
+    {
+      if (info[ka].nmb_ > 0)
+	{
+	  par.push_back(0.5*(info[ka].t1_ + info[ka].t2_));
+	  range.push_back(info[ka].maxd_ - info[ka].mind_);
+	  avdist1.push_back(info[ka].avd_);
+	  avdist2.push_back(info[ka].avd2_);
+	}
+    }
+
+  int in = 6;
+  int ik = 4;
+  double smoothwgt = 1.0e-5;
+  int maxiter = 4;
+  double tol2 = 1.0e-6;
+  double maxdist, avdist;
+  ApproxCurve approx2(avdist1, par, 1, tol2, in, ik);
+  shared_ptr<SplineCurve> cv2 = approx2.getApproxCurve(maxdist, avdist, maxiter);
+#ifdef DEBUG_BLEND
+  double maxdistd, avdistd;
+  ApproxCurve approx1(range, par, 1, tol2, in, ik);
+  shared_ptr<SplineCurve> cv1 = approx1.getApproxCurve(maxdistd, avdistd, maxiter);
+  ApproxCurve approx3(avdist2, par, 1, tol2, in, ik);
+  shared_ptr<SplineCurve> cv3 = approx3.getApproxCurve(maxdistd, avdistd, maxiter);
+  std::ofstream of("dist_cvs.g2");
+  SplineDebugUtils::writeSpace1DCurve(*cv1, of);
+  SplineDebugUtils::writeSpace1DCurve(*cv2, of);
+  SplineDebugUtils::writeSpace1DCurve(*cv3, of);
+  of << "410 1 0 0" << std::endl;
+  of << "1" << std::endl;
+  of << tmin << " 0 0 " << tmax << " 0 0 " << std::endl;
+  of << "410 1 0 0" << std::endl;
+  of << "1" << std::endl;
+  of << tmin << " " << tol << " 0 " << tmax << " " << tol << " 0 " << std::endl;
+  of << "410 1 0 0" << std::endl;
+  of << "1" << std::endl;
+  of << tmin << " " << 2*tol << " 0 " << tmax << " " << 2*tol << " 0 " << std::endl;
+  of << "410 1 0 0" << std::endl;
+  of << "1" << std::endl;
+  of << tmin << " " << -tol << " 0 " << tmax << " " << -tol << " 0 " << std::endl;
+
+  shared_ptr<SplineCurve> cv1_2(cv1->derivCurve(1));
+  shared_ptr<SplineCurve> cv2_2(cv2->derivCurve(1));
+  shared_ptr<SplineCurve> cv3_2(cv3->derivCurve(1));
+
+  Point zero(1);
+  zero[0] = 0.0;
+  vector<double> intpar1, intpar2, intpar3;
+  vector<pair<double,double> > intcv1, intcv2, intcv3;
+  intersectCurvePoint(cv1_2.get(), zero, tol2, intpar1, intcv1);
+  intersectCurvePoint(cv2_2.get(), zero, tol2, intpar2, intcv2);
+  intersectCurvePoint(cv3_2.get(), zero, tol2, intpar3, intcv3);
+ for (auto it=cv1_2->coefs_begin(); it != cv1_2->coefs_end(); ++it)
+    (*it) *= 0.01;
+  for (auto it=cv2_2->coefs_begin(); it != cv2_2->coefs_end(); ++it)
+    (*it) *= 0.01;
+  for (auto it=cv3_2->coefs_begin(); it != cv3_2->coefs_end(); ++it)
+    (*it) *= 0.01;
+  std::ofstream of2("dist_cvs_2.g2");
+  SplineDebugUtils::writeSpace1DCurve(*cv1_2, of2);
+  SplineDebugUtils::writeSpace1DCurve(*cv2_2, of2);
+  SplineDebugUtils::writeSpace1DCurve(*cv3_2, of2);
+#endif
+  // Set limitation of average distance for the line to be an accepted
+  // approximation
+  int asgn = (start) ? 1 : -1;
+  double av1 = 0.0, minav2=2.0*tol, maxav2=0.0;
+  int an = 0;
+  double afac = 2.0;
+  for (int ka=(start)?0:ndiv-1; ka!=ndiv/2; ka+=asgn)
+    {
+      double av2=0.0;
+      double fac = 0.1;
+      for (int kb=0; kb<10; ++kb)
+	av2 += fac*info[ka+asgn*kb].avd_;
+
+      if (an>0 && av2>afac*av1/(double)an)
+	break;
+      av1 += av2;
+      ++an;
+      minav2 = std::min(minav2, av2);
+      maxav2 = std::max(maxav2, av2);
+    }
+  if (an > 0)
+    av1 /= (double)an;
+  double av2del = maxav2 - minav2;
+  av2del = std::max(av2del, avdist);
+
+  splitpar = (start) ? tmin - tmax : 2*tmax;
+  vector<double> intpar, intpar_n;
+  vector<pair<double,double> > intcv, intcv_n;
+  Point tolpt(1);
+  double tolfac = 3;
+  double toldel = tolfac*av2del;
+  toldel = std::max(toldel, 0.25*tol);
+  tolpt[0] = std::min(av1 + toldel, tol);
+#ifdef DEBUG_BLEND
+  of << "410 1 0 0" << std::endl;
+  of << "1" << std::endl;
+  of << tmin << " " << tolpt << " 0 " << tmax << " " << tolpt << " 0 " << std::endl;
+  of << "410 1 0 0" << std::endl;
+  of << "1" << std::endl;
+  of << tmin << " " << av1-tolfac*av2del << " 0 " << tmax << " " << av1-tolfac*av2del << " 0 " << std::endl;
+#endif
+  if (an > 0)
+    {
+      intersectCurvePoint(cv2.get(), tolpt, tol2, intpar, intcv);
+      tolpt[0] = av1 - std::min(toldel, tol-av1);
+      intersectCurvePoint(cv2.get(), tolpt, tol2, intpar_n, intcv_n);
+      if (intpar_n.size() > 0)
+	intpar.insert(intpar.end(), intpar_n.begin(), intpar_n.end());
+    }
+      
+  if (intpar.size() > 0)
+    {
+      std::sort(intpar.begin(), intpar.end());
+      splitpar = (start) ? intpar[0] : intpar[intpar.size()-1];
+    }
+#ifdef DEBUG_BLEND  
+  else
+    {
+  //int nmbsplit = 0;
+  int splitsgn = (start) ? 1 : -1;
+  vector<Point> der(2);
+  for (size_t kr=0; kr<intpar1.size(); ++kr)
+    {
+      cv1_2->point(der, intpar1[kr], 1);
+      if (splitsgn*der[1][0] > 0.0)
+	{
+	  // splitpar += intpar1[kr];
+	  // nmbsplit++;
+	  splitpar = (start) ? std::max(splitpar, intpar1[kr]) :
+	    std::min(splitpar, intpar1[kr]);
+	}
+    }
+  for (size_t kr=0; kr<intpar2.size(); ++kr)
+    {
+      cv2_2->point(der, intpar2[kr], 1);
+      if (splitsgn*der[1][0] > 0.0)
+	{
+	  // splitpar += intpar2[kr];
+	  // nmbsplit++;
+	  splitpar = (start) ? std::max(splitpar, intpar2[kr]) :
+	    std::min(splitpar, intpar2[kr]);
+	}
+    }
+  for (size_t kr=0; kr<intpar3.size(); ++kr)
+    {
+      cv3_2->point(der, intpar3[kr], 1);
+      if (splitsgn*der[1][0] > 0.0)
+	{
+	  // splitpar += intpar3[kr];
+	  // nmbsplit++;
+	  splitpar = (start) ? std::max(splitpar, intpar3[kr]) :
+	    std::min(splitpar, intpar3[kr]);
+	}
+    }
+    }
+#endif
+  if (splitpar > tmin && splitpar < tmax) //nmbsplit > 0)
+    {
+      //splitpar /= (double)nmbsplit;
+      if (start)
+	{
+	  size_t kr;
+	  for (kr=0; kr<perm.size() && param[perm[kr]] <= splitpar; ++kr)
+	    linear.push_back(points[perm[kr]]);
+	  for (; kr<perm.size(); ++kr)
+	    remaining.push_back(points[perm[kr]]);
+	}
+      else
+	{
+	  size_t kr;
+	  for (kr=0; kr<perm.size() && param[perm[kr]] < splitpar; ++kr)
+	    remaining.push_back(points[perm[kr]]);
+	  for (; kr<perm.size(); ++kr)
+	    linear.push_back(points[perm[kr]]);
+	}
+    }
+  else
+    remaining.insert(remaining.end(), points.begin(), points.end());
+  
+  return true;
+}
+
+//===========================================================================
+void RevEngUtils::distributePointsToRegions(vector<RevEngPoint*>& points,
+					    vector<shared_ptr<ElementarySurface> >& sfs,
+					    shared_ptr<ElementarySurface> curr_sf,
+					    double tol, double angtol,
+					    vector<vector<RevEngPoint*> >& sfs_pts,
+					    vector<RevEngPoint*>& curr_pts,
+					    vector<RevEngPoint*>& remaining)
+//===========================================================================
+{
+  double eps = 1.0e-9;
+  for (size_t ki=0; ki<points.size(); ++ki)
+    {
+      Vector3D xyz = points[ki]->getPoint();
+      Point ptpos(xyz[0], xyz[1], xyz[2]);
+      Point ptnorm = points[ki]->getMongeNormal();
+      Point ptnorm2 = points[ki]->getTriangNormal();
+
+      vector<double> sfdist(sfs.size()+1);
+      vector<double> sfang(sfs.size()+1);
+      double upar, vpar, tdist, ang, ang2;
+      Point close, surfnorm;
+      for (size_t kj=0; kj<sfs.size(); ++kj)
+	{
+	  sfs[kj]->closestPoint(ptpos, upar, vpar, close, tdist, eps);
+	  sfs[kj]->normal(surfnorm, upar, vpar);
+	  ang = surfnorm.angle(ptnorm);
+	  ang2 = surfnorm.angle(ptnorm2);
+	  ang = std::min(std::min(ang,M_PI-ang), std::min(ang2,M_PI-ang2));
+	  sfdist[kj] = tdist;
+	  sfang[kj] = ang;
+	}
+      curr_sf->closestPoint(ptpos, upar, vpar, close, tdist, eps);
+      curr_sf->normal(surfnorm, upar, vpar);
+      ang = surfnorm.angle(ptnorm);
+      ang2 = surfnorm.angle(ptnorm2);
+      ang = std::min(std::min(ang,M_PI-ang), std::min(ang2,M_PI-ang2));
+      sfdist[sfs.size()] = tdist;
+      sfang[sfs.size()] = ang;
+      int stop_break0 = 1;
+    }
+  int stop_break = 1;
+}
+
+

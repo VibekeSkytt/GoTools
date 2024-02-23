@@ -51,6 +51,12 @@
 namespace Go {
 
   class RevEngPoint;
+  class Line;
+  class Plane;
+  class Cylinder;
+  class Torus;
+  class Sphere;
+  class Cone;
   
   namespace RevEngUtils
   {
@@ -145,11 +151,11 @@ namespace Go {
     void projectToPlane(std::vector<std::pair<std::vector<RevEngPoint*>::iterator,
 			std::vector<RevEngPoint*>::iterator> >& points,
 			Point& axis, Point& mid, std::vector<Point>& projected,
-			double& maxdist, double& avdist);
+			double& maxdist, double& avdist, double dlen=-1.0);
 
     void projectToPlane(std::vector<RevEngPoint*>& points,
 			Point& axis, Point& mid, std::vector<Point>& projected,
-			double& maxdist, double& avdist);
+			double& maxdist, double& avdist, double dlen=-1.0);
 
      void rotateToPlane(std::vector<Point>& points,
 			Point& xvec, Point& axis, Point& mid, std::vector<Point>& rotated);
@@ -173,6 +179,26 @@ namespace Go {
     void distToCurve(std::vector<Point>& points,
 		    shared_ptr<ParamCurve> curve, double tol,
 		    double& maxdist, double& avdist, int& inside);
+
+    shared_ptr<Plane> planeWithAxis(std::vector<RevEngPoint*>& points,
+				    Point axis, Point init_loc,
+				    Point mainaxis[3]);
+    
+    shared_ptr<Cylinder> cylinderWithAxis(std::vector<RevEngPoint*>& points,
+					  Point axis, Point low, 
+					  Point high, Point mainaxis[3]);
+    
+    shared_ptr<Torus> torusWithAxis(std::vector<RevEngPoint*>& points,
+				    Point axis, Point loc, 
+				    Point mainaxis[3]);
+    
+    shared_ptr<Sphere> sphereWithAxis(std::vector<RevEngPoint*>& points,
+				      Point axis, 
+				      Point mainaxis[3]);
+    
+    shared_ptr<Cone> coneWithAxis(vector<RevEngPoint*>& points,
+				  Point axis, Point low, 
+				  Point high, Point mainaxis[3]);
     
     shared_ptr<ParamSurface> doMergePlanes(std::vector<std::pair<std::vector<RevEngPoint*>::iterator,
 					   std::vector<RevEngPoint*>::iterator> > points,
@@ -197,6 +223,11 @@ namespace Go {
     shared_ptr<SplineCurve> midCurve(shared_ptr<SplineCurve>& cv1,
 				     shared_ptr<SplineCurve>& cv2);
     
+    void  curveApprox(std::vector<Point>& points,
+		      shared_ptr<ParamCurve> cvin,
+		      int ik, int in, 
+		      shared_ptr<SplineCurve>& curve);
+    
     shared_ptr<SplineCurve> createCurve(std::vector<RevEngPoint*>& points, int degree,
 					double tol, int maxiter);
 
@@ -207,6 +238,22 @@ namespace Go {
 			     double tol, double angtol,
 			     std::vector<RevEngPoint*>& linear, bool start,
 			     std::vector<RevEngPoint*>& remaining);
+
+    bool extractLinearPoints(std::vector<Point>& points,
+			     shared_ptr<Line>& line, Point norm, double tol, 
+			     bool start, double& splitpar,
+			     std::vector<Point>& linear, 
+			     std::vector<Point>& remaining);
+    
+    void distributePointsToRegions(std::vector<RevEngPoint*>& points,
+				   std::vector<shared_ptr<ElementarySurface> >& sfs,
+				   shared_ptr<ElementarySurface> curr_sf,
+				   double tol, double angtol,
+				   std::vector<std::vector<RevEngPoint*> >& sfs_pts,
+				   std::vector<RevEngPoint*>& curr_pts,
+				   std::vector<RevEngPoint*>& remainin);
+    
+
   }
   
 } // namespace Go

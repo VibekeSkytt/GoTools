@@ -52,6 +52,7 @@ namespace Go
   class RevEngPoint;
   //class RevEngRegion;
   class HedgeSurface;
+  class RevEngEdge;
 
   // Elementary surface types to recognize (omitting currently
   // ellipsoid, elliptic cylinder, ...)
@@ -111,11 +112,17 @@ namespace Go
 
     void initialSurfaces();
 
+    void growSurfaces();
+
     void updateAxesAndSurfaces();
+
+    void firstEdges();
 
     void updateRegionStructure();
 
     void surfaceCreation(int pass);
+
+    void manageBlends();
 
     void buildSurfaces();
 
@@ -297,6 +304,8 @@ namespace Go
     // The surfaces can be freeform as well as primary. The collection
     // will be build gradually. The number of surfaces will increase and
     // decrease based on recognition, merging and splitting by trimming
+    std::vector<shared_ptr<RevEngEdge> > edges_;  // Intersection curves
+    // between surfaces with additional information
     shared_ptr<SurfaceModel> sfmodel_;
     BoundingBox bbox_;
     int min_next_;  // Minimum number of neighbouring points
@@ -332,6 +341,8 @@ namespace Go
     bool recognizeOneSurface(int& ix, int min_point_in, double angtol,
 			     int pass);
     void recognizeSurfaces(int min_point_in, int pass);
+    bool createBlendSurface(int ix);
+    void adjustPointRegions(int min_point_in);
     void defineAxis(Point axis[3], bool only_surf=false, int min_num=-1);
 
     void computeAxisFromCylinder(Point initaxis[3], int min_num, double max_ang,
@@ -369,7 +380,7 @@ namespace Go
 
     void adaptToMainAxis();
     void adaptToMainAxis(Point mainaxis[3]);
-    bool axisUpdate(HedgeSurface *hsurf, double max_ang, double angtol);
+    bool axisUpdate(int ix, double max_ang, double angtol);
     
     void cylinderFit(std::vector<int>& sf_ix, Point normal);
     void cylinderFit(std::vector<size_t>& sf_ix, Point mainaxis[3], int ix);
@@ -402,12 +413,27 @@ namespace Go
 
     void mergePlanes(size_t first, size_t last);
 
-    // Could be private
     void mergeCylinders(size_t first, size_t last);
 
     void trimSurfaces();
 
+    bool defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
+		       Point& dir1, size_t ix2,
+		       shared_ptr<ElementarySurface>& surf2, Point& dir2);
 
+    void extendBlendAssociation(size_t ix);
+    
+    bool setBlendEdge(size_t ix);
+    
+    shared_ptr<Cylinder>
+    updateCylinderBlend(std::vector<std::vector<RevEngPoint*> > blend_pts,
+			shared_ptr<ElementarySurface>& blend_surf, 
+			const Point& pos, const Point& dir1, const Point& dir2,
+			double& radius1);
+    
+    void setBlendBoundaries(RevEngRegion *reg);
+
+    bool defineTorusCorner(size_t ix);
   };
 
 } // namespace Go

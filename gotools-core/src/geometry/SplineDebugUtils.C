@@ -77,6 +77,30 @@ void SplineDebugUtils::writeSpaceParamCurve(const SplineCurve& pcurve, std::ostr
     space_pcurve.write(os);
 }
 
+//===========================================================================
+void SplineDebugUtils::writeSpace1DCurve(const SplineCurve& curve, std::ostream& os, double z)
+//===========================================================================
+{
+    ALWAYS_ERROR_IF(curve.dimension() != 1,
+		"Expecting input of 1D-curve.");
+
+    std::vector<double> coefs;
+    std::vector<double> coefs_in(curve.coefs_begin(), curve.coefs_end());
+    for (int i = 0; i < curve.numCoefs(); ++i) {
+      double gp = curve.basis().grevilleParameter(i);
+      coefs.push_back(gp);
+      coefs.push_back(coefs_in[i]);
+      coefs.push_back(z);
+    }
+
+    SplineCurve space_curve =
+	SplineCurve(curve.numCoefs(), curve.order(),
+		      curve.basis().begin(), coefs.begin(), 3);
+    space_curve.writeStandardHeader(os);
+    space_curve.write(os);
+}
+
+
 
 //===========================================================================
 void SplineDebugUtils::writeSpaceParamCurve(const Line& pline, std::ostream& os, double z)

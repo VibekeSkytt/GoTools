@@ -39,6 +39,7 @@
 
 #include "GoTools/geometry/Plane.h"
 #include "GoTools/geometry/Line.h"
+#include "GoTools/geometry/Circle.h"
 #include "GoTools/geometry/SplineSurface.h"
 #include <vector>
 #include <limits>
@@ -741,6 +742,103 @@ bool Plane::isDegenerate(bool& b, bool& r,
     return false;
 }
 
+//===========================================================================
+shared_ptr<ElementaryCurve> 
+Plane::getElementaryParamCurve(ElementaryCurve* space_crv, double tol,
+			       const Point* start_par_pt, const Point* end_par_pt) const 
+//===========================================================================
+{
+  // Default is not simple elementary parameter curve exists
+  shared_ptr<ElementaryCurve> param_cv;
+  
+  // Bookkeeping related to swapped parameters
+  int ind1 = 0;
+  int ind2 = 1;
+  if (isSwapped())
+      swap(ind1, ind2);
+
+  double t1, t2;
+  int idx;
+  bool closed = false;
+  if (space_crv->instanceType() == Class_Line)
+    {
+      if (!((Line*)(space_crv))->isBounded())
+	return param_cv;   // Project endpoints onto the surface
+      t1 = space_crv->startparam();
+      t2 = space_crv->endparam();
+      idx = ind1; // 0
+    }
+  else if (space_crv->instanceType() == Class_Circle)
+    {
+      t1 = space_crv->startparam();
+      closed = ((Circle*)(space_crv))->isClosed();
+      t2 = (closed) ? 0.5*(t1 + space_crv->endparam()) :
+	space_crv->endparam();
+      idx = ind2; // 1
+    }
+  else
+    return param_cv;
+      
+  double fac = (parbound_.umax()-parbound_.umin())/(domain_.umax()-domain_.umin());
+  double parval1[2], parval2[2];
+  double d1, d2;
+  Point close1, close2;
+  Point pos1 = space_crv->ParamCurve::point(t1);
+  Point pos2 = space_crv->ParamCurve::point(t2);
+  closestPoint(pos1, parval1[0], parval1[1], close1, d1, tol);
+  closestPoint(pos2, parval2[0], parval2[1], close2, d2, tol);
+  if (d1 > tol || d2 > tol)
+    return param_cv;
+
+  Point par1(parval1[0], parval1[1]);
+  Point par2(parval2[0], parval2[1]);
+  if (space_crv->instanceType() == Class_Line)
+    {
+      Point pos = (t2*par1 - t1*par2)/(t2 - t1);
+      Point dir = (par2 - par1);
+      dir.normalize();
+
+      param_cv = shared_ptr<ElementaryCurve>(new Line(pos, dir));
+      param_cv->setParamBounds(t1, t2);
+    }
+  else
+    {
+      Point mid = space_crv->ParamCurve::point(0.5*(t1+t2));
+      double parval3[2];
+      double d3;
+      Point close3;
+      closestPoint(mid, parval3[0], parval3[1], close3, d3, tol);
+      if (d3 > tol)
+	return param_cv; // Should not happen
+
+      Point pmid(parval3[0], parval3[1]);
+      double alpha = t2 - t1;
+      double len = pmid.dist(par1);
+      double radius = 0.5*len/cos(0.5*alpha);
+      Point vec = par1 + par2 - 2*pmid;
+      vec.normalize();
+      Point centre = pmid - radius*vec;
+      Point param_cv_axis(0.0, 0.0);  // A dimension two circle is not supported for every
+      // functionality
+
+      Point xvec((cos(t1)*(centre[0]-par1[0])+sin(t1)*(centre[1]-par1[1]))/radius,
+		 (cos(t1)*(centre[1]-par1[1])-sin(t1)*(centre[0]-par1[0])/radius));
+      param_cv = shared_ptr<ElementaryCurve>(new Circle(radius, centre, param_cv_axis, xvec));
+      param_cv->setParamBounds(t1, t2);
+    }
+      
+
+#ifndef NDEBUG
+  {
+      // TEST
+      Point p1 = param_cv->ParamCurve::point(param_cv->startparam());
+      Point p2 = param_cv->ParamCurve::point(param_cv->endparam());
+      int stop_break = 1;
+  }
+#endif
+
+  return param_cv;
+}
 
 //===========================================================================
 void Plane::getDegenerateCorners(vector<Point>& deg_corners, double tol) const

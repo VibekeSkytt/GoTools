@@ -2717,8 +2717,25 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
     ALWAYS_ERROR_IF((int_segments2.size() != 0) || (int_segments2.size() != 0),
 		"Segment vectors must be empty!");
 
+    shared_ptr<ElementarySurface> elem1 =
+      dynamic_pointer_cast<ElementarySurface,ParamSurface>(sf1);
+    shared_ptr<ElementarySurface> elem2 =
+      dynamic_pointer_cast<ElementarySurface,ParamSurface>(sf2);
+
+    // Check if the second surface is closed if elementary
+    bool close_u1=false, close_v1=false;
+    bool close_u=false, close_v=false;
+    if (elem1.get())
+      elem1->isClosed(close_u1, close_v1);
+    if (elem2.get())
+      elem2->isClosed(close_u, close_v);
+
+    bool not_swap = false;
+    if (elem1.get() && sf1->instanceType() != Class_Plane && close_u1 == false &&
+	close_v1 == false)
+      not_swap = true;
     if (sf2->instanceType() == Class_SplineSurface ||
-	(sf2->instanceType() == Class_Plane &&
+	(sf2->instanceType() == Class_Plane && not_swap == false &&
 	 (sf1->instanceType() != Class_SplineSurface && sf1->instanceType() != Class_Plane)))
       {
 	getIntersectionCurveElem(sf2, sf1, int_segments2, int_segments1, epsgeo);
@@ -2730,9 +2747,7 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
       {
 	surf1 = shared_ptr<SplineSurface>(sf1->asSplineSurface());
       }
-    shared_ptr<ElementarySurface> elem2 =
-      dynamic_pointer_cast<ElementarySurface,ParamSurface>(sf2);
-
+    
     if (!(surf1 && elem2.get()))
       THROW("Unexpected surface types in intersection");
 
@@ -2744,10 +2759,6 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
     const double epspar = std::min(sf_epspar[0], sf_epspar[1]);
     if (int_seg1.size() > 0)
       {
-	// Check if the elementary surface is closed
-	bool close_u, close_v;
-	elem2->isClosed(close_u, close_v);
-
 	// Split intersection curve is it traverses across a seam
 	RectDomain dom = elem2->containingDomain();
 	if (close_u)

@@ -577,7 +577,7 @@ void HedgeSurface::addRegion(RevEngRegion* reg)
 }
 
 //===========================================================================
-void HedgeSurface::limitSurf()
+void HedgeSurface::limitSurf(double diag)
 //===========================================================================
 {
   shared_ptr<ParamSurface> surf = surface();
@@ -585,7 +585,8 @@ void HedgeSurface::limitSurf()
     dynamic_pointer_cast<ElementarySurface,ParamSurface>(surf);
   if (elemsf.get() && !elemsf->isBounded())
     {
-      double diag = bbox_.low().dist(bbox_.high());
+      if (diag < 0.0)
+	diag = bbox_.low().dist(bbox_.high());
       shared_ptr<Plane> plane = dynamic_pointer_cast<Plane,ParamSurface>(surf);
       shared_ptr<Cylinder> cyl = dynamic_pointer_cast<Cylinder,ParamSurface>(surf);
       shared_ptr<Cone> cone = dynamic_pointer_cast<Cone,ParamSurface>(surf);
