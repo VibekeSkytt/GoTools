@@ -180,7 +180,12 @@ namespace Go {
 		    shared_ptr<ParamCurve> curve, double tol,
 		    double& maxdist, double& avdist, int& inside);
 
-    shared_ptr<Plane> planeWithAxis(std::vector<RevEngPoint*>& points,
+     void distToCurve(std::vector<Point>& points,
+		      shared_ptr<ParamCurve> curve, double tol,
+		      double& maxdist, double& avdist, int& inside,
+		      std::vector<double>& dist);
+
+   shared_ptr<Plane> planeWithAxis(std::vector<RevEngPoint*>& points,
 				    Point axis, Point init_loc,
 				    Point mainaxis[3]);
     

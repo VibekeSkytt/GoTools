@@ -271,7 +271,8 @@ namespace Go
 
     void
     initPlaneCyl(int min_point, int min_pt_reg,
-		 double tol, double angtol, Point mainaxis[3], 
+		 double tol, double angtol, Point mainaxis[3],
+		 double zero_H, double zero_K,
 		 std::vector<shared_ptr<HedgeSurface> >& hedgesfs,
 		 std::vector<vector<RevEngPoint*> >& out_groups,
 		 std::vector<RevEngPoint*>& single_pts, bool& repeat);
@@ -300,6 +301,8 @@ namespace Go
 			  double tol, double angtol,
 			  std::vector<std::vector<RevEngPoint*> >& out_groups);
 
+    void removeAndUpdatePoints(vector<RevEngPoint*>& points);
+
     // NB cv is supposed to be counter clockwise oriented along the corresponding
     // surface
     void extractOutOfEdge(shared_ptr<CurveOnSurface>& cv,
@@ -325,7 +328,9 @@ namespace Go
 			   std::vector<HedgeSurface*>& prevsfs,
 			   std::vector<std::vector<RevEngPoint*> >& out_groups);
     
-    int getClassification()
+    void removePoints(std::vector<RevEngPoint*>& remove);
+    
+   int getClassification()
     {
       if (classification_type_ == CLASSIFICATION_CURVATURE)
 	return group_points_[0]->C1_surf();
@@ -710,6 +715,8 @@ namespace Go
 			     int max_next, double tol, double angtol,
 			     int max_nmb_outlier, RevEngRegion* taboo=0);
 
+    void setPlaneParam(int min_pt_reg, Point mainaxis[3], double tol, double angtol);
+    
     bool updateSurfaceWithAxis(int min_pt_reg, Point adj_axis,
 			       Point mainaxis[3], int ix, double tol,  
 			       double angtol, Point pos);
@@ -992,6 +999,10 @@ namespace Go
     {
       return trim_edgs_;
     }
+
+    void adaptEdges();
+    
+    bool trimSurface(double tol);
       
     void writeRegionInfo(std::ostream& of);
     void writeRegionPoints(std::ostream& of);
@@ -1188,6 +1199,13 @@ namespace Go
 			   std::vector<std::vector<RevEngPoint*> >& out_groups,
 			   std::vector<RevEngPoint*>& single_pts);
     
+    bool defineConeFromCyl(shared_ptr<Cylinder> cyl, double tol,
+			   double angtol, int min_pt_reg,
+			   double avdist, int num_in, int num2_in,
+			   std::vector<shared_ptr<HedgeSurface> >& hedgesfs,
+			   std::vector<std::vector<RevEngPoint*> >& out_groups,
+			   std::vector<RevEngPoint*>& single_pts);
+    
     bool integratePlanarPoints(std::vector<Point>& dir,
 			       std::vector<std::vector<RevEngPoint*> >& groups,
 			       std::vector<std::pair<shared_ptr<ElementarySurface>,RevEngRegion*> >& adj_elem,
@@ -1211,6 +1229,13 @@ namespace Go
 
     void getRemainingPoints(std::vector<RevEngPoint*>& curr_pts,
 			    std::vector<RevEngPoint*>& remaining);
+
+    void adaptOneEdge(shared_ptr<ftEdge>& edge, double dom[4]);
+
+    void arrangeEdgeLoop(double tol);
+    
+    shared_ptr<CurveOnSurface> constParSfCv(shared_ptr<ParamSurface> surf, int dir,
+					    double par, int bd, double len);
 
   };
 }

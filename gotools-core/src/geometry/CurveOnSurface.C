@@ -813,15 +813,16 @@ void CurveOnSurface::closestPoint(const Point&   pt,
 	std::vector<std::pair<double, double> > par_and_dist;
 	// More values may be push_backed here in order to make a
 	// better starting guess
-	int nmb_sample_pts = 3;
+	int psample = 0, ssample = 0;
 	if ((pcurve_.get() != 0) && (pcurve_->instanceType() == Class_SplineCurve)) {
 	    shared_ptr<SplineCurve> tempsc(dynamic_pointer_cast<SplineCurve, ParamCurve>(pcurve_));
-	    nmb_sample_pts = max(nmb_sample_pts, tempsc->numCoefs());
+	    psample = tempsc->numCoefs();
 	}
 	if ((spacecurve_.get() != 0) && (spacecurve_->instanceType() == Class_SplineCurve)) {
-	    nmb_sample_pts = max(nmb_sample_pts,
-				 (dynamic_pointer_cast<SplineCurve, ParamCurve>(spacecurve_))->numCoefs());
+	  ssample = dynamic_pointer_cast<SplineCurve, ParamCurve>(spacecurve_)->numCoefs();
 	}
+	int nmb_sample_pts = (prefer_parameter_ && psample > 0) ? psample : ssample;
+	nmb_sample_pts = std::min(std::max(3, nmb_sample_pts), 50);
 	par_and_dist.reserve(nmb_sample_pts);
 
 	// VSK. 0517. Avoid guess points in the curve ends

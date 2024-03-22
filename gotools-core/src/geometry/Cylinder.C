@@ -738,6 +738,8 @@ Cylinder::getElementaryParamCurve(ElementaryCurve* space_crv, double tol,
 				  const Point* start_par_pt, const Point* end_par_pt) const 
 //===========================================================================
 {
+  double eps = 1.0e-9;
+  
   // Default is not simple elementary parameter curve exists
   shared_ptr<ElementaryCurve> dummy;
   
@@ -780,7 +782,7 @@ Cylinder::getElementaryParamCurve(ElementaryCurve* space_crv, double tol,
   if (d1 > tol || d2 > tol)
     return dummy;
 
-  Point par1(2), par2(2);
+   Point par1(2), par2(2);
   par1[idx] = par2[idx] = 0.5*(parval1[idx] + parval2[idx]);
   par1[1-idx] = parval1[1-idx];
   par2[1-idx] = parval2[1-idx];

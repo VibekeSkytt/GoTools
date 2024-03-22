@@ -148,7 +148,7 @@ public:
     /// Query if parametrization is bounded. Both upper and lower
     /// parameter bounds must be finite for this to be true.
     /// \return \a true if bounded, \a false otherwise
-    bool isBounded() const;
+    virtual bool isBounded() const;
 
     // Translate the curve along a given vector
     virtual void translateCurve(const Point& dir);

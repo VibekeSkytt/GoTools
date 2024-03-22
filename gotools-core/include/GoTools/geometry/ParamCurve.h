@@ -331,6 +331,11 @@ public:
       // bounded curves and some elementary curves
     }
 
+    virtual bool isBounded() const
+    {
+      return true;  // Is overridden when an unbounded curve is possible
+    }
+    
     /// Check if the curve is linear
     virtual bool isLinear(Point& dir, double tol);
 

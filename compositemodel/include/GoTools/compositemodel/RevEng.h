@@ -292,6 +292,8 @@ namespace Go
       return min_point_region_;
     }
 
+    void trimSurfaces();
+
   private:
     int model_character_;
     shared_ptr<ftPointSet> tri_sf_;
@@ -415,25 +417,37 @@ namespace Go
 
     void mergeCylinders(size_t first, size_t last);
 
-    void trimSurfaces();
-
-    bool defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
-		       Point& dir1, size_t ix2,
-		       shared_ptr<ElementarySurface>& surf2, Point& dir2);
+    shared_ptr<RevEngEdge> defineOneEdge(size_t ix1,
+					 shared_ptr<ElementarySurface>& surf1,
+					 Point& dir1, size_t ix2,
+					 shared_ptr<ElementarySurface>& surf2,
+					 Point& dir2);
 
     void extendBlendAssociation(size_t ix);
     
     bool setBlendEdge(size_t ix);
     
     shared_ptr<Cylinder>
-    updateCylinderBlend(std::vector<std::vector<RevEngPoint*> > blend_pts,
-			shared_ptr<ElementarySurface>& blend_surf, 
-			const Point& pos, const Point& dir1, const Point& dir2,
-			double& radius1);
+    createCylinderBlend(std::vector<std::vector<RevEngPoint*> > blend_pts,
+			double rad1, const Point& pos, const Point axis,
+			const Point& dir1, const Point& dir2);
+    
+    shared_ptr<Torus>
+    torusBlend(std::vector<std::vector<RevEngPoint*> >& blend_pts,
+	       std::vector<shared_ptr<CurveOnSurface> >& cvs,
+	       const Point& locp, const Point& normal,
+	       shared_ptr<ElementarySurface> rotational,
+	       double width, bool rot_out);
     
     void setBlendBoundaries(RevEngRegion *reg);
 
+    void equalizeBlendRadii();
+
+    void updateBlendRadius(size_t ik, double radius);
+    
     bool defineTorusCorner(size_t ix);
+
+    bool createTorusBlend(size_t ix);
   };
 
 } // namespace Go

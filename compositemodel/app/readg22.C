@@ -67,7 +67,8 @@ int main( int argc, char* argv[] )
   }
 
   shared_ptr<Body> body = filehandler.readBody(file1.c_str());
-  std::cout << "Material: " << body->getMaterial() << std::endl;
+  if (body.get())
+    std::cout << "Material: " << body->getMaterial() << std::endl;
 }
  
 

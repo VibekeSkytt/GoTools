@@ -54,7 +54,7 @@ RevEngEdge::RevEngEdge()
 //===========================================================================
   : adjacent1_(0), adjacent2_(0), defined_blend_(0),
     blend_type_(BLEND_NOT_SET), distance1_(0.0), distance2_(0.0),
-    alt_rad_(-1.0)
+    alt_rad_(-1.0), outer1_(false), outer2_(false)
 {
 }
 
@@ -63,19 +63,19 @@ RevEngEdge::RevEngEdge(RevEngRegion* reg1, RevEngRegion* reg2)
 //===========================================================================
   : adjacent1_(reg1), adjacent2_(reg2), defined_blend_(0),
     blend_type_(BLEND_NOT_SET), distance1_(0.0), distance2_(0.0),
-    alt_rad_(-1.0)
+    alt_rad_(-1.0), outer1_(false), outer2_(false)
 {
 }
 
 //===========================================================================
 RevEngEdge::RevEngEdge(int type, RevEngRegion* reg1, double dist1,
 		       vector<shared_ptr<CurveOnSurface> > cvs1,
-		       RevEngRegion* reg2, double dist2,
-		       vector<shared_ptr<CurveOnSurface> > cvs2)
+		       bool out1, RevEngRegion* reg2, double dist2,
+		       vector<shared_ptr<CurveOnSurface> > cvs2, bool out2)
 //===========================================================================
   : adjacent1_(reg1), adjacent2_(reg2), defined_blend_(0), blend_type_(type),
     distance1_(dist1), distance2_(dist2),
-    alt_rad_(-1.0)
+    alt_rad_(-1.0), outer1_(out1), outer2_(out2)
 {
   cvs1_.insert(cvs1_.end(), cvs1.begin(), cvs1.end());
   cvs2_.insert(cvs2_.end(), cvs2.begin(), cvs2.end());
@@ -172,7 +172,8 @@ void RevEngEdge::store(ostream& os)
     os << blend_regs_[ki]->getId() << " ";
   os << std::endl;
 
-  os << blend_type_ << " " << distance1_ << " " << distance2_ << std::endl;
+  os << blend_type_ << " " << distance1_ << " " << distance2_ << " ";
+  os << alt_rad_ << " " << outer1_ << " " << outer2_ << std::endl;
       
 }
 
@@ -257,7 +258,7 @@ void RevEngEdge::read(istream& is, int& reg_id1, int& reg_id2, int& reg_id3,
   for (int ka=0; ka<num_blend_reg; ++ka)
     is >> blend_id[ka];
   
-  is >> blend_type_ >> distance1_ >> distance2_;
+  is >> blend_type_ >> distance1_ >> distance2_ >> alt_rad_ >> outer1_ >> outer2_;
 }
 
 
@@ -270,4 +271,33 @@ vector<shared_ptr<ParamCurve> > RevEngEdge::getSpaceCurves()
     curves.push_back(cvs1_[ki]->spaceCurve());
 
   return curves;
+}
+
+//===========================================================================
+void RevEngEdge::getCrvEndPoints(Point& pos1, Point& pos2)
+//===========================================================================
+{
+  cvs1_[0]->point(pos1, cvs1_[0]->startparam());
+  cvs1_[cvs1_.size()-1]->point(pos2, cvs1_[cvs1_.size()-1]->endparam());
+}
+
+//===========================================================================
+void RevEngEdge::closestPoint(const Point& pos, double& par, Point& close,
+			      double& dist)
+//===========================================================================
+{
+  dist = std::numeric_limits<double>::max();
+  for (size_t ki=0; ki<cvs1_.size(); ++ki)
+    {
+      double par1, dist1;
+      Point close1;
+      cvs1_[ki]->closestPoint(pos, cvs1_[ki]->startparam(),
+			      cvs1_[ki]->endparam(), par1, close1, dist1);
+      if (dist1 < dist)
+	{
+	  par = par1;
+	  close = close1;
+	  dist = dist1;
+	}
+    }
 }

@@ -813,28 +813,67 @@ Plane::getElementaryParamCurve(ElementaryCurve* space_crv, double tol,
 
       Point pmid(parval3[0], parval3[1]);
       double alpha = t2 - t1;
-      double len = pmid.dist(par1);
-      double radius = 0.5*len/cos(0.5*alpha);
+      double len = 0.5*par1.dist(par2);
+      double radius = len/sin(0.5*alpha);
       Point vec = par1 + par2 - 2*pmid;
       vec.normalize();
-      Point centre = pmid - radius*vec;
+      Point centre = pmid + radius*vec;
       Point param_cv_axis(0.0, 0.0);  // A dimension two circle is not supported for every
       // functionality
 
-      Point xvec((cos(t1)*(centre[0]-par1[0])+sin(t1)*(centre[1]-par1[1]))/radius,
-		 (cos(t1)*(centre[1]-par1[1])-sin(t1)*(centre[0]-par1[0])/radius));
-      param_cv = shared_ptr<ElementaryCurve>(new Circle(radius, centre, param_cv_axis, xvec));
-      param_cv->setParamBounds(t1, t2);
-    }
-      
+      Point centre_3d = ((Circle*)(space_crv))->getCentre();
+      Point xvec_3d = ((Circle*)(space_crv))->getXAxis();
+      Point vec1_3d = pos1 - centre_3d;
+      Point vec2_3d = pos2 - centre_3d;
+      double beta_3d = vec1_3d.angle(vec2_3d);
 
-#ifndef NDEBUG
-  {
-      // TEST
-      Point p1 = param_cv->ParamCurve::point(param_cv->startparam());
-      Point p2 = param_cv->ParamCurve::point(param_cv->endparam());
-      int stop_break = 1;
-  }
+      Point vec1 = par1 - centre;
+      Point vec2 = par2 - centre;
+      double beta = vec1.angle(vec2);
+      
+      double gamma = 2*M_PI - t1;
+      double gamma2 = gamma;
+      if (gamma2 > 0.5*M_PI)
+	gamma2 -= 0.5*M_PI;
+      Point xvec(cos(gamma2)*(centre[0]-par1[0])-sin(gamma2)*(centre[1]-par1[1]),
+		 sin(gamma2)*(centre[0]-par1[0])+cos(gamma2)*(centre[1]-par1[1]));
+      xvec.normalize();
+      if (gamma2 < gamma)
+	{
+	  std::swap(xvec[0], xvec[1]);
+	  xvec[1] *= -1;
+	}
+
+      double sgn1 = xvec_3d*vec2_3d;
+      double sgn2 = xvec*vec2;
+      bool reversed = false;
+      if (sgn1*sgn2 < 0.0)
+	{
+	  // Opposite orientation of curve in geometry and parameter space. Redo xvec
+	  // computation
+	  gamma = 2*M_PI - t2;
+	  gamma2 = gamma;
+	  if (gamma2 > 0.5*M_PI)
+	    gamma2 -= 0.5*M_PI;
+	  xvec = Point(cos(gamma2)*(centre[0]-par1[0])-sin(gamma2)*(centre[1]-par1[1]),
+		       sin(gamma2)*(centre[0]-par1[0])+cos(gamma2)*(centre[1]-par1[1]));
+	  xvec.normalize();
+	  if (gamma2 < gamma)
+	    {
+	      std::swap(xvec[0], xvec[1]);
+	      xvec[1] *= -1;
+	    }
+	  reversed = true;
+	}
+      param_cv = shared_ptr<ElementaryCurve>(new Circle(radius, centre, param_cv_axis,
+							xvec, reversed));
+      param_cv->setParamBounds(t1, t2);
+    }  
+#ifdef DEBUG
+  // TEST
+  Point p1 = param_cv->ParamCurve::point(param_cv->startparam());
+  Point p2 = param_cv->ParamCurve::point(param_cv->endparam());
+  int stop_break = 1;
 #endif
 
   return param_cv;

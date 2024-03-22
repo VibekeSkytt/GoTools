@@ -1340,6 +1340,8 @@ Cone::getElementaryParamCurve(ElementaryCurve* space_crv, double tol,
 			      const Point* start_par_pt, const Point* end_par_pt) const 
 //===========================================================================
 {
+  double eps = 1.0e-9;
+  
   // Default is not simple elementary parameter curve exists
   shared_ptr<ElementaryCurve> dummy;
   
@@ -1447,8 +1449,19 @@ Cone::getElementaryParamCurve(ElementaryCurve* space_crv, double tol,
       }
   }
 
+    double domain_max = (idx == 1) ? parbound_.umax() : parbound_.vmax();
+    bool isreversed = false;
+    if (closed && fabs(domain_max-par1[1-idx]) < eps)
+      {
+	double domain_min = (idx == 1) ? parbound_.umin() : parbound_.vmin();
+	par1[1-idx] = domain_min;
+	par2[1-idx] = domain_max;
+	isreversed = true;
+      }
+
   shared_ptr<Line> param_cv(new Line(par1, par2, 
-				     space_crv->startparam(), space_crv->endparam()));
+				     space_crv->startparam(), space_crv->endparam(),
+				     isreversed));
 
   // TEST
   Point p1 = param_cv->ParamCurve::point(param_cv->startparam());

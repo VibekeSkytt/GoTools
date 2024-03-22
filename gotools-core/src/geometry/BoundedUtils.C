@@ -2169,6 +2169,7 @@ BoundedUtils::intersectWithElementarySurface(shared_ptr<ParamSurface>& surf,
       Point dir = cone->getAxis();
       Point dir2 = cone->direction2();
       double rad = cone->getRadius();
+      double alpha = cone->getConeAngle();
       if (rad < 0.01)
 	{
 	  RectDomain dom = cone->getParameterBounds();
@@ -2176,10 +2177,12 @@ BoundedUtils::intersectWithElementarySurface(shared_ptr<ParamSurface>& surf,
 	  double vpar = 0.5*(dom.vmin()+dom.vmax());
 	  rad = cone->radius(upar, vpar);
 	}
+      double dd = rad/tan(alpha);
+      Point top = loc - dd*dir;
       Point axispt = loc + rad*dir;
       Point sfpt = loc + rad*dir2;
       
-      return intersectWithCone(surf, loc, axispt, sfpt, geom_tol);
+      return intersectWithCone(surf, top, loc, sfpt, geom_tol);
     }
   else if (elem->instanceType() == Class_Sphere)
     {
@@ -2757,6 +2760,7 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
 
     const Point sf_epspar = SurfaceTools::getParEpsilon(*elem2, epsgeo);
     const double epspar = std::min(sf_epspar[0], sf_epspar[1]);
+    const double angtol = 0.01;
     if (int_seg1.size() > 0)
       {
 	// Split intersection curve is it traverses across a seam
@@ -2782,6 +2786,27 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
 		      {
 			// Split intersection curve
 			vector<shared_ptr<ParamCurve> > sub_cvs = int_seg1[ki]->split(par1);
+			if (sub_cvs.size() == 2)
+			  {
+			    // Check if the curves can be merged in the other end
+			    vector<Point> der1(2), der2(2);
+			    sub_cvs[1]->point(der1, sub_cvs[1]->endparam(), 1);
+			    sub_cvs[0]->point(der2, sub_cvs[0]->startparam(), 1);
+			    double dsub = der1[0].dist(der2[0]);
+			    double asub = der1[1].angle(der2[1]);
+			    if (dsub <= epsgeo && asub <= angtol)
+			      {
+				shared_ptr<CurveOnSurface> tmp_cv(dynamic_pointer_cast<CurveOnSurface,ParamCurve>(sub_cvs[1])->clone());
+				double dist2;
+				tmp_cv->appendCurve(sub_cvs[0].get(), 0, dist2, false);
+				if (dist2 <= epsgeo)
+				  {
+				    int_seg1[ki] = tmp_cv;
+				    sub_cvs.clear();
+				  }
+			      }
+			  }
+				    
 			if (sub_cvs.size() > 1)
 			  {
 			    int_seg1[ki] = dynamic_pointer_cast<CurveOnSurface,ParamCurve>(sub_cvs[0]);
@@ -2812,8 +2837,30 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
 		      {
 			// Split intersection curve
 			vector<shared_ptr<ParamCurve> > sub_cvs = int_seg1[ki]->split(par1);
+			if (sub_cvs.size() == 2)
+			  {
+			    // Check if the curves can be merged in the other end
+			    vector<Point> der1(2), der2(2);
+			    sub_cvs[1]->point(der1, sub_cvs[1]->endparam(), 1);
+			    sub_cvs[0]->point(der2, sub_cvs[0]->startparam(), 1);
+			    double dsub = der1[0].dist(der2[0]);
+			    double asub = der1[1].angle(der2[1]);
+			    if (dsub <= epsgeo && asub <= angtol)
+			      {
+				shared_ptr<CurveOnSurface> tmp_cv(dynamic_pointer_cast<CurveOnSurface,ParamCurve>(sub_cvs[1])->clone());
+				double dist2;
+				tmp_cv->appendCurve(sub_cvs[0].get(), 0, dist2, false);
+				if (dist2 <= epsgeo)
+				  {
+				    int_seg1[ki] = tmp_cv;
+				    sub_cvs.clear();
+				  }
+			      }
+			  }
+				    
 			if (sub_cvs.size() > 1)
 			  {
+
 			    int_seg1[ki] = dynamic_pointer_cast<CurveOnSurface,ParamCurve>(sub_cvs[0]);
 			    for (size_t kj=1; kj<sub_cvs.size(); ++kj)
 			      int_seg1.push_back(dynamic_pointer_cast<CurveOnSurface,ParamCurve>(sub_cvs[kj]));

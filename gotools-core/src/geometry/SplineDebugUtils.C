@@ -125,6 +125,52 @@ void SplineDebugUtils::writeSpaceParamCurve(const Line& pline, std::ostream& os,
 
 
 //===========================================================================
+void SplineDebugUtils::writeSpaceParamCurve(const Circle& pcirc, std::ostream& os, double z)
+//===========================================================================
+{
+    ALWAYS_ERROR_IF(pcirc.dimension() != 2,
+		"Expecting input of 2D-curve.");
+
+    Point centre = pcirc.getCentre();
+    Point vec1 = pcirc.getXAxis();
+    Point normal(0.0, 0.0, 1.0);
+    Point centre_3d(centre[0], centre[1], z);
+    Point vec1_3d(vec1[0], vec1[1], 0.0);
+    double radius = pcirc.getRadius();
+    Circle circ_3d(radius, centre_3d, normal, vec1_3d);
+    circ_3d.setParamBounds(pcirc.startparam(), pcirc.endparam());
+
+    circ_3d.writeStandardHeader(os);
+    circ_3d.write(os);
+}
+
+
+//===========================================================================
+void SplineDebugUtils::writeSpaceParamCurve(shared_ptr<ParamCurve> pcurve,
+					    std::ostream& os, double z)
+//===========================================================================
+{
+  if (pcurve->instanceType() == Class_SplineCurve)
+    {
+      shared_ptr<SplineCurve> spline_cv =
+	dynamic_pointer_cast<SplineCurve, ParamCurve>(pcurve);
+      writeSpaceParamCurve(*spline_cv, os, z);
+    }
+  else if (pcurve->instanceType() == Class_Line)
+    {
+      shared_ptr<Line> line =
+	dynamic_pointer_cast<Line, ParamCurve>(pcurve);
+      writeSpaceParamCurve(*line, os, z);
+    }
+  else if (pcurve->instanceType() == Class_Circle)
+    {
+      shared_ptr<Circle> circle =
+	dynamic_pointer_cast<Circle, ParamCurve>(pcurve);
+      writeSpaceParamCurve(*circle, os, z);
+    }
+}
+
+//===========================================================================
 void SplineDebugUtils::writeTrimmedInfo(BoundedSurface& bd_sf,
 		      std::ostream& os, double z)
 //===========================================================================

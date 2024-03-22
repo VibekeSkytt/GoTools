@@ -60,8 +60,8 @@ namespace Go
 
     RevEngEdge(int type, RevEngRegion* reg1, double dist1,
 	       std::vector<shared_ptr<CurveOnSurface> > cvs1,
-	       RevEngRegion* reg2, double dist2,
-	       std::vector<shared_ptr<CurveOnSurface> > cvs2);
+	       bool out1, RevEngRegion* reg2, double dist2,
+	       std::vector<shared_ptr<CurveOnSurface> > cvs2, bool out2);
 
     // Destructor
     ~RevEngEdge();
@@ -121,6 +121,12 @@ namespace Go
       reg2 = adjacent2_;
     }
 
+    void getOuterInfo(bool& out1, bool& out2)
+    {
+      out1 = outer1_;
+      out2 = outer2_;
+    }
+
     void getAllBlendRegs(std::vector<RevEngRegion*>& blend_regs)
     {
       if (blend_regs_.size() > 0)
@@ -136,6 +142,8 @@ namespace Go
 	cvs.insert(cvs.end(), cvs2_.begin(), cvs2_.end());
     }
 
+    void getCrvEndPoints(Point& pos1, Point& pos2);
+    
     void getDistances(double& dist1, double& dist2)
     {
       dist1 = distance1_;
@@ -161,6 +169,9 @@ namespace Go
     {
       return alt_rad_;
     }
+
+    void closestPoint(const Point& pos, double& par, Point& close,
+		      double& dist);
 	
   private:
     int Id_;
@@ -174,6 +185,8 @@ namespace Go
     double distance1_;
     double distance2_;
     double alt_rad_;
+    bool outer1_;
+    bool outer2_;
   };
 }
 

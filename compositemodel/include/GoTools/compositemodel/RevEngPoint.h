@@ -411,6 +411,13 @@ namespace Go
       region_ = 0;
     }
 
+    void unsetSurfInfo()
+    {
+      sfdist_ = -1.0;
+      sfang_ = -1.0;
+      uv_ = Vector2D(0.0, 0.0);
+    }
+
     void adjacentRegions(std::vector<RevEngRegion*>& adj) const;
 
     int C1_surf()

@@ -1853,6 +1853,38 @@ void RevEngUtils::distToCurve(vector<Point>& points,
 
 
 //===========================================================================
+void RevEngUtils::distToCurve(vector<Point>& points,
+			      shared_ptr<ParamCurve> curve, double tol,
+			      double& maxdist, double& avdist, int& num_inside,
+			      vector<double>& dist)
+//===========================================================================
+{
+  double eps = 1.0e-6;
+  maxdist = avdist = 0.0;
+  num_inside = 0;
+  int num = 0;
+  dist.resize(points.size());
+  for (size_t ki=0; ki<points.size(); ++ki)
+    {
+      double tpar;
+      Point close;
+      curve->closestPoint(points[ki], curve->startparam(), curve->endparam(),
+			  tpar, close, dist[ki]);
+      maxdist = std::max(maxdist, dist[ki]);
+      avdist += dist[ki];
+      if (dist[ki] <= tol)
+	++num_inside;
+      else
+	{
+	  int stop_break = 1;
+	}
+      ++num;
+    }
+  avdist /= (double)num;
+}
+
+
+//===========================================================================
 shared_ptr<Plane> RevEngUtils::planeWithAxis(vector<RevEngPoint*>& points,
 					     Point axis, Point init_loc,
 					     Point mainaxis[3])

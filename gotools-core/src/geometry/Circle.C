@@ -686,7 +686,7 @@ void Circle::closestPoint(const Point& pt,
     // If input is on the "centre line", we arbitrarily assign the
     // point with t = tmin.
     Point vec = pt - centre_;
-    Point tmp = vec.cross(normal_);
+    Point tmp = (dimension() == 3) ? vec.cross(normal_) : vec;
     if (tmp.length() == 0.0) {
         clo_t = (seed != NULL) ? *seed : tmin;
 	clo_pt = centre_ + radius_*(cos(clo_t)*vec1_ + sin(clo_t)*vec2_);
