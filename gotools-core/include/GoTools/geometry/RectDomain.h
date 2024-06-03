@@ -82,6 +82,16 @@ public:
     virtual bool isOnBoundary(const Array<double, 2>& point, 
 			      double tolerance) const;
 
+    /// bd = -1 : Not a boundary point
+    /// bd = 0: umin
+    /// bd = 1: umax
+    /// bd = 2: vmin
+    /// bd = 3: vmax
+    /// bd2 = -1 : Not a corner point
+    /// otherwise: as bd
+    bool isOnBoundary(const Array<double, 2>& point, 
+		      double tolerance, int& bd, int& bd2) const;
+
     /// Check if a given parameter pair lies on a corner in the domain within
     /// the given tolerance
     bool isOnCorner(const Array<double, 2>& point, 

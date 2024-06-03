@@ -122,7 +122,9 @@ namespace Go
 
     void surfaceCreation(int pass);
 
-    void manageBlends();
+    void manageBlends1();
+
+    void manageBlends2();
 
     void buildSurfaces();
 
@@ -343,6 +345,7 @@ namespace Go
     bool recognizeOneSurface(int& ix, int min_point_in, double angtol,
 			     int pass);
     void recognizeSurfaces(int min_point_in, int pass);
+    void recognizeEdges();
     bool createBlendSurface(int ix);
     void adjustPointRegions(int min_point_in);
     void defineAxis(Point axis[3], bool only_surf=false, int min_num=-1);
@@ -370,6 +373,8 @@ namespace Go
     bool segmentByAxis(int ix, int min_point_in);
     bool segmentByContext(int ix, int min_point_in, double angtol, bool first);
     void growSurface(int& ix, int pass = 1);
+    void growBlendSurface(int& ix);
+    void growMasterSurface(int& ix);
     void mergeSurfaces();
     void mergeSplineSurfaces();
     shared_ptr<HedgeSurface> doMerge(std::vector<size_t>& cand_ix,
@@ -417,27 +422,54 @@ namespace Go
 
     void mergeCylinders(size_t first, size_t last);
 
-    shared_ptr<RevEngEdge> defineOneEdge(size_t ix1,
-					 shared_ptr<ElementarySurface>& surf1,
-					 Point& dir1, size_t ix2,
-					 shared_ptr<ElementarySurface>& surf2,
-					 Point& dir2);
+    std::vector<shared_ptr<RevEngEdge> >
+    defineEdgesBetween(size_t ix1,shared_ptr<ElementarySurface>& surf1,
+		       Point& dir1, size_t ix2, shared_ptr<ElementarySurface>& surf2,
+		       Point& dir2, double lenlim=-1.0, bool check_common = true);
+    
+    shared_ptr<RevEngEdge> 
+    defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
+		  Point& dir1, size_t ix2,
+		  shared_ptr<ElementarySurface>& surf2, Point& dir2,
+		  std::vector<shared_ptr<CurveOnSurface> >& int_cvs1,
+		  std::vector<shared_ptr<CurveOnSurface> >& int_cvs2,
+		  double width, std::vector<RevEngRegion*>& common_reg);
+    
+    RevEngPoint* getDistantPoint(std::vector<shared_ptr<CurveOnSurface> >& cvs,
+				 double tmin, double tmax,
+				 std::vector<RevEngPoint*>& points);
 
     void extendBlendAssociation(size_t ix);
     
     bool setBlendEdge(size_t ix);
     
-    shared_ptr<Cylinder>
+    double
+    computeCylinderRadius(std::vector<std::vector<RevEngPoint*> > blend_pts,
+			  double width, const Point& pos, const Point& axis,
+			  const Point& dir1, const Point& dir2);
+   shared_ptr<Cylinder>
     createCylinderBlend(std::vector<std::vector<RevEngPoint*> > blend_pts,
-			double rad1, const Point& pos, const Point axis,
-			const Point& dir1, const Point& dir2);
+			double rad1, const Point& pos, const Point& axis,
+			const Point& dir1, const Point& dir2, int sgn);
+    
+    double
+    computeTorusRadius(std::vector<std::vector<RevEngPoint*> >& blend_pts,
+		       std::vector<shared_ptr<CurveOnSurface> >& cvs,
+		       const Point& locp, const Point& normal,
+		       shared_ptr<ElementarySurface> rotational,
+		       double width, bool plane_out, bool rot_out);
+    
+    void getTorusParameters(shared_ptr<ElementarySurface> planar,
+			    shared_ptr<ElementarySurface> rotational,
+			    double radius, int sgn1, int sgn2, double& Rrad, 
+			    Point& centre, Point& normal, Point& Cx);
     
     shared_ptr<Torus>
     torusBlend(std::vector<std::vector<RevEngPoint*> >& blend_pts,
 	       std::vector<shared_ptr<CurveOnSurface> >& cvs,
 	       const Point& locp, const Point& normal,
 	       shared_ptr<ElementarySurface> rotational,
-	       double width, bool rot_out);
+	       double width, bool plane_out, bool rot_out);
     
     void setBlendBoundaries(RevEngRegion *reg);
 
@@ -447,7 +479,12 @@ namespace Go
     
     bool defineTorusCorner(size_t ix);
 
+    bool defineMissingCorner(size_t ix, std::vector<RevEngRegion*>& adj_blends);
+
     bool createTorusBlend(size_t ix);
+
+    bool suitcaseCorner(std::vector<RevEngRegion*>& adj_blends,
+			RevEngEdge *rev_edge);
   };
 
 } // namespace Go

@@ -408,6 +408,47 @@ void RevEngUtils::computeMonge(Point& curr, std::vector<Point>& points,
 }
 
 //===========================================================================
+void RevEngUtils::smoothSurf(shared_ptr<SplineSurface>& surf, int fixed)
+//===========================================================================
+{
+  SmoothSurf smooth;
+  int ncoef1 = surf->numCoefs_u();
+  int ncoef2 = surf->numCoefs_v();
+  vector<int> coef_known(ncoef1*ncoef2, 0);
+  for (int ka=0; ka<ncoef1; ++ka)
+    {
+      for (int kb=0; kb<fixed; kb++)
+	{
+	  coef_known[kb*ncoef1+ka] = 1;
+	  coef_known[(ncoef2-kb-1)*ncoef1+ka] = 1;
+	}
+    }
+  for (int kb=fixed; kb<ncoef2-fixed; ++kb)
+    {
+      for (int ka=0; ka<fixed; ++ka)
+	{
+	  coef_known[kb*ncoef1+ka] = 1;
+	  coef_known[(kb+1)*ncoef1-ka-1] = 1;
+	}
+    }
+
+
+  int close1 = GeometryTools::analyzePeriodicityDerivs(*surf, 0, 1);
+  int close2 = GeometryTools::analyzePeriodicityDerivs(*surf, 1, 1);
+  int seem[2];
+  seem[0] = (close1 >= 0) ? 1 : 0;
+  seem[1] = (close2 >= 0) ? 1 : 0;
+  shared_ptr<SplineSurface> surf2(surf->clone());
+  smooth.attach(surf2, seem, &coef_known[0]);
+
+  double wgt1 = 0.0, wgt2 = 1.0, wgt3 = 0.0;
+  smooth.setOptimize(wgt1, wgt2, wgt3);
+  shared_ptr<SplineSurface> surf3;
+  smooth.equationSolve(surf3);
+  std::swap(surf, surf3);
+}
+
+//===========================================================================
 shared_ptr<SplineSurface>
 RevEngUtils::surfApprox(vector<double>& data, int dim, vector<double>& param,
 			int order1, int order2, int ncoef1, int ncoef2,
@@ -2399,6 +2440,7 @@ void RevEngUtils::extractLinearPoints(vector<RevEngPoint*>& points,
 				      Point& pos, Point& axis, double rad,
 				      Point& axis2, bool plane,
 				      double tol, double angtol,
+				      vector<pair<double,double> >& dist_ang,
 				      vector<RevEngPoint*>& linear, bool start,
 				      vector<RevEngPoint*>& remaining)
 //===========================================================================
@@ -2439,6 +2481,8 @@ void RevEngUtils::extractLinearPoints(vector<RevEngPoint*>& points,
   int lim2 = std::min(100, (int)points.size()/50);
   int ka, kb;
   int num_out = 0;
+  double fac = 0.9;
+  double dfac = 0.5;
   for (ka=ix1; ka!=ix2; ka=kb)
     {
       Point norm = points[perm[ka]]->getMongeNormal();
@@ -2450,20 +2494,28 @@ void RevEngUtils::extractLinearPoints(vector<RevEngPoint*>& points,
       else
 	ang = std::min(fabs(pihalf-ang), fabs(pihalf-ang2));
       double dd = fabs(distance[perm[ka]]-rad);
-      if (dd <= tol && ang <= angtol)
+      double anglim = (dist_ang.size() > 0) ? dist_ang[perm[ka]].second : 0.0;
+      double angtol2 = std::max(fac*anglim, angtol);
+      double tol2 = (dist_ang.size() > 0) ?
+	std::max(tol, dfac*dist_ang[perm[ka]].first) : tol;;
+      if (dd <= tol2 && ang <= angtol2)
 	kb = ka+sgn;
       else
 	{
 	  num_out++;
 	  for (kb=ka+sgn; kb!=ix2; kb+=sgn)
 	    {
-	      Point norm = points[perm[kb]]->getMongeNormal();
-	      Point norm2 = points[perm[kb]]->getTriangNormal();
-	      double ang = norm.angle(axis);
-	      double ang2 = norm2.angle(axis);
+	      norm = points[perm[kb]]->getMongeNormal();
+	      norm2 = points[perm[kb]]->getTriangNormal();
+	      ang = norm.angle(axis2);
+	       ang2 = norm2.angle(axis2);
 	      ang = std::min(fabs(pihalf-ang), fabs(pihalf-ang2));
-	      double dd = fabs(distance[perm[kb]]-rad);
-	      if (dd <= tol && ang <= angtol)
+	      dd = fabs(distance[perm[kb]]-rad);
+	      anglim = (dist_ang.size() > 0) ? dist_ang[perm[kb]].second : 0.0;
+	      angtol2 = std::max(fac*anglim, angtol);
+	      tol2 = (dist_ang.size() > 0) ?
+		std::max(tol, dfac*dist_ang[perm[kb]].first) : tol;;
+	      if (dd <= tol2 && ang <= angtol2)
 		break;
 	      num_out++;
 	      if (abs(kb-ka) > lim1 || num_out > lim2)
@@ -2477,9 +2529,9 @@ void RevEngUtils::extractLinearPoints(vector<RevEngPoint*>& points,
   // Extract linear points
   if (ka == ix2)
     ka+=sgn;
-  for (kb=ix1; kb!=ka; kb+=sgn)
+  for (kb=ix1; kb!=ka && kb<(int)perm.size() && kb>=0; kb+=sgn)
     linear.push_back(points[perm[kb]]);
-  for (; kb!=ix2; kb+=sgn)
+  for (; kb!=ix2 && kb<(int)perm.size() && kb>=0; kb+=sgn)
     remaining.push_back(points[perm[kb]]);
   int stop_break = 1;
 }
@@ -2820,5 +2872,96 @@ void RevEngUtils::distributePointsToRegions(vector<RevEngPoint*>& points,
     }
   int stop_break = 1;
 }
+
+//===========================================================================
+void RevEngUtils::identifyEndPoints(vector<RevEngPoint*> edge_pts, shared_ptr<CurveOnSurface>& sfcv,
+				    RevEngPoint*& first_pt, double& t1,
+				    RevEngPoint*& last_pt, double& t2)
+//===========================================================================
+{
+  shared_ptr<ParamCurve> pcrv = sfcv->parameterCurve();
+  shared_ptr<ParamCurve> spacecrv = sfcv->spaceCurve();
+  bool parpref = sfcv->parPref();
+  t1 = sfcv->endparam();
+  t2 = sfcv->startparam();
+  double tpar, dist;
+  Point close;
+  double t3 = sfcv->startparam();
+  double t4 = sfcv->endparam();
+   if (pcrv && parpref)
+    {
+      for (size_t ki=0; ki<edge_pts.size(); ++ki)
+	{
+	  Vector2D uv = edge_pts[ki]->getPar();
+	  Point ppt(uv[0], uv[1]);
+	  pcrv->closestPoint(ppt, t3, t4, tpar, close, dist);
+	  if (tpar < t1)
+	    {
+	      t1 = tpar;
+	      first_pt = edge_pts[ki];
+	    }
+	  if (tpar > t2)
+	    {
+	      t2 = tpar;
+	      last_pt = edge_pts[ki];
+	    }
+	}
+    }
+  else
+    {
+      for (size_t ki=0; ki<edge_pts.size(); ++ki)
+	{
+	  Vector3D xyz = edge_pts[ki]->getPoint();
+	  Point ppt(xyz[0], xyz[1], xyz[2]);
+	  spacecrv->closestPoint(ppt, t3, t4, tpar, close, dist);
+	  if (tpar < t1)
+	    {
+	      t1 = tpar;
+	      first_pt = edge_pts[ki];
+	    }
+	  if (tpar > t2)
+	    {
+	      t2 = tpar;
+	      last_pt = edge_pts[ki];
+	    }
+	}
+     }
+}
+
+
+//===========================================================================
+void RevEngUtils::setLoopSeq(vector<shared_ptr<CurveOnSurface> >& cvs)
+//===========================================================================
+{
+  if (cvs.size() <= 1)
+    return;
+  
+  Point pos1 = cvs[0]->ParamCurve::point(cvs[0]->endparam());
+  for (size_t ki=1; ki<cvs.size(); ++ki)
+    {
+      Point pos2 = cvs[ki]->ParamCurve::point(cvs[ki]->startparam());
+      Point pos3 = cvs[ki]->ParamCurve::point(cvs[ki]->endparam());
+      double dd2 = pos1.dist(pos2);
+      double dd3 = pos1.dist(pos3);
+      for (size_t kj=ki+1; kj<cvs.size(); ++kj)
+	{
+	  Point pos4 = cvs[kj]->ParamCurve::point(cvs[kj]->startparam());
+	  Point pos5 = cvs[kj]->ParamCurve::point(cvs[kj]->endparam());
+	  double dd4 = pos1.dist(pos4);
+	  double dd5 = pos1.dist(pos5);
+	  if (std::min(dd4,dd5) < std::min(dd2,dd3))
+	    {
+	      std::swap(cvs[ki], cvs[kj]);
+	      std::swap(dd2, dd4);
+	      std::swap(dd3, dd5);
+	    }
+	}
+      if (dd3 < dd2)
+	cvs[ki]->reverseParameterDirection();
+      pos1 = cvs[ki]->ParamCurve::point(cvs[ki]->endparam());
+    }
+}
+
+
 
 

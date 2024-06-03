@@ -246,8 +246,7 @@ namespace Go
     // void growLocal(RevEngPoint* seed, double tol, double radius, int min_close,
     // 		   std::vector<RevEngPoint*>& out);
 
-    void removeLowAccuracyPoints(Point mainaxis[3], int min_pt_reg,
-				 double tol, double angtol,
+    void removeLowAccuracyPoints(int min_pt_reg, double tol, double angtol,
 				 std::vector<std::vector<RevEngPoint*> >& added_groups);
     
     bool includeAdjacent(RevEngRegion* adj, Point mainaxis[3], 
@@ -259,7 +258,12 @@ namespace Go
 		      double tol, double angtol,
 		      std::vector<RevEngRegion*>& grown_regions,
 		      std::vector<HedgeSurface*>& adj_surfs,
+		      std::vector<RevEngEdge*>& adj_edgs,
 		      bool use_base=false);
+
+    void growBlendSurf(std::vector<RevEngRegion*>& next_blend, double tol,
+		       double angtol, std::vector<RevEngRegion*>& grown_regions,
+		       std::vector<std::vector<RevEngPoint*> >& added_regions);
 
     bool mergePlanarReg(double zero_H, double zero_K, double tol,
 			Point mainaxis[3],
@@ -290,11 +294,18 @@ namespace Go
 			    std::vector<std::vector<RevEngPoint*> >& separate_group);
     void splitRegion(std::vector<std::vector<RevEngPoint*> >& separate_groups);
 
+    void splitPlanar(double lim_cone, int min_point_reg, 
+		     std::vector<std::vector<RevEngPoint*> >& other_groups,
+		     std::vector<RevEngPoint*>& single);
+    
     void updateRegion(double approx_tol, double anglim,
 		      std::vector<RevEngRegion*>& adapted_regions,
 		      std::vector<shared_ptr<RevEngRegion> >& outdiv_regions);
 
-     void joinRegions(Point mainaxis[3], double approx_tol, double anglim,
+    void joinToCurrent(double tol, double angtol, int small_lim,
+		       std::vector<RevEngRegion*>& adapted_regions);
+
+    void joinRegions(Point mainaxis[3], double approx_tol, double anglim,
 		     std::vector<RevEngRegion*>& adapted_regions);
 
     void extractOutPoints(std::vector<std::pair<double, double> >& dist_ang,
@@ -306,12 +317,19 @@ namespace Go
     // NB cv is supposed to be counter clockwise oriented along the corresponding
     // surface
     void extractOutOfEdge(shared_ptr<CurveOnSurface>& cv,
-			  double tol, double angtol,
+			  std::vector<shared_ptr<CurveOnSurface> >& intcv,
+			  double radius, double tol, double angtol,
 			  std::vector<RevEngPoint*>& out_points);
 
      void identifyAngPoints(std::vector<std::pair<double, double> >& dist_ang,
 			    double tol, double disttol,
 			    std::vector<RevEngPoint*>& ang_points);
+    
+     void identifyAngPoints(std::vector<std::pair<double, double> >& dist_ang,
+			    double tol, double dtol, double dtol2,
+			    std::vector<RevEngPoint*>& ang_points,
+			    std::vector<RevEngPoint*>& remaining);
+    
     void identifyDistPoints(std::vector<std::pair<double, double> >& dist_ang,
 			    double tol, double maxd, double avd,
 			    std::vector<RevEngPoint*>& dist_points);
@@ -323,6 +341,10 @@ namespace Go
    void extractSpesPoints(std::vector<RevEngPoint*>& move,
 			   std::vector<std::vector<RevEngPoint*> >& out_groups,
 			   bool outer=false);
+
+    void extractOutPoints(int dir, double tol, double angtol,
+			  double angtol2,
+			  std::vector<std::vector<RevEngPoint*> >& out_groups);
     
     void removeOtherPoints(std::vector<RevEngPoint*>& keep,
 			   std::vector<HedgeSurface*>& prevsfs,
@@ -400,7 +422,8 @@ namespace Go
 		     std::vector<HedgeSurface*>& prevsfs,
 		     std::vector<std::vector<RevEngPoint*> >& out_groups);
 
-    bool extractTorus(double tol, int min_pt, int min_pt_reg, 
+    bool extractTorus(Point mainaxis[3],
+		      double tol, int min_pt, int min_pt_reg, 
 		      double angtol, int prefer_elementary,
 		      std::vector<shared_ptr<HedgeSurface> >& hedgesfs,
 		      std::vector<HedgeSurface*>& prevsfs,
@@ -438,6 +461,8 @@ namespace Go
 
     RevEngPoint* closestPoint(const Point& pos, double& dist);
 
+    RevEngPoint* closestParPoint(const Point& parpt, double& dist);
+
     std::vector<RevEngPoint*> extractNextToAdjacent(RevEngRegion* reg);
 
     std::vector<RevEngPoint*> extractBdPoints();
@@ -446,24 +471,37 @@ namespace Go
 
     std::vector<RevEngPoint*> extractBranchPoints();
 
+    void extractPointsAtSeam(std::vector<RevEngPoint*>& seam_pts1,
+			     std::vector<RevEngPoint*>& seam_pts2, bool along_udir);
+    
+    void testBlendGap(std::vector<shared_ptr<CurveOnSurface> >& cvs,
+		      double tmin, double tmax, double tdel, double width,
+		      std::vector<std::pair<double,double> >& not_gap);
+
     void estimateBlendDimensions(std::vector<shared_ptr<CurveOnSurface> >& cvs,
 				 std::vector<RevEngPoint*>& bd_points,
-				 double tol, double distlim, double& tmin, double& tmax,
-				 double& width, int& num_in_lim);
+				 double tol, double distlim, 
+				 std::vector<std::pair<double,double> >& t1_t2,
+				 std::vector<double>& width, int& num_in_lim);
 
     void getNearPoints(std::vector<shared_ptr<CurveOnSurface> >& cvs,
-		       double tmin, double tmax, double width, double angtol,
-		       std::vector<RevEngPoint*>& nearpoints,
-		       RevEngPoint*& distant);
+		       double& tmin, double& tmax, double width, double angtol,
+		       std::vector<RevEngPoint*>& nearpoints);
 
-    std::vector<RevEngPoint*>
+    void getNearPoints2(std::vector<RevEngPoint*>& points,
+			std::vector<shared_ptr<CurveOnSurface> >& cvs,
+			double width, std::vector<RevEngPoint*>& nearpoints);
+
+     std::vector<RevEngPoint*>
     removeOutOfSurf(std::vector<RevEngPoint*>& points,
-		    double tol, double angtol, bool outer);
+		    double tol, double angtol, bool outer, double& min_dist);
     
     void growFromNeighbour(Point mainaxis[3], int min_pt_reg,
 			   std::vector<RevEngPoint*>& seed, double tol,
-			   double angtol, RevEngRegion *neighbour);
-    
+			   double angtol, RevEngRegion *neighbour,
+			   bool do_update=true);
+
+    void growInDomain(RevEngRegion *adjacent, double tol, double angtol);
 
     bool tryOtherSurf(int prefer_elementary, bool replace);
     
@@ -627,7 +665,7 @@ namespace Go
     
     Point getMeanNormalTriang()
     {
-      return avnorm_;
+      return avnorm2_;
     }
     
     void setAccuracy(double maxdist, double avdist, int num_inside,
@@ -800,6 +838,10 @@ namespace Go
 
     void analyseRotated(Point& pos, Point& axis, Point& axis2);
     
+    shared_ptr<Torus>
+    analyseRotatedTorus(Point& pos, Point& Cx, Point& normal,
+			double tol, double angtol);
+    
     std::vector<RevEngRegion*> fetchAdjacentPlanar();
 
     std::vector<RevEngRegion*> fetchAdjacentCylindrical();
@@ -914,8 +956,8 @@ namespace Go
 			  double angtol, bool always=false);
 
     void computeSurface(std::vector<RevEngPoint*>& points,
-			Point mainaxis[3], double tol, ClassType classtype,
-			shared_ptr<ParamSurface>& updated,
+			Point mainaxis[3], double tol, double angtol,
+			ClassType classtype, shared_ptr<ParamSurface>& updated,
 			shared_ptr<ParamSurface>& updated2, bool& cyllike);
 
     bool getCurveRestriction(std::vector<shared_ptr<CurveOnSurface> >& cvs,
@@ -940,6 +982,11 @@ namespace Go
     RevEngEdge* getAssociatedBlend()
     {
       return associated_blend_;
+    }
+
+    void removeAssociatedBlend()
+    {
+      associated_blend_ = 0;
     }
 
     bool hasRevEdges()
@@ -970,6 +1017,13 @@ namespace Go
       rev_edges_.push_back(edge);
     }
 
+    void removeRevEngEdge(RevEngEdge *edg)
+    {
+      auto it = std::find(rev_edges_.begin(), rev_edges_.end(), edg);
+      if (it != rev_edges_.end())
+	rev_edges_.erase(it);
+    }
+    
     void setBlendEdge(RevEngEdge* edge)
     {
       blend_edge_ = edge;
@@ -983,6 +1037,11 @@ namespace Go
     RevEngEdge* getBlendEdge()
     {
       return blend_edge_;
+    }
+
+    void removeBlendEdge()
+    {
+      blend_edge_ = 0;
     }
 
     void addTrimEdge(shared_ptr<ftEdge> edge)
@@ -1001,6 +1060,18 @@ namespace Go
     }
 
     void adaptEdges();
+
+    void setRemove()
+    {
+      to_be_removed_ = true;
+    }
+
+    bool toBeRemoved()
+    {
+      return to_be_removed_;
+    }
+
+    void getAdjacentBlends(std::vector<RevEngRegion*>& adj_blends);
     
     bool trimSurface(double tol);
       
@@ -1052,6 +1123,7 @@ namespace Go
     
     shared_ptr<SweepData> sweep_;
     bool visited_;
+    bool to_be_removed_;
 
     std::vector<shared_ptr<SegmentData> > seg_info_;;
     
@@ -1110,7 +1182,8 @@ namespace Go
 				     std::vector<RevEngPoint*>& points);
     shared_ptr<Cone> computeCone(std::vector<RevEngPoint*>& points, Point& apex);
     shared_ptr<Torus> computeTorus(std::vector<RevEngPoint*>& points,
-				   double tol, shared_ptr<Torus>& torus2);
+				   std::vector<Point>& adj_axis,
+				   double tol, double angtol);
     shared_ptr<SplineSurface> computeLinearSwept(double tol, shared_ptr<SplineCurve>& profile,
 						 Point& pt1, Point& pt2);
     shared_ptr<SplineSurface> computeFreeform(std::vector<RevEngPoint*>& points,
@@ -1232,10 +1305,19 @@ namespace Go
 
     void adaptOneEdge(shared_ptr<ftEdge>& edge, double dom[4]);
 
-    void arrangeEdgeLoop(double tol);
+    bool arrangeEdgeLoop(double tol);
     
     shared_ptr<CurveOnSurface> constParSfCv(shared_ptr<ParamSurface> surf, int dir,
 					    double par, int bd, double len);
+
+    void getDomainBoundaries(double tol, double angtol,
+			     std::vector<std::pair<int, double> >& bd_par1,
+			     std::vector<std::pair<int, double> >& bd_par2);
+    
+    void blendGrowFromAdjacent(RevEngRegion* adjacent,
+			       std::vector<int>& pt_ix, double tol,
+			       double angtol,
+			       std::vector<RevEngPoint*>& grow_pt);
 
   };
 }

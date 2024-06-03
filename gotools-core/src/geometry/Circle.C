@@ -539,6 +539,8 @@ SplineCurve* Circle::createNonRationalSpline(double eps) const
   SplineCurve *crv = new SplineCurve(sislcrv->in, sislcrv->ik, sislcrv->et,
 				     sislcrv->ecoef, centre_.dimension());
   crv->setParameterInterval(startparam_, endparam_);
+  if (isReversed_)
+    crv->reverseParameterDirection();
 
   freeCurve(sislcrv);
   return crv;
@@ -800,33 +802,33 @@ void Circle::setParamBounds(double startpar, double endpar)
 //===========================================================================
 {
   if (fabs(startpar) < ptol_)
-      startpar = 0.0;
+    startpar = 0.0;
   else if (fabs(2.0*M_PI-startpar) < ptol_)
     startpar = 2.0*M_PI;
   if (fabs(endpar) < ptol_)
-      endpar = 0.0;
+    endpar = 0.0;
   else if (fabs(2.0*M_PI-endpar) < ptol_)
     endpar = 2.0*M_PI;
   
-    if (startpar > -2.0 * M_PI - ptol_ && startpar < -2.0 * M_PI)
-      startpar = -2.0 * M_PI;
-    if (endpar < 2.0 * M_PI + ptol_ && endpar >2.0 * M_PI)
-      endpar = 2.0 * M_PI;
-    if (startpar >= endpar)
-        THROW("First parameter must be strictly less than second.");
-    if (startpar < -2.0 * M_PI || endpar > 2.0 * M_PI)
-        THROW("Parameters must be in [-2pi, 2pi].");
-    if (endpar - startpar > 2.0 * M_PI)
-        THROW("(endpar - startpar) must not exceed 2pi.");
+  if (startpar > -2.0 * M_PI - ptol_ && startpar < -2.0 * M_PI)
+    startpar = -2.0 * M_PI;
+  if (endpar < 2.0 * M_PI + ptol_ && endpar >2.0 * M_PI)
+    endpar = 2.0 * M_PI;
+  if (startpar >= endpar)
+    THROW("First parameter must be strictly less than second.");
+  if (startpar < -2.0 * M_PI || endpar > 2.0 * M_PI)
+    THROW("Parameters must be in [-2pi, 2pi].");
+  if (endpar - startpar > 2.0 * M_PI)
+    THROW("(endpar - startpar) must not exceed 2pi.");
 
-    double start =  
-      parbound1_ + (startpar-startparam_)*(parbound2_-parbound1_)/(endparam_-startparam_);
-    double end =  
-      parbound1_ + (endpar-startparam_)*(parbound2_-parbound1_)/(endparam_-startparam_);
-    parbound1_ = startpar;
-    parbound2_ = endpar;
-    startparam_ = start;
-    endparam_ = end;
+  double start =  
+    parbound1_ + (startpar-startparam_)*(parbound2_-parbound1_)/(endparam_-startparam_);
+  double end =  
+    parbound1_ + (endpar-startparam_)*(parbound2_-parbound1_)/(endparam_-startparam_);
+  parbound1_ = startpar;
+  parbound2_ = endpar;
+  startparam_ = start;
+  endparam_ = end;
 }
 
 //===========================================================================

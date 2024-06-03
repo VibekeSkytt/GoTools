@@ -75,6 +75,8 @@ namespace Go {
 		      double& minc, Point& maxcvec, double& maxc,
 		      double& currdist, double& avdist);
 
+    void smoothSurf(shared_ptr<SplineSurface>& surf, int fixed);
+
     shared_ptr<SplineSurface> surfApprox(std::vector<double>& data, int dim,
 					 std::vector<double>& param, int order1,
 					 int order2, int nmb_coef1, int nmb_coef2,
@@ -241,6 +243,7 @@ namespace Go {
 			     Point& pos, Point& axis, double rad,
 			     Point& axis2, bool plane,
 			     double tol, double angtol,
+			     std::vector<std::pair<double,double> >& dist_ang,
 			     std::vector<RevEngPoint*>& linear, bool start,
 			     std::vector<RevEngPoint*>& remaining);
 
@@ -257,8 +260,12 @@ namespace Go {
 				   std::vector<std::vector<RevEngPoint*> >& sfs_pts,
 				   std::vector<RevEngPoint*>& curr_pts,
 				   std::vector<RevEngPoint*>& remainin);
-    
 
+    void identifyEndPoints(std::vector<RevEngPoint*> edge_pts, shared_ptr<CurveOnSurface>& sfcv,
+			   RevEngPoint*& first_pt, double& t1, RevEngPoint*& last_pt, double& t2);
+    
+    void setLoopSeq(std::vector<shared_ptr<CurveOnSurface> >& cvs);
+    
   }
   
 } // namespace Go

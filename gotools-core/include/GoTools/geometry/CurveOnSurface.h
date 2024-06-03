@@ -441,6 +441,8 @@ public:
 
     /// Check if the curve is a constant parameter curve with regard to the 
     /// parameter tol
+    /// pardir = 1: constant in 1. parameter direction
+    /// pardir = 2: constant in 2. parameter direction
     bool isConstantCurve(double tol, int& pardir, double& parval) const;
 
     /// Fetch recorded constant curve information

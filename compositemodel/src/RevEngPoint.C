@@ -70,6 +70,7 @@ RevEngPoint::RevEngPoint()
   visited_ = 0;
   moved_ = 0;
   outlier_ = false;
+  mark_ix_ = -1;
   sfdist_ = -1.0;
   sfang_ = -1.0;
   nmb_move_ = 0;
@@ -111,6 +112,7 @@ RevEngPoint::RevEngPoint(Vector3D xyz, int bnd)
   region_ = 0;
   visited_ = 0;
   outlier_ = false;
+  mark_ix_ = -1;
   sfdist_ = -1.0;
   sfang_ = -1.0;
   nmb_move_ = 0;

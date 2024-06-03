@@ -53,8 +53,8 @@ using std::ostream;
 RevEngEdge::RevEngEdge()
 //===========================================================================
   : adjacent1_(0), adjacent2_(0), defined_blend_(0),
-    blend_type_(BLEND_NOT_SET), distance1_(0.0), distance2_(0.0),
-    alt_rad_(-1.0), outer1_(false), outer2_(false)
+    blend_type_(BLEND_NOT_SET), outer1_(false), outer2_(false),
+    distance_(0.0), radius_(0.0)
 {
 }
 
@@ -62,20 +62,20 @@ RevEngEdge::RevEngEdge()
 RevEngEdge::RevEngEdge(RevEngRegion* reg1, RevEngRegion* reg2)
 //===========================================================================
   : adjacent1_(reg1), adjacent2_(reg2), defined_blend_(0),
-    blend_type_(BLEND_NOT_SET), distance1_(0.0), distance2_(0.0),
-    alt_rad_(-1.0), outer1_(false), outer2_(false)
+    blend_type_(BLEND_NOT_SET), outer1_(false), outer2_(false),
+    distance_(0.0), radius_(0.0)
 {
 }
 
 //===========================================================================
-RevEngEdge::RevEngEdge(int type, RevEngRegion* reg1, double dist1,
+RevEngEdge::RevEngEdge(int type, RevEngRegion* reg1, 
 		       vector<shared_ptr<CurveOnSurface> > cvs1,
-		       bool out1, RevEngRegion* reg2, double dist2,
-		       vector<shared_ptr<CurveOnSurface> > cvs2, bool out2)
+		       bool out1, RevEngRegion* reg2,
+		       vector<shared_ptr<CurveOnSurface> > cvs2,
+		       bool out2, double distance, double radius)
 //===========================================================================
   : adjacent1_(reg1), adjacent2_(reg2), defined_blend_(0), blend_type_(type),
-    distance1_(dist1), distance2_(dist2),
-    alt_rad_(-1.0), outer1_(out1), outer2_(out2)
+    outer1_(out1), outer2_(out2), distance_(distance), radius_(radius)
 {
   cvs1_.insert(cvs1_.end(), cvs1.begin(), cvs1.end());
   cvs2_.insert(cvs2_.end(), cvs2.begin(), cvs2.end());
@@ -85,6 +85,14 @@ RevEngEdge::RevEngEdge(int type, RevEngRegion* reg1, double dist1,
 RevEngEdge::~RevEngEdge()
 //===========================================================================
 {
+  if (adjacent1_)
+    adjacent1_->removeRevEngEdge(this);
+  if (adjacent2_)
+    adjacent2_->removeRevEngEdge(this);
+  for (size_t ki=0; ki<blend_regs_.size(); ++ki)
+    blend_regs_[ki]->removeAssociatedBlend();
+  if (defined_blend_)
+    defined_blend_->removeBlendEdge();
 }
 
 
@@ -125,46 +133,84 @@ void RevEngEdge::setReg2(RevEngRegion *reg)
 }
 
 //===========================================================================
+void RevEngEdge::fixMismatchCurves(double tol)
+//===========================================================================
+{
+  for (size_t ki=0; ki<cvs1_.size(); ++ki)
+    cvs1_[ki]->fixMismatchCurves(tol);
+  for (size_t ki=0; ki<cvs2_.size(); ++ki)
+    cvs2_[ki]->fixMismatchCurves(tol);
+}
+
+//===========================================================================
+void RevEngEdge::replaceSurf(RevEngRegion* reg,
+			     shared_ptr<ParamSurface>& new_surf, double tol)
+//===========================================================================
+{
+  if (reg == adjacent1_)
+    {
+      for (size_t ki=0; ki<cvs1_.size(); ++ki)
+	{
+	  cvs1_[ki]->setUnderlyingSurface(new_surf);
+	  cvs1_[ki]->unsetParameterCurve();
+	  cvs1_[ki]->ensureParCrvExistence(tol);
+	}
+    }
+  else if (reg == adjacent2_)
+    {
+      for (size_t ki=0; ki<cvs2_.size(); ++ki)
+	{
+	  cvs2_[ki]->setUnderlyingSurface(new_surf);
+	  cvs2_[ki]->unsetParameterCurve();
+	  cvs2_[ki]->ensureParCrvExistence(tol);
+	}
+     }
+      
+}
+
+//===========================================================================
 void RevEngEdge::store(ostream& os)
 //===========================================================================
 {
   os << Id_ << std::endl;
-  int id1 = adjacent1_->getId();
-  int id2 = adjacent2_->getId();
+  int id1 = (adjacent1_) ? adjacent1_->getId() : -1;
+  int id2 = (adjacent2_) ? adjacent2_->getId() : -1;
   int id3 = (defined_blend_ == 0) ? -1 : defined_blend_->getId();
   os << id1 << " " << id2 << " " << id3 << std::endl;
   os << cvs1_.size() << " " << cvs2_.size() << std::endl;
   
   for (size_t ki=0; ki<cvs1_.size(); ++ki)
     {
-      bool space = cvs1_[ki]->hasSpaceCurve();
-      bool param = cvs1_[ki]->hasParameterCurve();
-      os << space << " " << param << std::endl;
-      if (space)
-	{
-	  shared_ptr<ParamCurve> spacecv = cvs1_[ki]->spaceCurve();
-	  shared_ptr<ParamCurve> parcv = cvs1_[ki]->parameterCurve();
-	  spacecv->writeStandardHeader(os);
-	  spacecv->write(os);
-	  parcv->writeStandardHeader(os);
-	  parcv->write(os);
-	}
+      cvs1_[ki]->write(os);
+      // bool space = cvs1_[ki]->hasSpaceCurve();
+      // bool param = cvs1_[ki]->hasParameterCurve();
+      // os << space << " " << param << std::endl;
+      // if (space)
+      // 	{
+      // 	  shared_ptr<ParamCurve> spacecv = cvs1_[ki]->spaceCurve();
+      // 	  shared_ptr<ParamCurve> parcv = cvs1_[ki]->parameterCurve();
+      // 	  spacecv->writeStandardHeader(os);
+      // 	  spacecv->write(os);
+      // 	  parcv->writeStandardHeader(os);
+      // 	  parcv->write(os);
+      // 	}
     }
       
   for (size_t ki=0; ki<cvs2_.size(); ++ki)
     {
-      bool space = cvs2_[ki]->hasSpaceCurve();
-      bool param = cvs2_[ki]->hasParameterCurve();
-      os << space << " " << param << std::endl;
-      if (space)
-	{
-	  shared_ptr<ParamCurve> spacecv = cvs2_[ki]->spaceCurve();
-	  shared_ptr<ParamCurve> parcv = cvs2_[ki]->parameterCurve();
-	  spacecv->writeStandardHeader(os);
-	  spacecv->write(os);
-	  parcv->writeStandardHeader(os);
-	  parcv->write(os);
-	}
+      cvs2_[ki]->write(os);
+      // bool space = cvs2_[ki]->hasSpaceCurve();
+      // bool param = cvs2_[ki]->hasParameterCurve();
+      // os << space << " " << param << std::endl;
+      // if (space)
+      // 	{
+      // 	  shared_ptr<ParamCurve> spacecv = cvs2_[ki]->spaceCurve();
+      // 	  shared_ptr<ParamCurve> parcv = cvs2_[ki]->parameterCurve();
+      // 	  spacecv->writeStandardHeader(os);
+      // 	  spacecv->write(os);
+      // 	  parcv->writeStandardHeader(os);
+      // 	  parcv->write(os);
+      // 	}
     }
 
   os << blend_regs_.size() << std::endl;
@@ -172,9 +218,8 @@ void RevEngEdge::store(ostream& os)
     os << blend_regs_[ki]->getId() << " ";
   os << std::endl;
 
-  os << blend_type_ << " " << distance1_ << " " << distance2_ << " ";
-  os << alt_rad_ << " " << outer1_ << " " << outer2_ << std::endl;
-      
+  os << blend_type_ << " " << distance_ << " " << radius_ << " ";
+  os << outer1_ << " " << outer2_ << std::endl;
 }
 
 
@@ -193,62 +238,66 @@ void RevEngEdge::read(istream& is, int& reg_id1, int& reg_id2, int& reg_id3,
     cvs2_.resize(num_cv2);
   for (int ka=0; ka<num_cv1; ++ka)
     {
-      int space, param;
-      is >> space >> param;
-      shared_ptr<ParamCurve> spacecv, parcv;
-      shared_ptr<ParamSurface> dummy;
-      if (space)
-	{
-	  ObjectHeader header;
-	  header.read(is);
-	  shared_ptr<GeomObject> obj(Factory::createObject(header.classType()));
-	  obj->read(is);
-	  spacecv = dynamic_pointer_cast<ParamCurve,GeomObject>(obj);
-	}
+      cvs1_[ka] = shared_ptr<CurveOnSurface>(new CurveOnSurface());
+      cvs1_[ka]->read(is);
+      // int space, param;
+      // is >> space >> param;
+      // shared_ptr<ParamCurve> spacecv, parcv;
+      // shared_ptr<ParamSurface> dummy;
+      // if (space)
+      // 	{
+      // 	  ObjectHeader header;
+      // 	  header.read(is);
+      // 	  shared_ptr<GeomObject> obj(Factory::createObject(header.classType()));
+      // 	  obj->read(is);
+      // 	  spacecv = dynamic_pointer_cast<ParamCurve,GeomObject>(obj);
+      // 	}
 
-      if (param)
-	{
-	  ObjectHeader header;
-	  header.read(is);
-	  shared_ptr<GeomObject> obj(Factory::createObject(header.classType()));
-	  obj->read(is);
-	  parcv = dynamic_pointer_cast<ParamCurve,GeomObject>(obj);
-	}
+      // if (param)
+      // 	{
+      // 	  ObjectHeader header;
+      // 	  header.read(is);
+      // 	  shared_ptr<GeomObject> obj(Factory::createObject(header.classType()));
+      // 	  obj->read(is);
+      // 	  parcv = dynamic_pointer_cast<ParamCurve,GeomObject>(obj);
+      // 	}
       
-      cvs1_[ka] = shared_ptr<CurveOnSurface>(new CurveOnSurface(dummy, parcv,
-								spacecv, false,
-								-1, -1, 0.0,
-								-1, true));
+      // cvs1_[ka] = shared_ptr<CurveOnSurface>(new CurveOnSurface(dummy, parcv,
+      // 								spacecv, false,
+      // 								-1, -1, 0.0,
+      // 								-1, true));
     }
 
   for (int ka=0; ka<num_cv2; ++ka)
     {
-      int space, param;
-      is >> space >> param;
-      shared_ptr<ParamCurve> spacecv, parcv;
-      shared_ptr<ParamSurface> dummy;
-      if (space)
-	{
-	  ObjectHeader header;
-	  header.read(is);
-	  shared_ptr<GeomObject> obj(Factory::createObject(header.classType()));
-	  obj->read(is);
-	  spacecv = dynamic_pointer_cast<ParamCurve,GeomObject>(obj);
-	}
+      cvs2_[ka] = shared_ptr<CurveOnSurface>(new CurveOnSurface());
+      cvs2_[ka]->read(is);
+      // int space, param;
+      // is >> space >> param;
+      // shared_ptr<ParamCurve> spacecv, parcv;
+      // shared_ptr<ParamSurface> dummy;
+      // if (space)
+      // 	{
+      // 	  ObjectHeader header;
+      // 	  header.read(is);
+      // 	  shared_ptr<GeomObject> obj(Factory::createObject(header.classType()));
+      // 	  obj->read(is);
+      // 	  spacecv = dynamic_pointer_cast<ParamCurve,GeomObject>(obj);
+      // 	}
 
-      if (param)
-	{
-	  ObjectHeader header;
-	  header.read(is);
-	  shared_ptr<GeomObject> obj(Factory::createObject(header.classType()));
-	  obj->read(is);
-	  parcv = dynamic_pointer_cast<ParamCurve,GeomObject>(obj);
-	}
+      // if (param)
+      // 	{
+      // 	  ObjectHeader header;
+      // 	  header.read(is);
+      // 	  shared_ptr<GeomObject> obj(Factory::createObject(header.classType()));
+      // 	  obj->read(is);
+      // 	  parcv = dynamic_pointer_cast<ParamCurve,GeomObject>(obj);
+      // 	}
       
-      cvs2_[ka] = shared_ptr<CurveOnSurface>(new CurveOnSurface(dummy, parcv,
-								spacecv, false,
-								-1, -1, 0.0,
-								-1, true));
+      // cvs2_[ka] = shared_ptr<CurveOnSurface>(new CurveOnSurface(dummy, parcv,
+      // 								spacecv, false,
+      // 								-1, -1, 0.0,
+      // 								-1, true));
     }
 
   int num_blend_reg;
@@ -258,7 +307,7 @@ void RevEngEdge::read(istream& is, int& reg_id1, int& reg_id2, int& reg_id3,
   for (int ka=0; ka<num_blend_reg; ++ka)
     is >> blend_id[ka];
   
-  is >> blend_type_ >> distance1_ >> distance2_ >> alt_rad_ >> outer1_ >> outer2_;
+  is >> blend_type_ >> distance_ >> radius_ >> outer1_ >> outer2_;
 }
 
 
@@ -277,8 +326,11 @@ vector<shared_ptr<ParamCurve> > RevEngEdge::getSpaceCurves()
 void RevEngEdge::getCrvEndPoints(Point& pos1, Point& pos2)
 //===========================================================================
 {
-  cvs1_[0]->point(pos1, cvs1_[0]->startparam());
-  cvs1_[cvs1_.size()-1]->point(pos2, cvs1_[cvs1_.size()-1]->endparam());
+  if (cvs1_.size() > 0)
+    {
+      cvs1_[0]->point(pos1, cvs1_[0]->startparam());
+      cvs1_[cvs1_.size()-1]->point(pos2, cvs1_[cvs1_.size()-1]->endparam());
+    }
 }
 
 //===========================================================================

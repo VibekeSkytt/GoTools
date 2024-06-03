@@ -2371,7 +2371,19 @@ int CurveOnSurface::whichBoundary(double tol, bool& same_orientation) const
   if (constdir_ == 1 || constdir_ == 2)
     {
       same_orientation = same_orientation_;
-      return at_bd_;
+      if (at_bd_ < 0)
+	{
+	  BoundingBox box2D = pcurve_->boundingBox();
+	  Point low = box2D.low();
+	  Point high = box2D.high();
+ 	  RectDomain domain = surface_->containingDomain();
+	  Array<double,2> p1(low[0], low[1]);
+	  Array<double,2> p2(high[0], high[1]);
+	  int bd = domain.whichBoundary(p1, p2, tol);
+	  return bd;
+	}
+      else
+	return at_bd_;
     }
   else 
     {

@@ -51,6 +51,7 @@ using std::numeric_limits;
 using std::streamsize;
 using std::swap;
 
+#define DEBUG
 
 namespace Go
 {
@@ -838,6 +839,56 @@ Plane::getElementaryParamCurve(ElementaryCurve* space_crv, double tol,
       Point xvec(cos(gamma2)*(centre[0]-par1[0])-sin(gamma2)*(centre[1]-par1[1]),
 		 sin(gamma2)*(centre[0]-par1[0])+cos(gamma2)*(centre[1]-par1[1]));
       xvec.normalize();
+
+      Point xvec2(cos(t1)*(par1[0]-centre[0])+sin(t1)*(par1[1]-centre[1]),
+		 -sin(t1)*(par1[0]-centre[0])+cos(t1)*(par1[1]-centre[1]));
+      xvec2.normalize();
+      shared_ptr<Circle> circ1(new Circle(radius, centre, param_cv_axis,
+					  xvec, false));
+      Point p1_1 = circ1->ParamCurve::point(t1);
+      Point p1_2 = circ1->ParamCurve::point(t2);
+     shared_ptr<Circle> circ2(new Circle(radius, centre, param_cv_axis,
+					  xvec2, false));
+      Point p2_1 = circ2->ParamCurve::point(t1);
+      Point p2_2 = circ2->ParamCurve::point(t2);
+      Point p2_3 = circ2->ParamCurve::point(0.5*(t1+t2));
+
+      Point p3_1, p3_2;
+      point(p3_1, p2_1[0], p2_1[1]);
+      point(p3_2, p2_2[0], p2_2[1]);
+      double dd1 = pos1.dist(p3_1) + pos2.dist(p3_2);
+      if (dd1 > std::max(d1 + d2, tol))
+	{
+	  Point xvec3(cos(t2)*(par1[0]-centre[0])-sin(t2)*(par1[0]-centre[1]),
+		      sin(t2)*(par1[1]-centre[0])+cos(t2)*(par1[1]-centre[1]));
+	  xvec3.normalize();
+	  shared_ptr<Circle> circ3(new Circle(radius, centre, param_cv_axis,
+					  xvec3, true));
+	  Point p3_1 = circ3->ParamCurve::point(t1);
+	  Point p3_2 = circ3->ParamCurve::point(t2);
+	  Point p3_3 = circ3->ParamCurve::point(0.5*(t1+t2));
+
+	  Point xvec4(xvec2[1],-xvec2[0]);
+	  shared_ptr<Circle> circ4(new Circle(radius, centre, param_cv_axis,
+					  xvec4, false));
+	  Point p4_1 = circ4->ParamCurve::point(t1);
+	  Point p4_2 = circ4->ParamCurve::point(t2);
+	  Point p4_3 = circ4->ParamCurve::point(0.5*(t1+t2));
+
+	  double t3 = space_crv->startparam() + space_crv->endparam() - t1;
+	  Point xvec5(cos(t3)*(par1[0]-centre[0])-sin(t3)*(par1[0]-centre[1]),
+		      sin(t3)*(par1[1]-centre[0])+cos(t3)*(par1[1]-centre[1]));
+	  xvec5.normalize();
+	  shared_ptr<Circle> circ5(new Circle(radius, centre, param_cv_axis,
+					  xvec5, true));
+	  Point p5_1 = circ5->ParamCurve::point(t1);
+	  Point p5_2 = circ5->ParamCurve::point(t2);
+	  Point p5_3 = circ5->ParamCurve::point(0.5*(t1+t2));
+
+
+	  int stop_break_circ = 1;
+	}
+      
       if (gamma2 < gamma)
 	{
 	  std::swap(xvec[0], xvec[1]);
@@ -865,9 +916,10 @@ Plane::getElementaryParamCurve(ElementaryCurve* space_crv, double tol,
 	    }
 	  reversed = true;
 	}
-      param_cv = shared_ptr<ElementaryCurve>(new Circle(radius, centre, param_cv_axis,
-							xvec, reversed));
-      param_cv->setParamBounds(t1, t2);
+      param_cv = (dd1 <= tol) ? circ2 :
+	shared_ptr<ElementaryCurve>(new Circle(radius, centre, param_cv_axis,
+					       xvec, reversed));
+      param_cv->setParamBounds(space_crv->startparam(), space_crv->endparam());
     }  
 #ifdef DEBUG
   // TEST

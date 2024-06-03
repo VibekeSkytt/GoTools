@@ -58,10 +58,11 @@ namespace Go
 
     RevEngEdge(RevEngRegion* reg1, RevEngRegion* reg2);
 
-    RevEngEdge(int type, RevEngRegion* reg1, double dist1,
+    RevEngEdge(int type, RevEngRegion* reg1, 
 	       std::vector<shared_ptr<CurveOnSurface> > cvs1,
-	       bool out1, RevEngRegion* reg2, double dist2,
-	       std::vector<shared_ptr<CurveOnSurface> > cvs2, bool out2);
+	       bool out1, RevEngRegion* reg2,
+	       std::vector<shared_ptr<CurveOnSurface> > cvs2,
+	       bool out2, double radius, double width);
 
     // Destructor
     ~RevEngEdge();
@@ -98,6 +99,13 @@ namespace Go
     void clearBlendRegions()
     {
       blend_regs_.clear();
+    }
+
+    void removeBlendReg(RevEngRegion* reg)
+    {
+      auto it = std::find(blend_regs_.begin(), blend_regs_.end(), reg);
+      if (it != blend_regs_.end())
+	blend_regs_.erase(it);
     }
     
     std::vector<shared_ptr<ParamCurve> > getSpaceCurves();
@@ -136,18 +144,27 @@ namespace Go
 
     void getCurve(std::vector<shared_ptr<CurveOnSurface> >& cvs, bool first=true)
     {
-      if (first)
+      if (first && cvs1_.size() > 0)
 	cvs.insert(cvs.end(), cvs1_.begin(), cvs1_.end());
-      else
+      else if ((!first) && cvs2_.size() > 0)
 	cvs.insert(cvs.end(), cvs2_.begin(), cvs2_.end());
     }
 
     void getCrvEndPoints(Point& pos1, Point& pos2);
     
-    void getDistances(double& dist1, double& dist2)
+    double getDistance()
     {
-      dist1 = distance1_;
-      dist2 = distance2_;
+      return distance_;
+    }
+
+    double getRadius()
+    {
+      return radius_;
+    }
+
+    void setRadius(double radius)
+    {
+      radius_ = radius;
     }
 
     void setBlendRegSurf(RevEngRegion* blend)
@@ -160,18 +177,27 @@ namespace Go
       return defined_blend_;
     }
 
-    void setAltRadius(double radius)
-    {
-      alt_rad_ =  radius;
-    }
-
-    double getAltRadius()
-    {
-      return alt_rad_;
-    }
-
     void closestPoint(const Point& pos, double& par, Point& close,
 		      double& dist);
+
+    void replaceSurf(RevEngRegion* reg, shared_ptr<ParamSurface>& new_surf,
+		     double tol);
+
+    void fixMismatchCurves(double tol);
+
+    void eraseCurves()
+    {
+      cvs1_.clear();
+      cvs2_.clear();
+    }
+
+    void eraseAdjacent(RevEngRegion *adj)
+    {
+      if (adjacent1_ == adj)
+	adjacent1_ = 0;
+      else if (adjacent2_ == adj)
+	adjacent2_ = 0;
+    }
 	
   private:
     int Id_;
@@ -182,9 +208,8 @@ namespace Go
     std::vector<shared_ptr<CurveOnSurface> > cvs2_;
     std::vector<RevEngRegion*> blend_regs_;
     int blend_type_;
-    double distance1_;
-    double distance2_;
-    double alt_rad_;
+    double distance_;
+    double radius_;
     bool outer1_;
     bool outer2_;
   };

@@ -499,6 +499,21 @@ namespace Go
     
     bool mergeWithAdjacent(double mean_edge_len);
     
+    void setMarkIx(int ix)
+    {
+      mark_ix_ = ix;
+    }
+
+    void unsetMarkIx()
+    {
+      mark_ix_ = -1;
+    }
+
+    int getMarkIx()
+    {
+      return mark_ix_;
+    }
+    
     void store(std::ostream& os) const;
     void read(std::istream& is, double eps, vector<int>& next_ix);
     
@@ -543,6 +558,7 @@ namespace Go
 
     mutable int visited_;
     mutable int moved_;
+    mutable int mark_ix_;
 
     void getNearby(Vector3D xyz, double radius, int max_nmb,
 		   std::vector<RevEngPoint*>& near,
