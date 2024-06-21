@@ -2147,12 +2147,13 @@ BoundedUtils::intersectWithElementarySurface(shared_ptr<ParamSurface>& surf,
 					     double geom_tol)
 //===========================================================================
 {
+  vector<shared_ptr<CurveOnSurface> > int_seg;
   if (elem->instanceType() == Class_Plane)
     {
       shared_ptr<Plane> plane = dynamic_pointer_cast<Plane,ElementarySurface>(elem);
       Point pnt = plane->getPoint();
       Point normal = plane->getNormal();
-      return intersectWithPlane(surf, pnt, normal, geom_tol);
+      int_seg = intersectWithPlane(surf, pnt, normal, geom_tol);
     }
   else if (elem->instanceType() == Class_Cylinder)
     {
@@ -2160,7 +2161,7 @@ BoundedUtils::intersectWithElementarySurface(shared_ptr<ParamSurface>& surf,
       Point loc = cyl->getLocation();
       Point dir = cyl->getAxis();
       double rad = cyl->getRadius();
-      return intersectWithCylinder(surf, loc, dir, rad, geom_tol);
+      int_seg = intersectWithCylinder(surf, loc, dir, rad, geom_tol);
     }
   else if (elem->instanceType() == Class_Cone)
     {
@@ -2182,14 +2183,14 @@ BoundedUtils::intersectWithElementarySurface(shared_ptr<ParamSurface>& surf,
       Point axispt = loc + rad*dir;
       Point sfpt = loc + rad*dir2;
       
-      return intersectWithCone(surf, top, loc, sfpt, geom_tol);
+      int_seg = intersectWithCone(surf, top, loc, sfpt, geom_tol);
     }
   else if (elem->instanceType() == Class_Sphere)
     {
       shared_ptr<Sphere> sph = dynamic_pointer_cast<Sphere,ElementarySurface>(elem);
       Point centre = sph->getLocation();
       double rad = sph->getRadius();
-      return intersectWithSphere(surf, centre, rad, geom_tol);
+      int_seg = intersectWithSphere(surf, centre, rad, geom_tol);
     }
   else if (elem->instanceType() == Class_Torus)
     {
@@ -2198,13 +2199,97 @@ BoundedUtils::intersectWithElementarySurface(shared_ptr<ParamSurface>& surf,
       Point dir = tor->direction();
       double rad1 = tor->getMajorRadius();
       double rad2 = tor->getMinorRadius();
-      return intersectWithTorus(surf, centre, dir, rad1, rad2, geom_tol);
+      int_seg = intersectWithTorus(surf, centre, dir, rad1, rad2, geom_tol);
+    }
+  // else
+  //   {
+  //     vector<shared_ptr<CurveOnSurface> > dummy;
+  //     return dummy;
+  //   }
+
+  if (int_seg.size() > 0 && elem->isBounded())
+    {
+      // Trim the intersection curves with the boundaries of the
+      // elementary surface
+      const Point sf_epspar = SurfaceTools::getParEpsilon(*elem, geom_tol);
+      const double epspar = std::min(sf_epspar[0], sf_epspar[1]);
+      double angtol = 0.01;
+      CurveLoop cvloop = elem->outerBoundaryLoop();
+      vector<shared_ptr<CurveOnSurface> > int_seg2;
+      vector<shared_ptr<ParamCurve> > bdcvs = cvloop.getCurves();
+      for (size_t ki=0; ki<int_seg.size(); ++ki)
+	{
+	  vector<double> bd_par;
+	  for (size_t kj=0; kj<bdcvs.size(); ++kj)
+	    {
+	      double start = int_seg[ki]->startparam();
+	      double end = int_seg[ki]->endparam();
+	      double par1, par2, dist;
+	      Point ptc1, ptc2;
+	      ClosestPoint::closestPtCurves(int_seg[ki].get(), bdcvs[kj].get(),
+					    par1, par2, dist, ptc1, ptc2);
+	      if (dist < geom_tol && par1-start > epspar && end-par1 > epspar)
+		bd_par.push_back(par1);
+	    }
+	  if (bd_par.size() > 0)
+	      std::sort(bd_par.begin(), bd_par.end());
+	  if (bd_par.size() == 0 || bd_par[0] > int_seg[ki]->startparam()+epspar)
+	    bd_par.insert(bd_par.begin(), int_seg[ki]->startparam());
+	  if (bd_par.size() == 0 ||
+	      bd_par[bd_par.size()-1] < int_seg[ki]->endparam()-epspar)
+	    bd_par.push_back(int_seg[ki]->endparam());
+
+	  for (size_t kj=bd_par.size()-1; kj>0; --kj)
+	    if (bd_par[kj] - bd_par[kj-1] < epspar)
+	      {
+		bd_par[kj-1] = 0.5*(bd_par[kj-1]+bd_par[kj]);
+		bd_par.erase(bd_par.begin()+kj);
+	      }
+
+	  vector<bool> inside(bd_par.size()-1, true);
+	  for (int ka=(int)bd_par.size()-2; ka>=0; --ka)
+	    {
+	      Point midp;
+	      double par = 0.5*(bd_par[ka] + bd_par[ka+1]);
+	      int_seg[ki]->point(midp, par);
+	      double upar, vpar, dist;
+	      Point close;
+	      elem->closestPoint(midp, upar, vpar, close, dist, epspar);
+	      if (dist > geom_tol)
+		{
+		  Point norm;
+		  elem->normal(norm, upar, vpar);
+		  Point vec = close - midp;
+		  double ang = vec.angle(norm);
+		  ang = std::min(ang, M_PI-ang);
+		  if (ang > angtol)
+		    inside[ka] = false;
+		}
+	    }
+
+	  size_t kr;
+	  for (size_t kj=0; kj<inside.size(); kj=kr)
+	    {
+	      for (kr=kj+1; kr<inside.size() && inside[kj]==inside[kr]; ++kr);
+	      if (inside[kj])
+		{
+		  if (bd_par[kj]>int_seg[ki]->startparam()+epspar ||
+		      bd_par[kr]<int_seg[ki]->endparam()-epspar)
+		    {
+		      shared_ptr<CurveOnSurface> sub(int_seg[ki]->subCurve(bd_par[kj],
+								       bd_par[kr]));
+		      int_seg2.push_back(sub);
+		    }
+		  else
+		    int_seg2.push_back(int_seg[ki]);
+		}
+	    }
+	  int stop_break = 1;
+	}
+      return int_seg2;
     }
   else
-    {
-      vector<shared_ptr<CurveOnSurface> > dummy;
-      return dummy;
-    }
+    return int_seg;
 }
 
 //===========================================================================
@@ -2735,12 +2820,15 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
 
     bool not_swap = false;
     if (elem1.get() && sf1->instanceType() != Class_Plane && close_u1 == false &&
-	close_v1 == false)
+							     close_v1 == false)
       not_swap = true;
-    if (sf2->instanceType() == Class_SplineSurface ||
-	(sf2->instanceType() == Class_Plane && not_swap == false &&
-	 (sf1->instanceType() != Class_SplineSurface && sf1->instanceType() != Class_Plane)))
-      {
+    // if (sf2->instanceType() == Class_SplineSurface ||
+    // 	(sf2->instanceType() == Class_Plane && not_swap == false &&
+    // 	 (sf1->instanceType() != Class_SplineSurface && sf1->instanceType() != Class_Plane)))
+    if ((sf2->instanceType() == Class_SplineSurface ||
+    	 sf1->instanceType() == Class_Plane) &&
+    	sf1->instanceType() != sf2->instanceType())
+     {
 	getIntersectionCurveElem(sf2, sf1, int_segments2, int_segments1, epsgeo);
 	return;
       }
@@ -2776,6 +2864,7 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
 		for (size_t ki=0; ki<nsegs; ++ki)
 		  {
 		    // Compute the closest point between the two curves
+		    bool cv_close = int_seg1[ki]->isClosed();
 		    double start = int_seg1[ki]->startparam();
 		    double end = int_seg1[ki]->endparam();
 		    double par1, par2, dist;
@@ -2786,7 +2875,7 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
 		      {
 			// Split intersection curve
 			vector<shared_ptr<ParamCurve> > sub_cvs = int_seg1[ki]->split(par1);
-			if (sub_cvs.size() == 2)
+			if (sub_cvs.size() == 2 && (!cv_close))
 			  {
 			    // Check if the curves can be merged in the other end
 			    vector<Point> der1(2), der2(2);
@@ -2827,6 +2916,7 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
 		for (size_t ki=0; ki<nsegs; ++ki)
 		  {
 		    // Compute the closest point between the two curves
+		    bool cv_close = int_seg1[ki]->isClosed();
 		    double start = int_seg1[ki]->startparam();
 		    double end = int_seg1[ki]->endparam();
 		    double par1, par2, dist;
@@ -2837,7 +2927,7 @@ BoundedUtils::getIntersectionCurveElem(shared_ptr<ParamSurface>& sf1,
 		      {
 			// Split intersection curve
 			vector<shared_ptr<ParamCurve> > sub_cvs = int_seg1[ki]->split(par1);
-			if (sub_cvs.size() == 2)
+			if (sub_cvs.size() == 2 && (!cv_close))
 			  {
 			    // Check if the curves can be merged in the other end
 			    vector<Point> der1(2), der2(2);

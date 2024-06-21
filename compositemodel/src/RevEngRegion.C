@@ -6857,7 +6857,7 @@ void RevEngRegion::estimateBlendDimensions(vector<shared_ptr<CurveOnSurface> >& 
 
 
 //===========================================================================
-void RevEngRegion::getNearPoints(vector<shared_ptr<CurveOnSurface> >& cvs,
+void RevEngRegion::getNearPoints(shared_ptr<CurveOnSurface>& cv,
 				 double& tmin, double& tmax,
 				 double width, double angtol, 
 				 vector<RevEngPoint*>& nearpoints)
@@ -6875,23 +6875,11 @@ void RevEngRegion::getNearPoints(vector<shared_ptr<CurveOnSurface> >& cvs,
       Point close;
       Vector3D xyz = group_points_[ki]->getPoint();
       Point pt(xyz[0], xyz[1], xyz[2]);
-      int ix = -1;
-      for (size_t kj=0; kj<cvs.size(); ++kj)
-	{
-	  double tpar0, dist0;
-	  Point close0;
-	  cvs[kj]->closestPoint(pt, cvs[kj]->startparam(), cvs[kj]->endparam(),
-				tpar0, close0, dist0);
-	  if (dist0 < dist)
-	    {
-	      tpar = tpar0;
-	      dist = dist0;
-	      close = close0;
-	      ix = (int)kj;
-	    }
-	}
+      cv->closestPoint(pt, cv->startparam(), cv->endparam(),
+		       tpar, close, dist);
+
       vector<Point> der(2);
-      cvs[ix]->point(der, tpar, 1);
+      cv->point(der, tpar, 1);
       Point vec = pt - close;
       double ang = vec.angle(der[1]);
       Point norm1 = group_points_[ki]->getMongeNormal();
@@ -6914,27 +6902,20 @@ void RevEngRegion::getNearPoints(vector<shared_ptr<CurveOnSurface> >& cvs,
 
 //===========================================================================
 void RevEngRegion::getNearPoints2(vector<RevEngPoint*>& points,
-				  vector<shared_ptr<CurveOnSurface> >& cvs,
+				  shared_ptr<CurveOnSurface>& cv,
 				  double width,
 				  vector<RevEngPoint*>& nearpoints)
 //===========================================================================
 {
   for (size_t ki=0; ki<points.size(); ++ki)
     {
-      double dist=std::numeric_limits<double>::max();
       Vector3D xyz = points[ki]->getPoint();
       Point pt(xyz[0], xyz[1], xyz[2]);
-      for (size_t kj=0; kj<cvs.size(); ++kj)
-	{
-	  double tpar0, dist0;
-	  Point close0;
-	  cvs[kj]->closestPoint(pt, cvs[kj]->startparam(), cvs[kj]->endparam(),
-				tpar0, close0, dist0);
-	  if (dist0 < dist)
-	    {
-	      dist = dist0;
-	    }
-	}
+      double tpar, dist;
+      Point close;
+      cv->closestPoint(pt, cv->startparam(), cv->endparam(),
+		       tpar, close, dist);
+
       if (dist <= width)
 	nearpoints.push_back(points[ki]);
     }
@@ -8315,7 +8296,7 @@ bool RevEngRegion::tryOtherSurf(int prefer_elementary, bool replace)
       int sfcode;
       ClassType type = associated_sf_[0]->instanceType(sfcode);
       double fac = 5.0;
-      if (type == Class_Plane && MAH_ > fac*MAK_)
+      if ((type == Class_Plane || type == Class_Sphere) && MAH_ > fac*MAK_)
 	return true;
       else
 	return false;
@@ -11305,7 +11286,7 @@ bool RevEngRegion::updateSurfaceWithAxis(int min_pt_reg, Point adj_axis,
 			      num2_in[ki], inpt, outpt, parvals[ki],
 			      dist_ang[ki], angtol);
 
-      sf_flag[ki] = defineSfFlag(min_pt_reg, tol, num_in[ki], num2_in[ki],
+      sf_flag[ki] = defineSfFlag(0, tol, num_in[ki], num2_in[ki],
 				 avdist[ki], cyllike);
 
     }
@@ -13048,6 +13029,7 @@ void RevEngRegion::updateInfo(double tol, double angtol)
   mink2_ = std::numeric_limits<double>::max();
   maxk1_ = std::numeric_limits<double>::lowest();
   mink1_ = std::numeric_limits<double>::max();
+  MAH_ = MAK_ = avH_ = avK_ = 0.0;
   bbox_ = BoundingBox(3);
   double fac = 1.0/(double)group_points_.size();
   for  (size_t kj=0; kj<group_points_.size(); ++kj)
@@ -15129,7 +15111,7 @@ void RevEngRegion::growBlendSurf(vector<RevEngRegion*>& next_blend, double tol,
 		  for (size_t kh=0; kh<in_pts[kj].size(); ++kh)
 		    {
 		      in_pts[kj][kh]->setPar(Vector2D(parvals[2*kh],
-						  parvals[2*kh+1]));
+		  				  parvals[2*kh+1]));
 		      in_pts[kj][kh]->setSurfaceDist(dist_ang[kh].first, dist_ang[kh].second);
 		      adj_reg[ki]->removePoint(in_pts[kj][kh]);
 		      adj_grow[kj]->addPoint(in_pts[kj][kh]);
@@ -15149,11 +15131,11 @@ void RevEngRegion::growBlendSurf(vector<RevEngRegion*>& next_blend, double tol,
 	      vector<vector<RevEngPoint*> > sep_groups;
 	      adj_reg[ki]->splitRegion(sep_groups);
 	      if (sep_groups.size() > 0)
-		{
-		  added_regions.insert(added_regions.end(), sep_groups.begin(),
-				       sep_groups.end());
-		  adj_reg[ki]->updateRegionAdjacency();
-		}
+	  	{
+	  	  added_regions.insert(added_regions.end(), sep_groups.begin(),
+	  			       sep_groups.end());
+	  	  adj_reg[ki]->updateRegionAdjacency();
+	  	}
 	    }
 
 	  if (remain_adj.size() > 0)
@@ -15357,16 +15339,20 @@ void RevEngRegion::blendGrowFromAdjacent(RevEngRegion* adjacent,
       RevEngPoint* curr = adj_pts[pt_ix[ka]];
       curr->unsetMarkIx();
     }
-  
-  for (size_t kj=0; kj<remove_ix.size(); ++kj)
-    {
-      auto it = std::find(pt_ix.begin(), pt_ix.end(), remove_ix[kj]);
-      if (it != pt_ix.end())
-	{
-	  std::swap(*it, pt_ix[pt_ix.size()-1]);
-	  pt_ix.pop_back();
-	}
-    }
+
+  if (remove_ix.size() > 1)
+    std::sort(remove_ix.begin(), remove_ix.end());
+  for (int ka=(int)remove_ix.size()-1; ka>=0; --ka)
+    pt_ix.erase(pt_ix.begin()+remove_ix[ka]);
+  // for (size_t kj=0; kj<remove_ix.size(); ++kj)
+  //   {
+  //     auto it = std::find(pt_ix.begin(), pt_ix.end(), remove_ix[kj]);
+  //     if (it != pt_ix.end())
+  // 	{
+  // 	  std::swap(*it, pt_ix[pt_ix.size()-1]);
+  // 	  pt_ix.pop_back();
+  // 	}
+  //   }
 }
 
 

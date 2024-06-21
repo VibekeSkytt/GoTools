@@ -431,11 +431,11 @@ namespace Go
     defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
 		  Point& dir1, size_t ix2,
 		  shared_ptr<ElementarySurface>& surf2, Point& dir2,
-		  std::vector<shared_ptr<CurveOnSurface> >& int_cvs1,
-		  std::vector<shared_ptr<CurveOnSurface> >& int_cvs2,
+		  shared_ptr<CurveOnSurface>& int_cv1,
+		  shared_ptr<CurveOnSurface>& int_cv2,
 		  double width, std::vector<RevEngRegion*>& common_reg);
     
-    RevEngPoint* getDistantPoint(std::vector<shared_ptr<CurveOnSurface> >& cvs,
+    RevEngPoint* getDistantPoint(shared_ptr<CurveOnSurface>& cv,
 				 double tmin, double tmax,
 				 std::vector<RevEngPoint*>& points);
 
@@ -454,7 +454,7 @@ namespace Go
     
     double
     computeTorusRadius(std::vector<std::vector<RevEngPoint*> >& blend_pts,
-		       std::vector<shared_ptr<CurveOnSurface> >& cvs,
+		       shared_ptr<CurveOnSurface>& cv,
 		       const Point& locp, const Point& normal,
 		       shared_ptr<ElementarySurface> rotational,
 		       double width, bool plane_out, bool rot_out);
@@ -464,17 +464,40 @@ namespace Go
 			    double radius, int sgn1, int sgn2, double& Rrad, 
 			    Point& centre, Point& normal, Point& Cx);
     
-    shared_ptr<Torus>
+    double
+    computeTorusRadius(std::vector<std::vector<RevEngPoint*> >& blend_pts,
+		       shared_ptr<CurveOnSurface>& cv,
+		       shared_ptr<ElementarySurface> elem1,
+		       shared_ptr<ElementarySurface> elem2,
+		       double width, bool out1, bool out2, int sgn,
+		       double& d2);
+    
+  void
+    getTorusParameters(shared_ptr<ElementarySurface> elem1,
+		       shared_ptr<ElementarySurface> elem2, Point pos,
+		       double radius, double d2, bool out1, bool out2, int sgn,
+		       double& Rrad, Point& centre, Point& normal, Point& Cx);
+
+  shared_ptr<Torus>
     torusBlend(std::vector<std::vector<RevEngPoint*> >& blend_pts,
 	       std::vector<shared_ptr<CurveOnSurface> >& cvs,
 	       const Point& locp, const Point& normal,
 	       shared_ptr<ElementarySurface> rotational,
 	       double width, bool plane_out, bool rot_out);
     
+    shared_ptr<Torus>
+    torusBlend(std::vector<std::vector<RevEngPoint*> >& blend_pts,
+	       shared_ptr<CurveOnSurface>& cv,
+	       shared_ptr<ElementarySurface> elem1,
+	       shared_ptr<ElementarySurface> elem2,
+	       double width, bool out1, bool out2, int sgn);
+    
     void setBlendBoundaries(RevEngRegion *reg);
 
     void equalizeBlendRadii();
 
+    void equalizeAdjacent(size_t ix1, size_t ix2);
+    
     void updateBlendRadius(size_t ik, double radius);
     
     bool defineTorusCorner(size_t ix);
@@ -485,6 +508,12 @@ namespace Go
 
     bool suitcaseCorner(std::vector<RevEngRegion*>& adj_blends,
 			RevEngEdge *rev_edge);
+
+    void extractOutPoints(std::vector<RevEngPoint*>& points, shared_ptr<ParamSurface> surf,
+			  std::vector<int>& cv_ix,
+			  double tol, double angtol,
+			  std::vector<std::vector<RevEngPoint*> >& move2adj,
+			  std::vector<RevEngPoint*>& remain);
   };
 
 } // namespace Go

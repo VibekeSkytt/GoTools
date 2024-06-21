@@ -198,6 +198,20 @@ namespace Go
       else if (adjacent2_ == adj)
 	adjacent2_ = 0;
     }
+
+    void replaceCurves(std::vector<shared_ptr<CurveOnSurface> > int_cvs1,
+		       std::vector<shared_ptr<CurveOnSurface> > int_cvs2)
+    {
+      cvs1_.clear();
+      cvs2_.clear();
+      cvs1_.insert(cvs1_.end(), int_cvs1.begin(), int_cvs1.end());
+      cvs2_.insert(cvs2_.end(), int_cvs2.begin(), int_cvs2.end());
+    }
+
+    
+    int closedSfAtEnd(double tol, double& par, Point& pos, bool at_start);
+
+    bool isClosed(double tol);
 	
   private:
     int Id_;

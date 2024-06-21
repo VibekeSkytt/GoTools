@@ -809,11 +809,11 @@ int main(int argc, char *argv[])
   if (distribute_ncoef)
     approx = shared_ptr<LRSurfApprox>(new LRSurfApprox(nc[0], order, nc[1], order, data, del-2, 
 						       AEPSGE, initmba ? true : false, mba_coef,
-						       true, true));
+						       false, false)); //true, true));
   else
     approx = shared_ptr<LRSurfApprox>(new LRSurfApprox(nmb_coef, order, nmb_coef, order, data, del-2, 
 						       AEPSGE, initmba ? true : false, mba_coef,
-						       true, true));
+						       false, false)); //true, true));
   approx->setSmoothingWeight(smoothwg);
   approx->setSmoothBoundary(true);
   if (mba)

@@ -353,3 +353,98 @@ void RevEngEdge::closestPoint(const Point& pos, double& par, Point& close,
 	}
     }
 }
+
+//===========================================================================
+int RevEngEdge::closedSfAtEnd(double tol, double& par, Point& pos, bool at_start)
+//===========================================================================
+{
+  shared_ptr<ParamSurface> surf1 = cvs1_[0]->underlyingSurface();
+  shared_ptr<ParamSurface> surf2 = cvs2_[0]->underlyingSurface();
+
+  // The parameter interval and the space curve of the two curve sequences
+  // correspond
+  int ix = (at_start) ? 0 : (int)cvs1_.size()-1;
+  par = (at_start) ? cvs1_[ix]->startparam() : cvs1_[ix]->endparam();
+  pos = cvs1_[ix]->ParamCurve::point(par);
+
+  double eps = 1.0e-9;
+  double u1, u2, v1, v2, d1, d2;
+  Point close1, close2;
+  surf1->closestBoundaryPoint(pos, u1, v1, close1, d1, eps);
+  surf2->closestBoundaryPoint(pos, u2, v2, close2, d2, eps);
+  if (d1 > tol && d2 > tol)
+    return 0;
+
+  if (d1 <= tol)
+    {
+      RectDomain dom = surf1->containingDomain();
+      if (fabs(u1-dom.umin()) <= eps)
+	{
+	  Point pos2 = surf1->point(dom.umax(), v1);
+	  if (pos.dist(pos2))
+	    return 1;
+	}
+      else if (fabs(dom.umax()-u1) <= eps)
+	{
+	  Point pos2 = surf1->point(dom.umin(), v1);
+	  if (pos.dist(pos2))
+	    return 1;
+	}
+      if (fabs(v1-dom.vmin()) <= eps)
+	{
+	  Point pos2 = surf1->point(u1, dom.vmax());
+	  if (pos.dist(pos2))
+	    return 1;
+	}
+      else if (fabs(dom.vmax()-v1) <= eps)
+	{
+	  Point pos2 = surf1->point(u1, dom.vmin());
+	  if (pos.dist(pos2))
+	    return 1;
+	}
+    }
+
+  if (d2 <= tol)
+    {
+      RectDomain dom = surf2->containingDomain();
+      if (fabs(u2-dom.umin()) <= eps)
+	{
+	  Point pos2 = surf2->point(dom.umax(), v2);
+	  if (pos.dist(pos2))
+	    return 2;
+	}
+      else if (fabs(dom.umax()-u2) <= eps)
+	{
+	  Point pos2 = surf2->point(dom.umin(), v2);
+	  if (pos.dist(pos2))
+	    return 2;
+	}
+      if (fabs(v2-dom.vmin()) <= eps)
+	{
+	  Point pos2 = surf2->point(u2, dom.vmax());
+	  if (pos.dist(pos2))
+	    return 2;
+	}
+      else if (fabs(dom.vmax()-v2) <= eps)
+	{
+	  Point pos2 = surf2->point(u2, dom.vmin());
+	  if (pos.dist(pos2))
+	    return 2;
+	}
+    }
+
+  return 0;
+}
+
+//===========================================================================
+bool RevEngEdge::isClosed(double tol)
+//===========================================================================
+{
+  double par1 = cvs1_[0]->startparam();
+  double par2 = cvs1_[cvs1_.size()-1]->endparam();
+  Point pos1 = cvs1_[0]->ParamCurve::point(par1);
+  Point pos2 = cvs1_[cvs1_.size()-1]->ParamCurve::point(par2);
+  double dist = pos1.dist(pos2);
+  return (dist <= tol);
+}
+

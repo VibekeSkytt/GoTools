@@ -2088,7 +2088,7 @@ shared_ptr<Cone> RevEngUtils::coneWithAxis(vector<RevEngPoint*>& points,
   Point pnt = cyl->location();
   Point Cx, Cy, Cz;
   cyl->getCoordinateAxes(Cx, Cy, Cz);
-  double rad = cyl->getRadius();
+  //double rad = cyl->getRadius();
 
   vector<Point> rotated;
   vector<pair<vector<RevEngPoint*>::iterator,

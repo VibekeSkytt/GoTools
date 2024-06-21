@@ -484,12 +484,12 @@ namespace Go
 				 std::vector<std::pair<double,double> >& t1_t2,
 				 std::vector<double>& width, int& num_in_lim);
 
-    void getNearPoints(std::vector<shared_ptr<CurveOnSurface> >& cvs,
+    void getNearPoints(shared_ptr<CurveOnSurface>& cvs,
 		       double& tmin, double& tmax, double width, double angtol,
 		       std::vector<RevEngPoint*>& nearpoints);
 
     void getNearPoints2(std::vector<RevEngPoint*>& points,
-			std::vector<shared_ptr<CurveOnSurface> >& cvs,
+			shared_ptr<CurveOnSurface>& cv,
 			double width, std::vector<RevEngPoint*>& nearpoints);
 
      std::vector<RevEngPoint*>
