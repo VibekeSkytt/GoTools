@@ -568,8 +568,8 @@ void Circle::appendCurve(ParamCurve* cv, bool reparam)
 
 
 //===========================================================================
-void Circle::appendCurve(ParamCurve* cv,
-			 int continuity, double& dist, bool reparam)
+void Circle::appendCurve(ParamCurve* cv, int continuity, double& dist,
+			 bool reparam, double tol)
 //===========================================================================
 {
   // Check input

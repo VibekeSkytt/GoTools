@@ -69,6 +69,7 @@ using std::pair;
 
 //#define DEBUG
 #define DEBUG_BLEND
+#define DEBUG_CONE
 
 typedef MatrixXD<double, 3> Matrix3D;
 
@@ -1994,6 +1995,28 @@ shared_ptr<Cylinder> RevEngUtils::cylinderWithAxis(vector<RevEngPoint*>& points,
 }
 
 //===========================================================================
+shared_ptr<Cylinder> RevEngUtils::cylinderWithAxis(vector<RevEngPoint*>& points,
+						   Point axis, Point Cx,
+						   Point pos)
+//===========================================================================
+{
+  // Compute radius
+  double rad = 0.0;
+  double fac = 1.0/(double)points.size();
+  for (size_t ki=0; ki<points.size(); ++ki)
+    {
+      Vector3D xyz = points[ki]->getPoint();
+      Point pnt(xyz[0], xyz[1], xyz[2]);
+      Point pnt2 = pos + ((pnt - pos)*axis)*axis;
+      double dd = pnt.dist(pnt2);
+      rad += fac*dd;
+    }
+
+  shared_ptr<Cylinder> cyl(new Cylinder(rad, pos, axis, Cx));
+  return cyl;
+}
+
+//===========================================================================
 shared_ptr<Torus> RevEngUtils::torusWithAxis(vector<RevEngPoint*>& points,
 					     Point axis, Point loc, 
 					     Point mainaxis[3])
@@ -2029,6 +2052,30 @@ shared_ptr<Torus> RevEngUtils::torusWithAxis(vector<RevEngPoint*>& points,
   computeCircPosRadius(rotated, Cx, Cy, axis, centre, radius);
 
   Point axis_pt = loc + ((centre - loc)*axis)*axis;
+  double dist = centre.dist(axis_pt);
+  shared_ptr<Torus> torus(new Torus(dist, radius, axis_pt, axis, Cx));
+
+  return torus;
+ }
+
+//===========================================================================
+shared_ptr<Torus> RevEngUtils::torusWithAxis(vector<RevEngPoint*>& points,
+					     Point axis, Point Cx, Point pos)
+//===========================================================================
+{
+  vector<Point> rotated;
+  vector<pair<vector<RevEngPoint*>::iterator,
+	      vector<RevEngPoint*>::iterator> > group;
+  group.push_back(std::make_pair(points.begin(), points.end()));
+  Point Cy = axis.cross(Cx);
+  rotateToPlane(group, Cy, axis, pos, rotated);
+  
+  // Approximate rotated points with a circle
+  Point centre;
+  double radius;
+  computeCircPosRadius(rotated, Cx, Cy, axis, centre, radius);
+
+  Point axis_pt = pos + ((centre - pos)*axis)*axis;
   double dist = centre.dist(axis_pt);
   shared_ptr<Torus> torus(new Torus(dist, radius, axis_pt, axis, Cx));
 
@@ -2073,7 +2120,27 @@ shared_ptr<Sphere> RevEngUtils::sphereWithAxis(vector<RevEngPoint*>& points,
   Point Cx = axis.cross(Cy);
   
   shared_ptr<Sphere> sph(new Sphere(radius, centre, axis, Cx));
-  //cyl->setParamBoundsV(-len, len);
+  return sph;
+}
+
+//===========================================================================
+shared_ptr<Sphere> RevEngUtils::sphereWithAxis(vector<RevEngPoint*>& points,
+						   Point axis, Point Cx,
+						   Point pos)
+//===========================================================================
+{
+  // Compute radius
+  double rad = 0.0;
+  double fac = 1.0/(double)points.size();
+  for (size_t ki=0; ki<points.size(); ++ki)
+    {
+      Vector3D xyz = points[ki]->getPoint();
+      Point pnt(xyz[0], xyz[1], xyz[2]);
+      double dd = pnt.dist(pos);
+      rad += fac*dd;
+    }
+  
+  shared_ptr<Sphere> sph(new Sphere(rad, pos, axis, Cx));
   return sph;
 }
 
@@ -2090,6 +2157,13 @@ shared_ptr<Cone> RevEngUtils::coneWithAxis(vector<RevEngPoint*>& points,
   cyl->getCoordinateAxes(Cx, Cy, Cz);
   //double rad = cyl->getRadius();
 
+#ifdef DEBUG_CONE
+  std::ofstream of("pts_cone.g2");
+  of << "400 1 0 4 255 0 0 255" << std::endl;
+  of << points.size() << std::endl;
+  for (size_t ki=0; ki<points.size(); ++ki)
+    of << points[ki]->getPoint() << std::endl;
+#endif
   vector<Point> rotated;
   vector<pair<vector<RevEngPoint*>::iterator,
 	      vector<RevEngPoint*>::iterator> > group;
@@ -2115,6 +2189,73 @@ shared_ptr<Cone> RevEngUtils::coneWithAxis(vector<RevEngPoint*>& points,
   double phi = der[1].angle(axis);
   shared_ptr<Cone> cone(new Cone(dclose, pnt, axis, Cy, phi));
 
+#ifdef DEBUG_CONE
+  cone->writeStandardHeader(of);
+  cone->write(of);
+#endif
+  return cone;
+}
+
+//===========================================================================
+shared_ptr<Cone> RevEngUtils::coneWithAxis(vector<RevEngPoint*>& points,
+					   Point axis, Point Cx, Point pos,
+					   double len)
+//===========================================================================
+{
+#ifdef DEBUG_CONE
+  std::ofstream of("pts_cone.g2");
+  of << "400 1 0 4 255 0 0 255" << std::endl;
+  of << points.size() << std::endl;
+  for (size_t ki=0; ki<points.size(); ++ki)
+    of << points[ki]->getPoint() << std::endl;
+#endif
+  
+  vector<Point> rotated;
+  vector<pair<vector<RevEngPoint*>::iterator,
+	      vector<RevEngPoint*>::iterator> > group;
+  group.push_back(std::make_pair(points.begin(), points.end()));
+  RevEngUtils::rotateToPlane(group, Cx, axis, pos, rotated);
+
+  shared_ptr<Line> line(new Line(pos, axis));
+  line->setParameterInterval(-len, len);
+  
+  Point pt1 = line->ParamCurve::point(-len);
+  Point pt2 = line->ParamCurve::point(len);
+  shared_ptr<SplineCurve> line_cv(new SplineCurve(pt1, -len, pt2, len));
+  shared_ptr<SplineCurve> cv1;
+  curveApprox(rotated, line_cv, 2, 2, cv1);
+#ifdef DEBUG_CONE
+  cv1->writeStandardHeader(of);
+  cv1->write(of);
+#endif
+
+  // Expects one intersection point with plane through point-on-axis
+  shared_ptr<Cone> cone;
+  double eps = 1.0e-6;
+  vector<double> intpar;
+  vector<pair<double,double> > intcvs;
+  double tpar;
+  intersectCurvePlane(cv1.get(), pos, axis, eps, intpar, intcvs);
+  if (intpar.size() > 0)
+    tpar = intpar[0];
+  else if (intcvs.size() > 0)
+    tpar = 0.5*(intcvs[0].first + intcvs[0].second);
+  else
+    return cone;
+
+  vector<Point> der(2);
+  cv1->point(der, tpar, 1);
+  double phi = der[1].angle(axis);
+  double rad = der[0].dist(pos);
+  cone = shared_ptr<Cone>(new Cone(rad, pos, axis, Cx, phi));
+
+#ifdef DEBUG_CONE
+  if (cone.get())
+    {
+      cone->writeStandardHeader(of);
+      cone->write(of);
+    }
+#endif
   return cone;
 }
 

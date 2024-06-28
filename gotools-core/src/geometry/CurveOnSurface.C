@@ -870,7 +870,8 @@ void CurveOnSurface::appendCurve(ParamCurve* cv, bool reparam)
 
 //===========================================================================
 void CurveOnSurface::appendCurve(ParamCurve* other_curve,
-				   int continuity, double& dist, bool reparam)
+				 int continuity, double& dist, bool reparam,
+				 double tol)
 //===========================================================================
 {
     CurveOnSurface* other_cv = dynamic_cast<CurveOnSurface*>(other_curve);
@@ -893,7 +894,7 @@ void CurveOnSurface::appendCurve(ParamCurve* other_curve,
 		    "Mismatch between curve represetations of the two objects.");
 
 
-    double tol = 1.0e-4;
+    //double tol = 1.0e-4;
     if (prefer_parameter_ && (pcurve_.get() != NULL))
       {
 	// Save input curves

@@ -195,17 +195,30 @@ namespace Go {
 					  Point axis, Point low, 
 					  Point high, Point mainaxis[3]);
     
+    shared_ptr<Cylinder> cylinderWithAxis(std::vector<RevEngPoint*>& points,
+					  Point axis, Point Cx, Point pos);
+    
     shared_ptr<Torus> torusWithAxis(std::vector<RevEngPoint*>& points,
 				    Point axis, Point loc, 
 				    Point mainaxis[3]);
+    
+    shared_ptr<Torus> torusWithAxis(std::vector<RevEngPoint*>& points,
+				    Point axis, Point Cx, Point pos);
     
     shared_ptr<Sphere> sphereWithAxis(std::vector<RevEngPoint*>& points,
 				      Point axis, 
 				      Point mainaxis[3]);
     
+    shared_ptr<Sphere> sphereWithAxis(std::vector<RevEngPoint*>& points,
+				      Point axis, Point Cx, Point pos);
+    
     shared_ptr<Cone> coneWithAxis(vector<RevEngPoint*>& points,
 				  Point axis, Point low, 
 				  Point high, Point mainaxis[3]);
+    
+    shared_ptr<Cone> coneWithAxis(std::vector<RevEngPoint*>& points,
+				      Point axis, Point Cx, Point pos,
+				      double len);
     
     shared_ptr<ParamSurface> doMergePlanes(std::vector<std::pair<std::vector<RevEngPoint*>::iterator,
 					   std::vector<RevEngPoint*>::iterator> > points,

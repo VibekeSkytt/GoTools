@@ -42,7 +42,11 @@
 #include "GoTools/geometry/Factory.h"
 #include "GoTools/geometry/GoTools.h"
 #include "GoTools/geometry/ObjectHeader.h"
+#include "GoTools/geometry/SurfaceTools.h"
+#include "GoTools/geometry/ClosestPoint.h"
 #include <fstream>
+
+#define DEBUG
 
 using namespace Go;
 using std::vector;
@@ -154,6 +158,8 @@ void RevEngEdge::replaceSurf(RevEngRegion* reg,
 	  cvs1_[ki]->setUnderlyingSurface(new_surf);
 	  cvs1_[ki]->unsetParameterCurve();
 	  cvs1_[ki]->ensureParCrvExistence(tol);
+	  if (!cvs1_[ki]->hasParameterCurve())
+	    std::cout << "RevEngEdge::replaceSurf: No parameter curve" << std::endl;
 	}
     }
   else if (reg == adjacent2_)
@@ -163,6 +169,8 @@ void RevEngEdge::replaceSurf(RevEngRegion* reg,
 	  cvs2_[ki]->setUnderlyingSurface(new_surf);
 	  cvs2_[ki]->unsetParameterCurve();
 	  cvs2_[ki]->ensureParCrvExistence(tol);
+	  if (!cvs2_[ki]->hasParameterCurve())
+	    std::cout << "RevEngEdge::replaceSurf: No parameter curve" << std::endl;
 	}
      }
       
@@ -338,7 +346,17 @@ void RevEngEdge::closestPoint(const Point& pos, double& par, Point& close,
 			      double& dist)
 //===========================================================================
 {
+  int ix;
+  closestPoint(pos, par, close, dist, ix);
+}
+
+//===========================================================================
+void RevEngEdge::closestPoint(const Point& pos, double& par, Point& close,
+			      double& dist, int& ix)
+//===========================================================================
+{
   dist = std::numeric_limits<double>::max();
+  ix = -1;
   for (size_t ki=0; ki<cvs1_.size(); ++ki)
     {
       double par1, dist1;
@@ -350,6 +368,7 @@ void RevEngEdge::closestPoint(const Point& pos, double& par, Point& close,
 	  par = par1;
 	  close = close1;
 	  dist = dist1;
+	  ix = (int)ki;
 	}
     }
 }
@@ -446,5 +465,521 @@ bool RevEngEdge::isClosed(double tol)
   Point pos2 = cvs1_[cvs1_.size()-1]->ParamCurve::point(par2);
   double dist = pos1.dist(pos2);
   return (dist <= tol);
+}
+
+//===========================================================================
+bool RevEngEdge::isAdjacent(RevEngEdge* other, double tol, double& par1, double& par2)
+//===========================================================================
+{
+  double tpar1 = cvs1_[0]->startparam();
+  double tpar2 = cvs1_[cvs1_.size()-1]->endparam();
+  Point pos1 = cvs1_[0]->ParamCurve::point(tpar1);
+  Point pos2 = cvs1_[cvs1_.size()-1]->ParamCurve::point(tpar2);
+  double tpar3 = other->startparam();
+  double tpar4 = other->endparam();
+  Point pos3 = other->point(tpar3);
+  Point pos4 = other->point(tpar4);
+
+  double dd1 = pos1.dist(pos3);
+  double dd2 = pos1.dist(pos4);
+  double dd3 = pos2.dist(pos3);
+  double dd4 = pos2.dist(pos4);
+  bool adjacent = false;
+  if (dd1 <= tol && dd1 <= std::min(dd2, std::min(dd3,dd4)))
+    {
+      par1 = tpar1;
+      par2 = tpar3;
+      adjacent = true;
+    }
+  else if (dd2 <= tol && dd2 <= std::min(dd3, dd4))
+    {
+      par1 = tpar1;
+      par2 = tpar4;
+      adjacent = true;
+    }
+    else if (dd3 <= tol && dd3 <= dd4)
+    {
+      par1 = tpar2;
+      par2 = tpar3;
+      adjacent = true;
+    }
+    else if (dd4 <= tol)
+     {
+      par1 = tpar2;
+      par2 = tpar4;
+      adjacent = true;
+    }
+    return adjacent;
+}
+
+//===========================================================================
+Point RevEngEdge::point(double par)
+//===========================================================================
+{
+  size_t ix = 0;
+  for (ix; ix<cvs1_.size() && cvs1_[ix]->endparam() <= par; ++ix);
+  if (ix == cvs1_.size())
+    --ix;
+
+  return cvs1_[ix]->ParamCurve::point(par);
+}
+
+//===========================================================================
+bool RevEngEdge::append(RevEngEdge* other, double tol)
+//===========================================================================
+{
+  double tpar1, tpar2;
+  bool adjacent = isAdjacent(other, tol, tpar1, tpar2);
+  if (!adjacent)
+    return false;   // Cannot append
+  
+  RevEngRegion *adj3, *adj4;
+  other->getAdjacent(adj3, adj4);
+  bool first;
+  if (adjacent1_ == adj3 && adjacent2_ == adj4)
+    first = true;
+  else if (adjacent1_ == adj4 && adjacent2_ == adj3)
+    first = false;
+  else
+    return false;  // Not an appendable configuration
+
+  size_t ncv1 = cvs1_.size();
+  size_t ix1 = 0;
+  for (; ix1<ncv1 && cvs1_[ix1]->endparam() <= tpar1; ++ix1);
+  if (ix1 == ncv1)
+    --ix1;
+  Point ppos1 = cvs1_[ix1]->faceParameter(tpar1);
+  Point ppos2 = cvs2_[ix1]->faceParameter(tpar1);
+  
+  vector<shared_ptr<CurveOnSurface> > cvs3, cvs4;
+  other->getCurve(cvs3, true);
+  other->getCurve(cvs4, false);
+  size_t ncv3 = cvs3.size();
+  size_t ix2 = 0;
+  for (; ix2<ncv3 && cvs3[ix2]->endparam() <= tpar2; ++ix2);
+  if (ix2 == ncv3)
+    --ix2;
+  Point ppos3 = cvs3[ix2]->faceParameter(tpar2);
+  Point ppos4 = cvs4[ix2]->faceParameter(tpar2);
+
+  if ((!adjacent1_->hasSurface()) || (!adjacent2_->hasSurface()))
+    return false;  // Unexpected
+  
+  shared_ptr<ParamSurface> surf1 = adjacent1_->getSurface(0)->surface();
+  shared_ptr<ParamSurface> surf2 = adjacent2_->getSurface(0)->surface();
+  Point par_eps1 = SurfaceTools::getParEpsilon(*surf1, tol);
+  Point par_eps2 = SurfaceTools::getParEpsilon(*surf2, tol);
+  double epspar1 = 0.5*(par_eps1[0], par_eps1[1]);
+  double epspar2 = 0.5*(par_eps2[0], par_eps2[1]);
+  double dd1 = ppos1.dist(first ? ppos3 : ppos4);
+  double dd2 = ppos2.dist(first ? ppos4 : ppos3);
+
+  if (dd1 > epspar1 || dd2 > epspar2)
+    return false;
+
+  // Try to append
+  // Copy curves to keep originals in case of failure
+  vector<shared_ptr<CurveOnSurface> > cvs1_2(ncv1);
+  for (size_t ki=0; ki<ncv1; ++ki)
+    cvs1_2[ki] = shared_ptr<CurveOnSurface>(cvs1_[ki]->clone());
+  vector<shared_ptr<CurveOnSurface> > cvs2_2(ncv1);
+  for (size_t ki=0; ki<ncv1; ++ki)
+    cvs2_2[ki] = shared_ptr<CurveOnSurface>(cvs2_[ki]->clone());
+  vector<shared_ptr<CurveOnSurface> > cvs3_2(ncv3);
+  for (size_t ki=0; ki<ncv3; ++ki)
+    cvs3_2[ki] = shared_ptr<CurveOnSurface>(cvs3[ki]->clone());
+  vector<shared_ptr<CurveOnSurface> > cvs4_2(ncv3);
+  for (size_t ki=0; ki<ncv3; ++ki)
+    cvs4_2[ki] = shared_ptr<CurveOnSurface>(cvs4[ki]->clone());
+
+  if (fabs(tpar1-cvs1_2[0]->startparam()) < fabs(cvs1_2[ncv1-1]->endparam()-tpar1))
+    {
+      for (size_t ki=0; ki<ncv1; ++ki)
+	{
+	  cvs1_2[ki]->reverseParameterDirection();
+	  cvs2_2[ki]->reverseParameterDirection();
+	}
+      for (size_t ki=0; ki<ncv1/2; ++ki)
+	{
+	  std::swap(cvs1_2[ki], cvs1_2[ncv1-1-ki]);
+	  std::swap(cvs2_2[ki], cvs2_2[ncv1-1-ki]);
+	}
+    }
+
+  if (fabs(tpar2-cvs3_2[0]->startparam()) > fabs(cvs3_2[ncv3-1]->endparam()-tpar2))
+    {
+      for (size_t ki=0; ki<ncv3; ++ki)
+	{
+	  cvs3_2[ki]->reverseParameterDirection();
+	  cvs4_2[ki]->reverseParameterDirection();
+	}
+      for (size_t ki=0; ki<ncv3/2; ++ki)
+	{
+	  std::swap(cvs3_2[ki], cvs3_2[ncv3-1-ki]);
+	  std::swap(cvs4_2[ki], cvs4_2[ncv3-1-ki]);
+	}
+    }
+
+  // Do append
+  double dist1, dist2;
+  if (first)
+    {
+      cvs1_2[ncv1-1]->appendCurve(cvs3_2[0].get(), 1, dist1, false, epspar1);
+      cvs2_2[ncv1-1]->appendCurve(cvs4_2[0].get(), 1, dist2, false, epspar2);
+    }
+  else
+    {
+      cvs1_2[ncv1-1]->appendCurve(cvs4_2[0].get(), 1, dist1, false, epspar1);
+      cvs2_2[ncv1-1]->appendCurve(cvs2_2[0].get(), 1, dist2, false, epspar2);
+    }
+
+  if (dist1 > tol || dist2 > tol)
+    return false;
+
+  // Check that the parameter curves of the joined curves exists
+  if ((!cvs1_2[ncv1-1]->hasParameterCurve()) ||
+      (!cvs2_2[ncv1-1]->hasParameterCurve()))
+    return false;
+
+  // Replace curves
+  cvs1_.clear();
+  cvs1_.insert(cvs1_.end(), cvs1_2.begin(), cvs1_2.end());
+  if (first && cvs3_2.size() > 1)
+    cvs1_.insert(cvs1_.end(), cvs3_2.begin()+1, cvs3_2.end());
+  else if ((!first) && cvs4_2.size() > 1)
+    cvs1_.insert(cvs1_.end(), cvs4_2.begin()+1, cvs4_2.end());
+
+  cvs2_.clear();
+  cvs2_.insert(cvs2_.end(), cvs2_2.begin(), cvs2_2.end());
+  if (first && cvs4_2.size() > 1)
+    cvs2_.insert(cvs2_.end(), cvs4_2.begin()+1, cvs4_2.end());
+  else if ((!first) && cvs4_2.size() > 1)
+    cvs2_.insert(cvs2_.end(), cvs3_2.begin()+1, cvs3_2.end());
+
+  blend_regs_.insert(blend_regs_.end(), other->blend_regs_.begin(),
+		     other->blend_regs_.end());
+
+  distance_ = 0.5*(distance_ + other->distance_);
+  radius_ = 0.5*(radius_ + other->radius_);
+
+  return true;
+}
+
+//===========================================================================
+int RevEngEdge::missingParCrv()
+//===========================================================================
+{
+  int missing = 0;
+  for (size_t ki=0; ki<cvs1_.size(); ++ki)
+    if (!cvs1_[ki]->hasParameterCurve())
+      {
+	missing += 1;
+	break;
+      }
+  
+  for (size_t ki=0; ki<cvs2_.size(); ++ki)
+    if (!cvs2_[ki]->hasParameterCurve())
+      {
+	missing += 2;
+	break;
+      }
+  return missing;
+}
+
+//===========================================================================
+void RevEngEdge::splitAtSeam(double tol,
+			     vector<shared_ptr<RevEngEdge> >& added_edgs,
+			     vector<shared_ptr<RevEngRegion> >& added_regs,
+			     vector<shared_ptr<HedgeSurface> >& added_sfs)
+//===========================================================================
+{
+  if ((!adjacent1_->hasSurface()) || (!adjacent2_->hasSurface()))
+    return;  // Something is wrong
+#ifdef DEBUG
+  std::ofstream of("edge_split.g2");
+  adjacent1_->writeRegionPoints(of);
+  adjacent2_->writeRegionPoints(of);
+  for (size_t ki=0; ki<cvs1_.size(); ++ki)
+    {
+      shared_ptr<ParamCurve> tmp = cvs1_[ki]->spaceCurve();
+      tmp->writeStandardHeader(of);
+      tmp->write(of);
+    }
+#endif
+  shared_ptr<ParamSurface> surf1 = adjacent1_->getSurface(0)->surface();
+  shared_ptr<ParamSurface> surf2 = adjacent2_->getSurface(0)->surface();
+  shared_ptr<ElementarySurface> elem1 =
+    dynamic_pointer_cast<ElementarySurface,ParamSurface>(surf1);
+  shared_ptr<ElementarySurface> elem2 =
+    dynamic_pointer_cast<ElementarySurface,ParamSurface>(surf2);
+
+  bool close_u1=false, close_u2=false, close_v1=false, close_v2=false;
+  if (elem1.get())
+    elem1->isClosed(close_u1, close_v1);
+  if (elem2.get())
+    elem2->isClosed(close_u2, close_v2);
+
+  RectDomain dom1 = surf1->containingDomain();
+  RectDomain dom2 = surf2->containingDomain();
+  for (size_t ki=0; ki<cvs1_.size(); ++ki)
+    {
+      if (!cvs1_[ki]->hasParameterCurve())
+	{
+	  // Try to split curve
+	  if (close_u1)
+	    {
+	      vector<shared_ptr<ParamCurve> > seam =
+		surf1->constParamCurves(dom1.umin(), false);
+
+	      shared_ptr<ParamCurve> space = cvs1_[ki]->spaceCurve();
+	      double par1, par2, dist;
+	      Point ptc1, ptc2;
+	      ClosestPoint::closestPtCurves(space.get(), seam[0].get(), 
+					    par1, par2, dist, ptc1, ptc2);
+	      if (dist < tol)
+		{
+#ifdef DEBUG
+		  std::ofstream of2("int_with_seam.g2");
+		  space->writeStandardHeader(of2);
+		  space->write(of2);
+		  seam[0]->writeStandardHeader(of2);
+		  seam[0]->write(of2);
+		  of2 << "400 1 0 4 255 0 0 255" << std::endl;
+		  of2 << "1" << std::endl;
+		  of2 << ptc1 << std::endl;
+		  of2 << "400 1 0 4 0 255 0 255" << std::endl;
+		  of2 << "1" << std::endl;
+		  of2 << ptc2 << std::endl;
+#endif
+		  int nr = 1;
+		  shared_ptr<RevEngEdge> new_edge =
+		    doSplit(ki, nr, par1, tol, added_regs, added_sfs);
+		  if (new_edge.get())
+		    {
+		      added_edgs.push_back(new_edge);
+		      new_edge->splitAtSeam(tol, added_edgs, added_regs, added_sfs);
+		    }
+		}
+	    }
+	  
+	  if (close_v1)
+	    {
+	      vector<shared_ptr<ParamCurve> > seam =
+		surf1->constParamCurves(dom1.vmin(), true);
+
+	      shared_ptr<ParamCurve> space = cvs1_[ki]->spaceCurve();
+	      double par1, par2, dist;
+	      Point ptc1, ptc2;
+	      ClosestPoint::closestPtCurves(space.get(), seam[0].get(), 
+					    par1, par2, dist, ptc1, ptc2);
+	      if (dist < tol)
+		{
+#ifdef DEBUG
+		  std::ofstream of2("int_with_seam.g2");
+		  space->writeStandardHeader(of2);
+		  space->write(of2);
+		  seam[0]->writeStandardHeader(of2);
+		  seam[0]->write(of2);
+		  of2 << "400 1 0 4 255 0 0 255" << std::endl;
+		  of2 << "1" << std::endl;
+		  of2 << ptc1 << std::endl;
+		  of2 << "400 1 0 4 0 255 0 255" << std::endl;
+		  of2 << "1" << std::endl;
+		  of2 << ptc2 << std::endl;
+#endif
+		  int nr = 1;
+		  shared_ptr<RevEngEdge> new_edge =
+		    doSplit(ki, nr, par1, tol, added_regs, added_sfs);
+		  if (new_edge.get())
+		    {
+		      added_edgs.push_back(new_edge);
+		      new_edge->splitAtSeam(tol, added_edgs, added_regs, added_sfs);
+		    }
+		}
+	    }
+	}
+    }
+
+  for (size_t ki=0; ki<cvs2_.size(); ++ki)
+    {
+      if (!cvs2_[ki]->hasParameterCurve())
+	{
+	  // Try to split curve
+	  if (close_u2)
+	    {
+	      vector<shared_ptr<ParamCurve> > seam =
+		surf2->constParamCurves(dom2.umin(), false);
+
+	      shared_ptr<ParamCurve> space = cvs2_[ki]->spaceCurve();
+	      double par1, par2, dist;
+	      Point ptc1, ptc2;
+	      ClosestPoint::closestPtCurves(space.get(), seam[0].get(), 
+					    par1, par2, dist, ptc1, ptc2);
+	      if (dist < tol)
+		{
+#ifdef DEBUG
+		  std::ofstream of2("int_with_seam.g2");
+		  space->writeStandardHeader(of2);
+		  space->write(of2);
+		  seam[0]->writeStandardHeader(of2);
+		  seam[0]->write(of2);
+		  of2 << "400 1 0 4 255 0 0 255" << std::endl;
+		  of2 << "1" << std::endl;
+		  of2 << ptc1 << std::endl;
+		  of2 << "400 1 0 4 0 255 0 255" << std::endl;
+		  of2 << "1" << std::endl;
+		  of2 << ptc2 << std::endl;
+#endif
+		  int nr = 2;
+		  shared_ptr<RevEngEdge> new_edge =
+		    doSplit(ki, nr, par1, tol, added_regs, added_sfs);
+		  if (new_edge.get())
+		    {
+		      added_edgs.push_back(new_edge);
+		      new_edge->splitAtSeam(tol, added_edgs, added_regs, added_sfs);
+		    }
+		}
+	    }
+	  
+	  if (close_v1)
+	    {
+	      vector<shared_ptr<ParamCurve> > seam =
+		surf1->constParamCurves(dom1.vmin(), true);
+
+	      shared_ptr<ParamCurve> space = cvs1_[ki]->spaceCurve();
+	      double par1, par2, dist;
+	      Point ptc1, ptc2;
+	      ClosestPoint::closestPtCurves(space.get(), seam[0].get(),
+					    par1, par2, dist, ptc1, ptc2);
+	      if (dist < tol)
+		{
+#ifdef DEBUG
+		  std::ofstream of2("int_with_seam.g2");
+		  space->writeStandardHeader(of2);
+		  space->write(of2);
+		  seam[0]->writeStandardHeader(of2);
+		  seam[0]->write(of2);
+		  of2 << "400 1 0 4 255 0 0 255" << std::endl;
+		  of2 << "1" << std::endl;
+		  of2 << ptc1 << std::endl;
+		  of2 << "400 1 0 4 0 255 0 255" << std::endl;
+		  of2 << "1" << std::endl;
+		  of2 << ptc2 << std::endl;
+#endif
+		  int nr = 2;
+		  shared_ptr<RevEngEdge> new_edge =
+		    doSplit(ki, nr, par1, tol, added_regs, added_sfs);
+		  if (new_edge.get())
+		    {
+		      added_edgs.push_back(new_edge);
+		      new_edge->splitAtSeam(tol, added_edgs, added_regs, added_sfs);
+		    }
+		}
+	    }
+	}
+    }
+
+  
+}
+
+
+//===========================================================================
+shared_ptr<RevEngEdge>
+RevEngEdge::doSplit(size_t ix, int side, double par, double tol,
+		    vector<shared_ptr<RevEngRegion> >& added_regs,
+		    vector<shared_ptr<HedgeSurface> >& added_sfs)
+//===========================================================================
+{
+  shared_ptr<RevEngEdge> new_edg;
+
+  if (par <= cvs1_[ix]->startparam() || par >= cvs1_[ix]->endparam())
+    return new_edg;
+
+  // Split curves
+  vector<shared_ptr<ParamCurve> > sub1 = cvs1_[ix]->split(par);
+  vector<shared_ptr<ParamCurve> > sub2 = cvs2_[ix]->split(par);
+  if (sub1.size() != 2 || sub2.size() != 2)
+    return new_edg;
+  
+  // Split blend regions
+  vector<RevEngRegion*> move_reg;
+  for (size_t ki=0; ki<blend_regs_.size(); )
+    {
+      vector<RevEngPoint*> points = blend_regs_[ki]->getPoints();
+      vector<RevEngPoint*> keep, move;
+      
+      for (size_t kj=0; kj<points.size(); ++kj)
+	{
+	  Vector3D xyz = points[kj]->getPoint();
+	  Point pnt(xyz[0], xyz[1], xyz[2]);
+	  double par2, dist;
+	  Point close;
+	  int ix2;
+	  closestPoint(pnt, par2, close, dist, ix2);
+	  if (ix2 < ix || par2 <= par)
+	    keep.push_back(points[kj]);
+	  else
+	    move.push_back(points[kj]);
+	}
+
+      if (move.size() == 0)
+	++ki; // Do nothing
+      else if (keep.size() == 0)
+	{
+	  // Move regions to new edge
+	  move_reg.push_back(blend_regs_[ki]);
+	  blend_regs_.erase(blend_regs_.begin()+ki);
+	}
+      else
+	{
+	  // Split region
+	  blend_regs_[ki]->removePoints(move);  // This is not the most effective
+	  // method, but the simplest to implement
+	  blend_regs_[ki]->updateInfo();
+
+	  shared_ptr<RevEngRegion> new_reg(new RevEngRegion(blend_regs_[ki]->getClassificationType(),
+							    blend_regs_[ki]->getEdgeClassificationType(),
+							    move));
+	  added_regs.push_back(new_reg);
+	  move_reg.push_back(new_reg.get());
+	  ++ki;
+	}
+    }
+
+  // Distribute curves
+  vector<shared_ptr<CurveOnSurface> > cvs1_2, cvs2_2;
+  cvs1_2.push_back(dynamic_pointer_cast<CurveOnSurface,ParamCurve>(sub1[1]));
+  cvs1_2[0]->ensureParCrvExistence(tol);
+  for (size_t ki=ix+1; ki<cvs1_.size(); ++ki)
+    cvs1_2.push_back(cvs1_[ki]);
+  cvs2_2.push_back(dynamic_pointer_cast<CurveOnSurface,ParamCurve>(sub2[1]));
+  cvs2_2[0]->ensureParCrvExistence(tol);
+  for (size_t ki=ix+1; ki<cvs2_.size(); ++ki)
+    cvs2_2.push_back(cvs2_[ki]);
+
+  cvs1_[ix] = dynamic_pointer_cast<CurveOnSurface,ParamCurve>(sub1[0]);
+  cvs1_[ix]->ensureParCrvExistence(tol);
+  cvs2_[ix] = dynamic_pointer_cast<CurveOnSurface,ParamCurve>(sub2[0]);
+  cvs2_[ix]->ensureParCrvExistence(tol);
+  if (ix < cvs1_.size()-1)
+    {
+      cvs1_.erase(cvs1_.begin()+ix+1, cvs1_.end());
+      cvs2_.erase(cvs1_.begin()+ix+1, cvs1_.end());
+    }
+
+  if (defined_blend_)
+    {
+      // Split associated surface
+      int stop_blend = 1;
+    }
+
+  new_edg = shared_ptr<RevEngEdge>(new RevEngEdge(blend_type_, adjacent1_,
+						  cvs1_2, outer1_, adjacent2_,
+						  cvs2_2, outer2_, radius_,
+						  distance_));
+  if (move_reg.size() > 0)
+    new_edg->addBlendRegions(move_reg);
+  
+  return new_edg;
 }
 

@@ -90,7 +90,29 @@ namespace Go
       rad2_ = rad2;
     }
   };
-  
+
+  struct AxisInfo
+  {
+    Point axis_;
+    std::vector<std::pair<Point,int> > plane_loc_;
+    std::vector<std::pair<Point,int> > rotational_loc_;
+
+    AxisInfo(Point& axis)
+    {
+      axis_ = axis;
+    }
+
+    void addPlaneLocation(Point& loc, int num)
+    {
+      plane_loc_.push_back(std::make_pair(loc,num));
+    }
+    
+    void addRotationalLocation(Point& loc, int num)
+    {
+      rotational_loc_.push_back(std::make_pair(loc,num));
+    }
+  };
+    
   class RevEng
   {
   public:
@@ -296,6 +318,8 @@ namespace Go
 
     void trimSurfaces();
 
+    void adaptToMainAxis();
+
   private:
     int model_character_;
     shared_ptr<ftPointSet> tri_sf_;
@@ -339,6 +363,7 @@ namespace Go
     int prefer_elementary_; // 0 = always, 1 = preferred, 2 = best accuracy
 
     Point mainaxis_[3];
+    std::vector<AxisInfo> model_axis_;
     
     void initParameters();
     void updateParameters();
@@ -383,12 +408,18 @@ namespace Go
     shared_ptr<ParamSurface> approxMergeSet(std::vector<size_t>& cand_ix,
 					    std::vector<size_t>& select_ix,
 					    ClassType type);
-    
 
-    void adaptToMainAxis();
+    void doAdaptToAxis();
+
     void adaptToMainAxis(Point mainaxis[3]);
     bool axisUpdate(int ix, double max_ang, double angtol);
     
+    void adjustWithMainAxis(std::vector<Point>& axes, std::vector<int>& num_pts);
+    Point planarFit(std::vector<int>& sf_ix, Point axis);
+
+    Point rotationalFit(std::vector<int>& sf_ix, Point axis, Point Cx,
+			std::vector<RevEngEdge*>& nopar_edgs);
+
     void cylinderFit(std::vector<int>& sf_ix, Point normal);
     void cylinderFit(std::vector<size_t>& sf_ix, Point mainaxis[3], int ix);
     
@@ -472,7 +503,7 @@ namespace Go
 		       double width, bool out1, bool out2, int sgn,
 		       double& d2);
     
-  void
+  bool
     getTorusParameters(shared_ptr<ElementarySurface> elem1,
 		       shared_ptr<ElementarySurface> elem2, Point pos,
 		       double radius, double d2, bool out1, bool out2, int sgn,

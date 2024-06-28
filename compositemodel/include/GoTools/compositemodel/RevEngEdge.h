@@ -180,6 +180,9 @@ namespace Go
     void closestPoint(const Point& pos, double& par, Point& close,
 		      double& dist);
 
+    void closestPoint(const Point& pos, double& par, Point& close,
+		      double& dist, int& ix);
+
     void replaceSurf(RevEngRegion* reg, shared_ptr<ParamSurface>& new_surf,
 		     double tol);
 
@@ -213,6 +216,28 @@ namespace Go
 
     bool isClosed(double tol);
 	
+    bool isAdjacent(RevEngEdge* other, double tol, double& par1, double& par2);
+
+    double startparam()
+    {
+      return cvs1_[0]->startparam();
+    }
+
+    double endparam()
+    {
+      return cvs1_[cvs1_.size()-1]->endparam();
+    }
+
+    Point point(double par);
+
+    bool append(RevEngEdge *other, double tol);
+
+    int missingParCrv();
+
+    void splitAtSeam(double tol, std::vector<shared_ptr<RevEngEdge> >& added_edgs,
+		     std::vector<shared_ptr<RevEngRegion> >& added_regs,
+		     std::vector<shared_ptr<HedgeSurface> >& added_sfs);
+    
   private:
     int Id_;
     RevEngRegion* adjacent1_;
@@ -226,6 +251,10 @@ namespace Go
     double radius_;
     bool outer1_;
     bool outer2_;
+
+    shared_ptr<RevEngEdge> doSplit(size_t ix, int side, double par, double tol,
+				   std::vector<shared_ptr<RevEngRegion> >& added_regs,
+				   std::vector<shared_ptr<HedgeSurface> >& added_sfs);
   };
 }
 

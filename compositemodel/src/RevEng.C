@@ -54,6 +54,7 @@
 #include "GoTools/geometry/Cone.h"
 #include "GoTools/geometry/Plane.h"
 #include "GoTools/geometry/Torus.h"
+#include "GoTools/geometry/Sphere.h"
 #include "GoTools/geometry/BoundedSurface.h"
 #include "GoTools/geometry/BoundedUtils.h"
 #include "GoTools/geometry/ClosestPoint.h"
@@ -2888,6 +2889,10 @@ void RevEng::firstEdges()
        extendBlendAssociation(ki);
      }
    
+ #ifdef DEBUG
+  checkConsistence("Regions6_1");
+#endif
+  
   // Just in case composed regions have been segmented
   int min_num_point = min_point_region_/10;
   for (int ki=0; ki<(int)regions_.size(); ++ki)
@@ -3535,9 +3540,15 @@ RevEng::defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
   else if (surf1->instanceType() == Class_Cylinder)
     {
       // Cylinder combined with cone
-      Point vec2 = loc1 - der[0];
       Point axs = surf1->direction();
-      outer1 = (vec*axs >= 0.0);
+      Point tmp = loc1 + ((der[0]-loc1)*axs)*axs;
+      Point vec2 = loc1 - tmp;
+      Vector2D uv = distant2->getPar();
+      double rad1 = surf2->radius(0.0, uv[1]);
+      double rad2 = surf1->radius(0.0, 0.0);
+      outer1 = (rad1 >= rad2);
+      if (vec2*axs < 0.0)
+	outer1 = (!outer1);
     }
   else
     {
@@ -3562,9 +3573,15 @@ RevEng::defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
   else if (surf2->instanceType() == Class_Cylinder)
     {
       // Cylinder combined with cone
-      Point vec2 = loc2 - der[0];
+      Vector2D uv = distant1->getPar();
+      double rad1 = surf1->radius(0.0, uv[1]);
+      double rad2 = surf2->radius(0.0, 0.0);
       Point axs = surf2->direction();
-      outer2 = (vec*axs >= 0.0);
+      Point tmp = loc2 + ((der[0]-loc2)*axs)*axs;
+      Point vec2 = loc2 - tmp;
+      outer2 = (rad1 >= rad2);
+      if (vec2*axs < 0.0)
+	outer2 = (!outer2);
     }
   else
     {
@@ -3660,8 +3677,10 @@ RevEng::defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
 
       Point centre, normal, Cx;
       double Rrad;
-      getTorusParameters(surf1, surf2, der[0], radius, d2, outer1, 
-			 outer2, sgn, Rrad, centre, normal, Cx);
+      bool OK = getTorusParameters(surf1, surf2, der[0], radius, d2, outer1, 
+				   outer2, sgn, Rrad, centre, normal, Cx);
+      if (!OK)
+	return dummy_edg;
       double xlen = der[0].dist(centre);
       ylen = fabs(xlen - Rrad);
     }
@@ -5436,6 +5455,18 @@ void RevEng::manageBlends1()
   recognizeEdges();
   
 #ifdef DEBUG
+  std::ofstream ofu1("unresolved3.g2");
+  for (size_t kr=0; kr<regions_.size(); ++kr)
+    {
+      if (regions_[kr]->hasSurface())
+	continue;
+      if (regions_[kr]->hasAssociatedBlend())
+	continue;
+      regions_[kr]->writeRegionPoints(ofu1);
+    }
+#endif
+
+#ifdef DEBUG
   if (edges_.size() > 0)
     {
       std::ofstream ofe("edges10.g2");
@@ -5970,6 +6001,46 @@ void RevEng::manageBlends2()
 void RevEng::equalizeBlendRadii()
 //===========================================================================
 {
+  // Equialize adjacent blends between the same surfaces
+  for (size_t ki=0; ki<regions_.size(); ++ki)
+    {
+      if (!regions_[ki]->hasSurface())
+	continue;
+      
+      if (!regions_[ki]->hasBlendEdge())
+	continue;
+
+      RevEngEdge *edge1 = regions_[ki]->getBlendEdge();
+      RevEngRegion* adj1[2];
+      edge1->getAdjacent(adj1[0], adj1[1]);
+
+      
+      for (size_t kj=ki+1; kj<regions_.size(); ++kj)
+	{
+	  if (!regions_[kj]->hasSurface())
+	    continue;
+      
+	  if (!regions_[kj]->hasBlendEdge())
+	    continue;
+	  
+	  RevEngEdge *edge2 = regions_[kj]->getBlendEdge();
+	  RevEngRegion* adj2[2];
+	  edge2->getAdjacent(adj2[0], adj2[1]);
+
+	  if ((adj1[0] == adj2[0] || adj1[0] == adj2[1]) &&
+	      (adj1[1] == adj2[0] || adj1[1] == adj2[1]))
+	    {
+#ifdef DEBUG_BLEND
+	      std::ofstream of("adj_blend.g2");
+	      regions_[ki]->writeRegionPoints(of);
+	      regions_[kj]->writeRegionPoints(of);
+#endif
+	      equalizeAdjacent(ki, kj);
+	    }
+	}
+  
+    }
+  
   // Collect information about blend radii
   vector<double> rad;
   for (size_t ki=0; ki<regions_.size(); ++ki)
@@ -6090,46 +6161,6 @@ void RevEng::equalizeBlendRadii()
 	  }
     }
 
-  // Equialize adjacent blends between the same surfaces
-  for (ki=0; ki<regions_.size(); ++ki)
-    {
-      if (!regions_[ki]->hasSurface())
-	continue;
-      
-      if (!regions_[ki]->hasBlendEdge())
-	continue;
-
-      RevEngEdge *edge1 = regions_[ki]->getBlendEdge();
-      RevEngRegion* adj1[2];
-      edge1->getAdjacent(adj1[0], adj1[1]);
-
-      
-      for (size_t kj=ki+1; kj<regions_.size(); ++kj)
-	{
-	  if (!regions_[kj]->hasSurface())
-	    continue;
-      
-	  if (!regions_[kj]->hasBlendEdge())
-	    continue;
-	  
-	  RevEngEdge *edge2 = regions_[kj]->getBlendEdge();
-	  RevEngRegion* adj2[2];
-	  edge2->getAdjacent(adj2[0], adj2[1]);
-
-	  if ((adj1[0] == adj2[0] || adj1[0] == adj2[1]) &&
-	      (adj1[1] == adj2[0] || adj1[1] == adj2[1]))
-	    {
-#ifdef DEBUG_BLEND
-	      std::ofstream of("adj_blend.g2");
-	      regions_[ki]->writeRegionPoints(of);
-	      regions_[kj]->writeRegionPoints(of);
-#endif
-	      equalizeAdjacent(ki, kj);
-	    }
-	}
-  
-    }
-  
     int stop_break = 1;
 
 }
@@ -6162,6 +6193,7 @@ void RevEng::equalizeAdjacent(size_t ix1, size_t ix2)
   double rad1 = elem1->radius(0.0, 0.0);
   double rad2 = elem2->radius(0.0, 0.0);
   double fac = 0.1;
+  double fac2 = 0.25;
   if (fabs(rad1-rad2) > fac*std::max(rad1, rad2))
     return;  // Too large difference
   double rad = 0.5*(rad1 + rad2);
@@ -6210,11 +6242,11 @@ void RevEng::equalizeAdjacent(size_t ix1, size_t ix2)
   bool cyllike = true;
   if (surf1->instanceType() == Class_Cylinder)
     {
-      Point pos2_2 = ((pos2 - pos1)*axis)*axis;
+      Point pos2_2 = pos1 + ((pos2 - pos1)*axis)*axis;
       if (pos2.dist(pos2_2) > approx_tol_)
 	return;
 
-     Point pos1_2 = ((pos1 - pos2)*axis)*axis;
+     Point pos1_2 = pos2 + ((pos1 - pos2)*axis)*axis;
       if (pos1.dist(pos1_2) > approx_tol_)
 	return;
 
@@ -6235,12 +6267,13 @@ void RevEng::equalizeAdjacent(size_t ix1, size_t ix2)
     }
   else if (surf1->instanceType() == Class_Torus)
     {
-      if (pos1.dist(pos2) > approx_tol_)
+      Point pos2_2 = pos1 + ((pos2 - pos1)*axis)*axis;
+      if (pos2_2.dist(pos2) > approx_tol_)
 	return;
 
       double minrad1 = elem1->radius2(0.0, 0.0);
       double minrad2 = elem2->radius2(0.0, 0.0);
-      if (fabs(minrad1-minrad2) > fac*std::max(minrad1, minrad2))
+      if (fabs(minrad1-minrad2) > fac2*std::max(minrad1, minrad2))
 	return;
 
       Point centre = 0.5*(pos1 + pos2);
@@ -6468,8 +6501,10 @@ void RevEng::updateBlendRadius(size_t ix, double radius)
 	sgn = -1;
       double Rrad;
       Point centre, normal, Cx;
-      getTorusParameters(elem1, elem2, der[0], radius, d2, out1, out2, sgn,
-			 Rrad, centre, normal, Cx);
+      bool OK = getTorusParameters(elem1, elem2, der[0], radius, d2, out1, out2, 
+				   sgn, Rrad, centre, normal, Cx);
+      if (!OK)
+	return;  // Don't change
      
       upd_blend = shared_ptr<Torus>(new Torus(Rrad, radius, centre, normal, Cx));
 
@@ -7668,7 +7703,8 @@ void RevEng::setBlendBoundaries(RevEngRegion *reg)
   BoundingBox bb1 = adj[0]->getBbox();
   BoundingBox bb2 = adj[1]->getBbox();
   double diag = std::min(bb1.low().dist(bb1.high()), bb2.low().dist(bb2.high()));
-  if (space[0]->startparam() < -0.5*diag || space[0]->endparam() > 0.5*diag)
+  if (constdir == 0 && (space[0]->startparam() < -0.5*diag ||
+			space[0]->endparam() > 0.5*diag))
     {
       for (int ka=0; ka<2; ++ka)
 	space[ka]->setParamBounds(std::max(space[0]->startparam(), -0.5*diag),
@@ -9610,7 +9646,7 @@ RevEng::computeTorusRadius(vector<vector<RevEngPoint*> >& blend_pts,
 }
 
 //===========================================================================
-void
+bool
 RevEng::getTorusParameters(shared_ptr<ElementarySurface> elem1,
 			   shared_ptr<ElementarySurface> elem2, Point pos,
 			   double radius, double d2, bool out1, bool out2, int sgn,
@@ -9625,7 +9661,7 @@ RevEng::getTorusParameters(shared_ptr<ElementarySurface> elem1,
   if (cone2.get())
     alpha2 = cone2->getConeAngle();
   if (cone1.get() && cone2.get())
-    return;   // Two cones are not handled
+    return false;   // Two cones are not handled
   double alpha = fabs(alpha1) + fabs(alpha2);
   shared_ptr<Plane> plane;
   if (elem1->instanceType() == Class_Plane)
@@ -9668,6 +9704,8 @@ RevEng::getTorusParameters(shared_ptr<ElementarySurface> elem1,
   double sd = (state == 1) ? radius/sin(phi) : (radius + d2)*cos(phi2);
   Cx = rotational->direction2();
   Rrad += (sgn2*sd);
+  if (radius > Rrad)
+    return false;
   
 #ifdef DEBUG_BLEND
   shared_ptr<Torus> torus(new Torus(Rrad, radius, centre, normal, Cx));
@@ -9690,6 +9728,7 @@ RevEng::getTorusParameters(shared_ptr<ElementarySurface> elem1,
   tmp_cvs2[0]->writeStandardHeader(of2);
   tmp_cvs2[0]->write(of2);
 #endif
+  return true;
 }
 
 //===========================================================================
@@ -12656,23 +12695,130 @@ void RevEng::adaptToMainAxis(Point mainaxis[3])
 void RevEng::adaptToMainAxis()
 //===========================================================================
 {
+  doAdaptToAxis();
+
+#ifdef DEBUG
+  std::cout << "Post merge similar. Number of regions: " << regions_.size() << std::endl;
+
+  checkConsistence("Regions11_1");
+
+  if (regions_.size() > 0)
+    {
+      std::cout << "Regions 11_1" << std::endl;
+      std::ofstream of("regions11_1.g2");
+      std::ofstream ofm("mid_regions11_1.g2");
+      std::ofstream ofs("small_regions11_1.g2");
+      writeRegionStage(of, ofm, ofs);
+      std::ofstream of0("regions11_1_helix.g2");
+      for (int ki=0; ki<(int)regions_.size(); ++ki)
+	{
+	  if (regions_[ki]->getSurfaceFlag() == PROBABLE_HELIX)
+	    {
+	      regions_[ki]->writeRegionInfo(of0);
+	      if (regions_[ki]->hasSurface())
+		regions_[ki]->writeSurface(of0);
+	    }
+	}
+      if (surfaces_.size() > 0)
+	{
+	  std::ofstream of("regsurf11_1.g2");
+	  writeRegionWithSurf(of);
+	}
+    }
+#endif
+	  
+#ifdef DEBUG
+  std::ofstream ofu1("unresolved2.g2");
+  for (size_t kr=0; kr<regions_.size(); ++kr)
+    {
+      if (regions_[kr]->hasSurface())
+	continue;
+      if (regions_[kr]->hasAssociatedBlend())
+	continue;
+      regions_[kr]->writeRegionPoints(ofu1);
+    }
+#endif
+
+  // Merge adjacent edges if possible
+  for (int ka=0; ka<edges_.size(); ++ka)
+    {
+      RevEngRegion* adj1[2];
+      edges_[ka]->getAdjacent(adj1[0], adj1[1]);
+      for (int kb=ka+1; kb<edges_.size(); ++kb)
+	{
+	  RevEngRegion* adj2[2];
+	  edges_[kb]->getAdjacent(adj2[0], adj2[1]);
+
+	  if ((adj1[0] == adj2[0] || adj1[0] == adj2[1]) &&
+	      (adj1[1] == adj2[0] || adj1[1] == adj2[1]))
+	    {
+	      double par1, par2;
+	      bool adjacent = edges_[ka]->isAdjacent(edges_[kb].get(),
+						     approx_tol_, par1, par2);
+	      if (adjacent)
+		{
+#ifdef DEBUG_BLEND
+		  std::ofstream of("adj_blend.g2");
+		  adj1[0]->writeRegionPoints(of);
+		  adj1[1]->writeRegionPoints(of);
+		  vector<shared_ptr<ParamCurve> > cvs1 = edges_[ka]->getSpaceCurves();
+		  for (size_t kh=0; kh<cvs1.size(); ++kh)
+		    {
+		      cvs1[kh]->writeStandardHeader(of);
+		      cvs1[kh]->write(of);
+		    }
+		  vector<shared_ptr<ParamCurve> > cvs2 = edges_[kb]->getSpaceCurves();
+		  for (size_t kh=0; kh<cvs2.size(); ++kh)
+		    {
+		      cvs2[kh]->writeStandardHeader(of);
+		      cvs2[kh]->write(of);
+		    }
+	      
+#endif
+		  double t1 = edges_[ka]->startparam();
+		  double t2 = edges_[ka]->endparam();
+		  if (fabs(par1-t1) < fabs(par2-t2))
+		    std::swap(edges_[ka], edges_[kb]);
+		  bool done = edges_[ka]->append(edges_[kb].get(), approx_tol_);
+		  if (done)
+		    {
+		      edges_.erase(edges_.begin()+kb);
+		      kb--;
+		    }
+		  int stop_break0 = 1;
+		}
+	    }
+	}
+    }
+
+   int stop_break = 1;
+  
+}
+
+//===========================================================================
+void RevEng::doAdaptToAxis()
+//===========================================================================
+{
   vector<SurfaceProperties> sfprop;
   collectAxis(sfprop);
 
   // Sort surfaces into groups with roughly the same axis
   double epsang = 0.05;
+  double eps = 1.0e-4;
   vector<DirectionCone> axis_cone;
   vector<vector<size_t> > group_ixs;
   vector<int> num_pts;
   for (size_t ki=0; ki<sfprop.size(); ++ki)
     {
+      if (sfprop[ki].type_ == Class_Sphere)
+	continue;   // Sphere centre is relevant, axis is derived
       size_t kr;
       for (kr=0; kr<axis_cone.size(); ++kr)
 	{
-	  Point axis = sfprop[ki].dir_;
 	  Point centre = axis_cone[kr].centre();
-	  if (axis*centre < 0.0)
-	    axis *= -1;
+	  if (sfprop[ki].dir_*centre < 0.0)
+	    sfprop[ki].dir_ *= -1;
+	  Point axis = sfprop[ki].dir_;
 	  double angle = axis_cone[kr].unionAngle(axis);
 	  if (angle <= epsang)
 	    {
@@ -12693,7 +12839,7 @@ void RevEng::adaptToMainAxis()
 	}
     }
 
-  // Sort according to number of points assiciated to the surface
+  // Sort according to number of points associated to the surface
   for (size_t ki=0; ki<num_pts.size(); ++ki)
     for (size_t kj=ki+1; kj<num_pts.size(); ++kj)
       {
@@ -12705,46 +12851,575 @@ void RevEng::adaptToMainAxis()
 	  }
       }
 
-  for (size_t ki=0; ki<num_pts.size(); ++ki)
+  // For each group, ecompute axis direction based on reliability of surface 
+  // type and number of points associated to the surface
+  double planefac = 1.0;
+  double cylfac = 0.75;
+  double conefac = 0.6;
+  double torfac = 0.4;
+  vector<Point> axes(group_ixs.size());
+  for (size_t ki=0; ki<group_ixs.size(); ++ki)
     {
-      // Identify cylinders with the "same" axis including location
-      if (group_ixs[ki].size() < 2)
-	continue;
+      Point curr(0.0, 0.0, 0.0);
       for (size_t kj=0; kj<group_ixs[ki].size(); ++kj)
 	{
-	  if (sfprop[group_ixs[ki][kj]].type_ != Class_Cylinder &&
-	      sfprop[group_ixs[ki][kj]].prev_type_  != Class_Cylinder)
-	    continue;
-	  Point loc1 = sfprop[group_ixs[ki][kj]].loc_;
-	  Point vec1 = sfprop[group_ixs[ki][kj]].dir_;
-	  double rad1 = sfprop[group_ixs[ki][kj]].rad1_;
-	  vector<int> adapt_ix;
-	  adapt_ix.push_back(sfprop[group_ixs[ki][kj]].sfix_);
-	  for (size_t kr=kj+1; kr<group_ixs[ki].size(); ++kr)
-	    {
-	      if (sfprop[group_ixs[ki][kr]].type_ != Class_Cylinder &&
-		  sfprop[group_ixs[ki][kr]].prev_type_  != Class_Cylinder)
-		continue;
-	      Point loc2 = sfprop[group_ixs[ki][kr]].loc_;
-	      Point loc2_0 = loc1 + ((loc2-loc1)*vec1)*vec1;
-	      double rad2 = sfprop[group_ixs[ki][kr]].rad1_;
-	      double pdist = loc2.dist(loc2_0);
-	      double dlim = std::max(0.05*std::max(rad1,rad2), approx_tol_);
-	      if (pdist < dlim)
-		{
-		  adapt_ix.push_back(sfprop[group_ixs[ki][kr]].sfix_);
-		}
-	    }
+	  Point curr2 = sfprop[group_ixs[ki][kj]].dir_;
+	  double fac = planefac;
+	  if (sfprop[group_ixs[ki][kj]].type_ == Class_Cylinder)
+	    fac = cylfac;
+	  else if (sfprop[group_ixs[ki][kj]].type_ == Class_Cone)
+	    fac = conefac;
+	  else if (sfprop[group_ixs[ki][kj]].type_ == Class_Torus)
+	    fac = torfac;
+	  int num = sfprop[group_ixs[ki][kj]].num_points_;
+	  curr += (double)num*fac*curr2;
+	}
+      if (curr.length() < eps)
+	axes[ki] = axis_cone[ki].centre();
+      else
+	{
+	  curr.normalize();
+	  axes[ki] = curr;
+	}
+    }
 
-	  if (adapt_ix.size() > 1)
+  adjustWithMainAxis(axes, num_pts); 
+
+  size_t num_axis = model_axis_.size();
+  vector<RevEngEdge*> nopar_edgs;
+  for (size_t ki=0; ki<num_pts.size(); ++ki)
+    {
+      int ix=-1;
+      double min_ang = M_PI;
+      for (int ka=0; ka<3; ++ka)
+	{
+	  double ang = axes[ki].angle(mainaxis_[ka]);
+	  ang = std::min(ang, M_PI-ang);
+	  if (ang < min_ang)
 	    {
-	      // Try simultanous fitting of cylinders
-	      cylinderFit(adapt_ix, axis_cone[ki].centre());
+	      min_ang = ang;
+	      ix = ka;
+	    }
+	}
+
+      Point Cx = mainaxis_[(ix+2)%3].cross(axes[ki]);
+      Cx.normalize();
+
+      AxisInfo curr_axis(axes[ki]);
+      model_axis_.push_back(curr_axis);
+      
+     // Identify surfaces with the "same" axis including location
+      vector<vector<int> > plane_adapt;
+      vector<int> num_adapt1;
+      for (size_t kj=0; kj<group_ixs[ki].size(); ++kj)
+	{
+	  if (sfprop[group_ixs[ki][kj]].type_  != Class_Plane)
+	    continue;
+
+	  shared_ptr<ParamSurface> surf = surfaces_[sfprop[group_ixs[ki][kj]].sfix_]->surface();
+	  shared_ptr<Plane> plane = dynamic_pointer_cast<Plane,ParamSurface>(surf);
+	  Point loc = plane->location();
+
+	  size_t kr, kh;
+	  for (kr=0; kr<plane_adapt.size(); ++kr)
+	    {
+	      for (kh=0; kh<plane_adapt[kr].size(); ++kh)
+		{
+		  shared_ptr<ParamSurface> surf2 = surfaces_[plane_adapt[kr][kh]]->surface();
+		  shared_ptr<Plane> plane2 = dynamic_pointer_cast<Plane,ParamSurface>(surf2);
+		  Point loc2 = plane2->location();
+		  double dd = fabs((loc-loc2)*axes[ki]);
+		  if (dd <= approx_tol_)
+		    break;
+		}
+	      if (kh < plane_adapt[kr].size())
+		break;
+	    }
+	  if (kr == plane_adapt.size())
+	    {
+	      vector<int> curr_adapt;
+	      curr_adapt.push_back(sfprop[group_ixs[ki][kj]].sfix_);
+	      plane_adapt.push_back(curr_adapt);
+	      num_adapt1.push_back(sfprop[group_ixs[ki][kj]].num_points_);
+	    }
+	  else
+	    {
+	      plane_adapt[kr].push_back(sfprop[group_ixs[ki][kj]].sfix_);
+	      num_adapt1[kr] += sfprop[group_ixs[ki][kj]].num_points_;
+	    }
+	}
+
+      for (size_t kj=0; kj<plane_adapt.size(); ++kj)
+	{
+	  Point location = planarFit(plane_adapt[kj], axes[ki]);
+	  model_axis_[num_axis+ki].addPlaneLocation(location, num_adapt1[kj]);
+	}
+      
+      // The other surfaces
+      vector<vector<int> > rotational_adapt;
+       vector<int> num_adapt2;
+      for (size_t kj=0; kj<group_ixs[ki].size(); ++kj)
+	{
+	  if (sfprop[group_ixs[ki][kj]].type_ == Class_Plane)
+	    continue;
+
+	  Point loc = sfprop[group_ixs[ki][kj]].loc_;
+	  size_t kr, kh;
+	  for (kr=0; kr<rotational_adapt.size(); ++kr)
+	    {
+	      for (kh=0; kh<rotational_adapt[kr].size(); ++kh)
+		{
+		  shared_ptr<ParamSurface> surf2 =
+		    surfaces_[rotational_adapt[kr][kh]]->surface();
+		  shared_ptr<ElementarySurface> elem =
+		    dynamic_pointer_cast<ElementarySurface,ParamSurface>(surf2);
+		  Point loc2 = elem->location();
+		  Point tmp = loc2 + ((loc-loc2)*axes[ki])*axes[ki];
+		  double dd = loc.dist(tmp);
+		  if (dd <= approx_tol_)
+		    break;
+		}
+	      if (kh < rotational_adapt[kr].size())
+		break;
+	    }
+	  if (kr == rotational_adapt.size())
+	    {
+	      vector<int> curr_adapt;
+	      curr_adapt.push_back(sfprop[group_ixs[ki][kj]].sfix_);
+	      rotational_adapt.push_back(curr_adapt);
+	      num_adapt2.push_back(sfprop[group_ixs[ki][kj]].num_points_);
+	    }
+	  else
+	    {
+	      rotational_adapt[kr].push_back(sfprop[group_ixs[ki][kj]].sfix_);
+	      num_adapt2[kr] += sfprop[group_ixs[ki][kj]].num_points_;
+	    }
+	}
+
+      for (size_t kj=0; kj<rotational_adapt.size(); ++kj)
+	{
+	  Point location = rotationalFit(rotational_adapt[kj], axes[ki], Cx,
+					 nopar_edgs);
+	  model_axis_[num_axis+ki].addRotationalLocation(location, num_adapt2[kj]);
+	}
+    }
+
+  if (nopar_edgs.size() > 0)
+    {
+      // Must split edge at seam
+      vector<shared_ptr<RevEngEdge> > added_edgs;
+      vector<shared_ptr<RevEngRegion> > added_regs;
+      vector<shared_ptr<HedgeSurface> > added_sfs;
+      for (size_t ki=0; ki<nopar_edgs.size(); ++ki)
+	{
+	  if (nopar_edgs[ki]->isClosed(approx_tol_))
+	    continue;  // Will be handled later
+	  nopar_edgs[ki]->splitAtSeam(approx_tol_, added_edgs, added_regs,
+				      added_sfs);
+	}
+      if (added_edgs.size() > 0)
+	edges_.insert(edges_.end(), added_edgs.begin(), added_edgs.end());
+      if (added_regs.size() > 0)
+	regions_.insert(regions_.end(), added_regs.begin(), added_regs.end());
+      if (added_sfs.size() > 0)
+	surfaces_.insert(surfaces_.end(), added_sfs.begin(), added_sfs.end());
+    }
+  
+  int stop_break = 1;
+}
+
+//===========================================================================
+void RevEng::adjustWithMainAxis(vector<Point>& axes, vector<int>& num_pts)
+//===========================================================================
+{
+  double angtol1 = 5.0*anglim_;
+  double angtol2 = 5.0*angtol1;
+  double pihalf = 0.5*M_PI;
+  double eps = 1.0e-6;
+
+  // Change sign of axis if in conflict with existing main axis
+  for (size_t ki=0; ki<axes.size(); ++ki)
+    {
+      for (int ka=0; ka<3; ++ka)
+	{
+	  double ang = axes[ki].angle(mainaxis_[ka]);
+	  ang = std::min(ang, M_PI-ang);
+	  double scpr = axes[ki]*mainaxis_[ka];
+	  if (scpr < 0.0 && ang<angtol2)
+	    axes[ki] *= -1.0;
+	}
+    }
+
+  vector<Point> axes2(axes.size());
+  for (size_t ki=0; ki<axes.size(); ++ki)
+    axes2[ki] = axes[ki];
+  
+  for (int ix1=(int)axes2.size()-1; ix1>=0; --ix1)
+    {
+      Vector3D axis1(axes2[ix1][0], axes2[ix1][1], axes2[ix1][2]);
+      for (int ix2=ix1-1; ix2>=0; --ix2)
+	{
+	  Vector3D axis2(axes2[ix2][0], axes2[ix2][1], axes2[ix2][2]);
+	  double ang = axes2[ix1].angle(axes2[ix2]);
+	  double ang2 = fabs(pihalf-ang);
+	  if (ang2 > eps && ang2 < angtol1)
+	    {
+	      // Adjust axes2 to achieve orthogonality
+	      Point vec = axes2[ix1].cross(axes2[ix2]);
+	      int sgn = (ang < pihalf) ? 1 : -1;
+	      double fac = 1.0/(double)(num_pts[ix1] + num_pts[ix2]);
+	      double ang3 = (double)num_pts[ix2]*fac*ang2;
+	      double ang4 = (double)num_pts[ix1]*fac*ang2;
+	      Matrix3D mat1, mat2;
+	      mat1.setToRotation(-sgn*ang3, vec[0], vec[1], vec[2]);
+	      mat2.setToRotation(sgn*ang4, vec[0], vec[1], vec[2]);
+	      Vector3D axis3 = mat1*axis1;
+	      Vector3D axis4 = mat2*axis2;
+	      axis3.normalize_checked();
+	      axis4.normalize_checked();
+	      axes2[ix1] = Point(axis3[0], axis3[1], axis3[2]);
+	      axes2[ix2] = Point(axis4[0], axis4[1], axis4[2]);
 	      int stop_break = 1;
 	    }
 	}
     }
-  int stop_break = 1;
+
+  // Ensure orthogonality
+  int ix1 = 0;
+  int ix2 = -1, ix3 = -1;
+  for (int ka=1; ka<(int)axes2.size(); ++ka)
+    {
+      double ang = axes2[ix1].angle(axes2[ka]);
+      if (fabs(pihalf-ang) < angtol1)
+	{
+	  if (ix2 < 0)
+	    ix2 = ka;
+	  else if (ix3 < 0)
+	    {
+	      ix3 = ka;
+	      break;
+	    }
+	}
+    }
+
+  if (ix2 < 0)
+    {
+      ix2 = (int)axes2.size();
+      ix3 = (int)axes2.size()+1;
+      axes2.resize(axes2.size()+2);
+    }
+  else if (ix3 < 0)
+    {
+      ix3 = (int)axes2.size();
+      axes2.resize(axes2.size()+1);
+    }
+
+  if (ix3 > (int)axes.size())
+    {
+      int min_ix = 0;
+      double min_ang = fabs(axes2[ix1].angle(mainaxis_[0]));
+      for (int kb=1; kb<3; ++kb)
+	{
+	  double ang = fabs(axes2[ix1].angle(mainaxis_[kb]));
+	  if (ang < min_ang)
+	    {
+	      min_ix = kb;
+	      min_ang = ang;
+	    }
+	}
+
+      int min_ix2 = -1;
+      if (ix2 < (int)axes.size())
+	{
+	  min_ix2 = (min_ang == 0) ? 1 : 0;
+	  double min_ang2 = fabs(axes2[ix2].angle(mainaxis_[min_ix2]));
+	  for (int kb=0; kb<3; ++kb)
+	    {
+	      if (kb == min_ix || kb == min_ix2)
+		continue;
+	      double ang = fabs(axes2[ix2].angle(mainaxis_[kb]));
+	      if (ang < min_ang)
+		{
+		  min_ix2 = kb;
+		  min_ang2 = ang;
+		}
+	    }
+	}
+      else
+	{
+	  for (int kb=0; kb<3; ++kb)
+	    if (kb != min_ix)
+	      {
+		axes2[ix2] = mainaxis_[kb];
+		min_ix2 = kb;
+		break;
+	      }
+	}
+
+      for (int kb=0; kb<3; ++kb)
+	if (kb != min_ix && kb != min_ix2)
+	  {
+	    axes2[ix3] = mainaxis_[kb];
+	    break;
+	  }
+    }
+
+  axes2[ix3] = axes2[ix1].cross(axes2[ix2]);
+  axes2[ix2] = axes2[ix3].cross(axes2[ix1]);
+
+  for (size_t ki=0; ki<axes.size(); ++ki)
+    axes[ki] = axes2[ki];
+
+  mainaxis_[0] = axes2[ix1];
+  mainaxis_[1] = axes2[ix2];
+  mainaxis_[2] = axes2[ix3];
+  int stop_break2 = 1;
+}
+
+//===========================================================================
+Point RevEng::planarFit(vector<int>& sf_ix, Point axis)
+//===========================================================================
+{
+  double angtol = 5.0*anglim_;
+  
+  // Collect data points
+  vector<RevEngPoint*> points;
+  Point loc(0.0, 0.0, 0.0);
+  int num = 0;
+  for (size_t ki=0; ki<sf_ix.size(); ++ki)
+    {
+      HedgeSurface* surf = surfaces_[sf_ix[ki]].get();
+      shared_ptr<Plane> plane =
+	dynamic_pointer_cast<Plane,ParamSurface>(surf->surface());
+      if (!plane.get())
+	continue;
+      loc += plane->location();
+      num++;
+      vector<RevEngRegion*> reg = surf->getRegions();
+      for (size_t kj=0; kj<reg.size(); ++kj)
+	{
+	  points.insert(points.end(), reg[kj]->pointsBegin(),
+			reg[kj]->pointsEnd());
+	}
+    }
+  if (num > 0)
+    loc /= (double)num;
+  
+  shared_ptr<Plane> plane2 = RevEngUtils::planeWithAxis(points, axis,
+							loc, mainaxis_);
+
+  Point centre = plane2->location();
+  Point Cx = plane2->direction2();
+
+  for (size_t ki=0; ki<sf_ix.size(); ++ki)
+    {
+      HedgeSurface* surf = surfaces_[sf_ix[ki]].get();
+      shared_ptr<Plane> plane =
+	dynamic_pointer_cast<Plane,ParamSurface>(surf->surface());
+      if (!plane.get())
+	continue;
+      Point loc2 = plane->location();
+      loc2 -= ((loc2-centre)*axis)*axis;
+      shared_ptr<Plane> plane3(new Plane(loc2, axis, Cx));
+
+      vector<RevEngRegion*> reg = surf->getRegions();
+      double maxdist = 0.0, avdist = 0.0;
+      int num_in = 0, num2_in = 0, num_pt = 0;
+      double maxdist_init = 0.0, avdist_init = 0.0;
+      int num_in_init = 0, num2_in_init = 0;
+      vector<vector<double> > parvals(reg.size());
+      vector<vector<pair<double,double> > > dist_ang(reg.size());
+      vector<int> init_flag(reg.size());;
+      for (size_t kj=0; kj<reg.size(); ++kj)
+	{
+	  double maxd0, avd0;
+	  int num_in0, num2_in0;
+	  vector<RevEngPoint*> in0, out0;
+	  vector<pair<double,double> > distang0;
+	  vector<double> parvals0;
+	  RevEngUtils::distToSurf(reg[kj]->pointsBegin(), reg[kj]->pointsEnd(),
+				  plane3, approx_tol_, maxd0, avd0, num_in0, num2_in0,
+				  in0, out0, parvals0, distang0, angtol);
+	  int num0 = reg[kj]->numPoints();
+	  maxdist = std::max(maxdist, maxd0);
+	  avdist = (double)num_pt*avdist + (double)num0*avd0;
+	  num_in += num_in0;
+	  num2_in += num2_in0;
+	  parvals[kj] = parvals0;
+	  dist_ang[kj] = distang0;
+
+	  double maxd1, avd1;
+	  int num_in1, num2_in1, num1;
+	  reg[kj]->getAccuracy(maxd1, avd1, num_in1, num2_in1);
+	  maxdist_init = std::max(maxdist_init, maxd1);
+	  avdist_init = (double)num_pt*avdist_init + (double)num0*avd1;
+	  num_in_init += num_in1;
+	  num2_in_init += num2_in1;
+	  num_pt += num0;
+	  init_flag[kj] = reg[kj]->getSurfaceFlag();
+	}
+      avdist /= (double)num_pt;
+      avdist_init /= (double)num_pt;
+      int surf_flag = reg[0]->defineSfFlag(num_pt, 0, approx_tol_, num_in,
+					   num2_in, avdist, false);
+      int surf_flag_init = reg[0]->defineSfFlag(num_pt, 0, approx_tol_, num_in_init,
+						num2_in_init, avdist_init, false);
+
+      double av_fac = 1.1;
+      double in_fac = 0.9;
+      if (surf_flag == 0 || surf_flag <= surf_flag_init ||
+	  (avdist < av_fac*avdist_init &&
+	   (double)num2_in > in_fac*(double)num2_in_init &&
+	   (double)num_in > in_fac*(double)num_in_init))
+	{
+	  // Replace surface
+	  for (size_t kj=0; kj<reg.size(); ++kj)
+	    {
+	      vector<RevEngEdge*> dummy;
+	      reg[kj]->updateSurfaceAndInfo(plane3, approx_tol_, angtol,
+					    parvals[kj], dist_ang[kj], dummy);
+	    }
+	}
+      
+      int stop_break = 1;
+    }
+  return loc;
+}
+
+//===========================================================================
+Point RevEng::rotationalFit(vector<int>& sf_ix, Point axis, Point Cx,
+			    vector<RevEngEdge*>& nopar_edgs)
+//===========================================================================
+{
+  double angtol = 5.0*anglim_;
+  
+  // Compute point on axis
+  Point loc(0.0, 0.0, 0.0);
+  int num = 0;
+  for (size_t ki=0; ki<sf_ix.size(); ++ki)
+    {
+      HedgeSurface* surf = surfaces_[sf_ix[ki]].get();
+      shared_ptr<ElementarySurface> elem =
+	dynamic_pointer_cast<ElementarySurface,ParamSurface>(surf->surface());
+      if (!elem.get())
+	continue;
+      loc += elem->location();
+      num++;
+    }
+  if (num > 0)
+    loc /= (double)num;
+
+  // Add spheres with centre on axis
+  for (size_t ki=0; ki<surfaces_.size(); ++ki)
+    {
+      shared_ptr<ParamSurface> sf = surfaces_[ki]->surface();
+      if (sf->instanceType() == Class_Sphere)
+	{
+	  shared_ptr<Sphere> sphere = dynamic_pointer_cast<Sphere,ParamSurface>(sf);
+	  Point centre = sphere->location();
+	  Point tmp = loc + ((centre-loc)*axis)*axis;
+	  if (centre.dist(tmp) < approx_tol_)
+	    sf_ix.push_back(ki);
+	}
+    }
+  
+  for (size_t ki=0; ki<sf_ix.size(); ++ki)
+    {
+      HedgeSurface* surf = surfaces_[sf_ix[ki]].get();
+      shared_ptr<ElementarySurface> elem =
+	dynamic_pointer_cast<ElementarySurface,ParamSurface>(surf->surface());
+      if (!elem.get())
+	continue;
+      Point loc2 = elem->location();
+      Point loc2_2 = loc + ((loc2 - loc)*axis)*axis;
+
+      vector<RevEngPoint*> points;
+      vector<RevEngRegion*> reg = surf->getRegions();
+      for (size_t kj=0; kj<reg.size(); ++kj)
+	{
+	  points.insert(points.end(), reg[kj]->pointsBegin(),
+			reg[kj]->pointsEnd());
+	}
+
+      shared_ptr<ElementarySurface> elem2;
+      if (elem->instanceType() == Class_Cylinder)
+	elem2 = RevEngUtils::cylinderWithAxis(points, axis, Cx, loc2_2);
+      else if (elem->instanceType() == Class_Cone)
+	{
+	  double len = bbox_.low().dist(bbox_.high());
+	  elem2 = RevEngUtils::coneWithAxis(points, axis, Cx, loc2_2, len);
+	  if (!elem2.get())
+	    elem2 = elem;
+	}
+      else if (elem->instanceType() == Class_Torus)
+	elem2 = RevEngUtils::torusWithAxis(points, axis, Cx, loc2_2);
+      else if (elem->instanceType() == Class_Sphere)
+	elem2 = RevEngUtils::sphereWithAxis(points, axis, Cx, loc2_2);
+
+      double maxdist = 0.0, avdist = 0.0;
+      int num_in = 0, num2_in = 0, num_pt = 0;
+      double maxdist_init = 0.0, avdist_init = 0.0;
+      int num_in_init = 0, num2_in_init = 0;
+      vector<vector<double> > parvals(reg.size());
+      vector<vector<pair<double,double> > > dist_ang(reg.size());
+      vector<int> init_flag(reg.size());;
+      for (size_t kj=0; kj<reg.size(); ++kj)
+	{
+	  double maxd0, avd0;
+	  int num_in0, num2_in0;
+	  vector<RevEngPoint*> in0, out0;
+	  vector<pair<double,double> > distang0;
+	  vector<double> parvals0;
+	  RevEngUtils::distToSurf(reg[kj]->pointsBegin(), reg[kj]->pointsEnd(),
+				  elem2, approx_tol_, maxd0, avd0, num_in0, num2_in0,
+				  in0, out0, parvals0, distang0, angtol);
+	  int num0 = reg[kj]->numPoints();
+	  maxdist = std::max(maxdist, maxd0);
+	  avdist = (double)num_pt*avdist + (double)num0*avd0;
+	  num_in += num_in0;
+	  num2_in += num2_in0;
+	  parvals[kj] = parvals0;
+	  dist_ang[kj] = distang0;
+
+	  double maxd1, avd1;
+	  int num_in1, num2_in1, num1;
+	  reg[kj]->getAccuracy(maxd1, avd1, num_in1, num2_in1);
+	  maxdist_init = std::max(maxdist_init, maxd1);
+	  avdist_init = (double)num_pt*avdist_init + (double)num0*avd1;
+	  num_in_init += num_in1;
+	  num2_in_init += num2_in1;
+	  num_pt += num0;
+	  init_flag[kj] = reg[kj]->getSurfaceFlag();
+	}
+      avdist /= (double)num_pt;
+      avdist_init /= (double)num_pt;
+
+      bool cyl_like = (elem->instanceType() == Class_Cylinder ||
+		       elem->instanceType() == Class_Cone);
+      int surf_flag = reg[0]->defineSfFlag(num_pt, 0, approx_tol_, num_in,
+					   num2_in, avdist, cyl_like);
+      int surf_flag_init = reg[0]->defineSfFlag(num_pt, 0, approx_tol_, num_in_init,
+						num2_in_init, avdist_init, cyl_like);
+
+      double av_fac = 1.1;
+      double in_fac = 0.9;
+      if (surf_flag == 0 || surf_flag <= surf_flag_init ||
+	  (avdist < av_fac*avdist_init &&
+	   (double)num2_in > in_fac*(double)num2_in_init &&
+	   (double)num_in > in_fac*(double)num_in_init))
+	{
+	  // Replace surface
+	  for (size_t kj=0; kj<reg.size(); ++kj)
+	    {
+	      reg[kj]->updateSurfaceAndInfo(elem2, approx_tol_, angtol,
+					    parvals[kj], dist_ang[kj],
+					    nopar_edgs);
+	    }
+	}
+      
+      int stop_break = 1;
+    }
+  return loc;
 }
 
 //===========================================================================
@@ -12924,8 +13599,8 @@ void RevEng::cylinderFit(vector<int>& sf_ix, Point normal)
       cyl2->writeStandardHeader(of);
       cyl2->write(of);
 
-      cyl2->writeStandardHeader(of);
-      cyl2->write(of);
+      cyl3->writeStandardHeader(of);
+      cyl3->write(of);
 #endif
       for (size_t kj=0; kj<reg.size(); ++kj)
 	{
@@ -13047,10 +13722,23 @@ void RevEng::collectAxis(vector<SurfaceProperties>& sfprop)
       shared_ptr<ElementarySurface> elemsf =
 	dynamic_pointer_cast<ElementarySurface,ParamSurface>(surf);
 
+      RevEngRegion *reg0 = surfaces_[ki]->getRegion(0);
+      if (!reg0)
+	continue;  // Surface should have been remove prior to this!!!
+      
+      if (reg0->hasBlendEdge())
+	continue;  // Derived information
+      
+      if (reg0->hasAssociatedBlend())
+	continue;  // Outdated information
+      
       int nreg = surfaces_[ki]->numRegions();
       int num_pts = 0;
       shared_ptr<ParamSurface> primary;
       int num_pt_primary = 0;
+      bool prefer_base = false;  // Maybe check accuracy between surface
+      // and primary surface later. Can also use history information about
+      // surface updates
       for (int ka=0; ka<nreg; ++ka)
 	{
 	  RevEngRegion *reg = surfaces_[ki]->getRegion(ka);
@@ -13071,7 +13759,7 @@ void RevEng::collectAxis(vector<SurfaceProperties>& sfprop)
       if (primary.get())
 	type2 = primary->instanceType();
       
-      if (!elemsf.get())
+      if ((!elemsf.get()) || prefer_base)
 	{
 	  if (primary.get())
 	    elemsf =

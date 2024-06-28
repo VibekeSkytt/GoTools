@@ -952,6 +952,12 @@ namespace Go
 
     bool hasEdgeBetween(RevEngRegion* adj);
 
+    void updateSurfaceAndInfo(shared_ptr<ParamSurface> surf,
+			      double tol, double angtol,
+			      std::vector<double>& parvals,
+			      std::vector<std::pair<double,double> >& dist_ang,
+			      std::vector<RevEngEdge*>& nopar_edgs);
+
     void checkReplaceSurf(Point mainaxis[3], int min_pt_reg, double tol,
 			  double angtol, bool always=false);
 

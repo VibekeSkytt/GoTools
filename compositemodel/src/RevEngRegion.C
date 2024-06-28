@@ -9557,35 +9557,35 @@ bool RevEngRegion::arrangeEdgeLoop(double tol)
 	  for (size_t ki=0; ki<sfcv.size(); ++ki)
 	    info[ki].resize(sfcv.size());
 
-	    for (size_t ki=num; ki<trim_edgs_.size(); ++ki)
-	      {
-		if (!sfcv[ki].get())
-		  continue;
-		shared_ptr<ParamCurve> pcurve1 = sfcv[ki]->parameterCurve();
-		if (!pcurve1.get())
-		  continue;
+	  for (size_t ki=num; ki<trim_edgs_.size(); ++ki)
+	    {
+	      if (!sfcv[ki].get())
+		continue;
+	      shared_ptr<ParamCurve> pcurve1 = sfcv[ki]->parameterCurve();
+	      if (!pcurve1.get())
+		continue;
       
-		tmin1 = pcurve1->startparam();
-		tmax1 = pcurve1->endparam();
-		Point pos1 = pcurve1->point(tmin1);
-		Point pos2 = pcurve1->point(tmax1);
-		double dist0 = pos1.dist(pos2);
-		info[ki][ki] = CloseCvInfo(tmin1, tmax1, dist0);
-		for (size_t kj=0; kj<trim_edgs_.size(); ++kj)
-		  {
-		    if (kj >= num && kj <= ki)
-		      continue;
-		    if (!sfcv[kj].get())
-		      continue;
-		    shared_ptr<ParamCurve> pcurve2 = sfcv[kj]->parameterCurve();
-		    if (!pcurve2.get())
-		      continue;
+	      tmin1 = pcurve1->startparam();
+	      tmax1 = pcurve1->endparam();
+	      Point pos1 = pcurve1->point(tmin1);
+	      Point pos2 = pcurve1->point(tmax1);
+	      double dist0 = pos1.dist(pos2);
+	      info[ki][ki] = CloseCvInfo(tmin1, tmax1, dist0);
+	      for (size_t kj=0; kj<trim_edgs_.size(); ++kj)
+		{
+		  if (kj >= num && kj <= ki)
+		    continue;
+		  if (!sfcv[kj].get())
+		    continue;
+		  shared_ptr<ParamCurve> pcurve2 = sfcv[kj]->parameterCurve();
+		  if (!pcurve2.get())
+		    continue;
 
-		    CloseCvInfo curr_info = (ki > kj) ? getCloseInfo(tol, pcurve2, pcurve1) :
-		      getCloseInfo(tol, pcurve1, pcurve2);;
-		    info[ki][kj] = info[kj][ki] = curr_info;
-		  }
-	      }
+		  CloseCvInfo curr_info = (ki > kj) ? getCloseInfo(tol, pcurve2, pcurve1) :
+		    getCloseInfo(tol, pcurve1, pcurve2);;
+		  info[ki][kj] = info[kj][ki] = curr_info;
+		}
+	    }
 
 	}
       int stop_break = 1;
@@ -11351,6 +11351,52 @@ bool RevEngRegion::updateSurfaceWithAxis(int min_pt_reg, Point adj_axis,
 }
 
 //===========================================================================
+void RevEngRegion::updateSurfaceAndInfo(shared_ptr<ParamSurface> surf,
+					double tol, double angtol,
+					vector<double>& parvals,
+					vector<pair<double,double> >& dist_ang,
+					vector<RevEngEdge*>& nopar_edgs)
+//===========================================================================
+{
+  if (parvals.size() != 2*group_points_.size() ||
+      dist_ang.size() != group_points_.size())
+    THROW("RevEngRegion::updateSurfaceAndInfo: Inconsistent input");
+
+    shared_ptr<ParamSurface> surf_init = getSurface(0)->surface();
+
+    // Replace
+    setBaseSf(surf_init, maxdist_, avdist_, num_inside_, num_inside2_);
+    for (size_t kh=0; kh<group_points_.size(); ++kh)
+      {
+	group_points_[kh]->setPar(Vector2D(parvals[2*kh],
+					   parvals[2*kh+1]));
+	group_points_[kh]->setSurfaceDist(dist_ang[kh].first,
+					  dist_ang[kh].second);
+      }
+    HedgeSurface *hedge = getSurface(0);
+    hedge->replaceSurf(surf);
+    if (!surf->isBounded())
+      {
+	double diag = bbox_.low().dist(bbox_.high());
+	hedge->limitSurf(2*diag);
+      }
+    updateInfo(tol, angtol);
+    bool cyl_like = ((surf->instanceType() == Class_Cylinder ||
+		      surf->instanceType() == Class_Cone));
+    
+    int sf_flag = defineSfFlag((int)group_points_.size(), 0, tol, num_inside_,
+			       num_inside2_, avdist_, cyl_like);
+    setSurfaceFlag(sf_flag);
+    for (size_t kj=0; kj<rev_edges_.size(); ++kj)
+      {
+	rev_edges_[kj]->replaceSurf(this, surf, tol);
+	int missing = rev_edges_[kj]->missingParCrv();
+	if (missing > 0)
+	  nopar_edgs.push_back(rev_edges_[kj]);
+      }
+}
+
+//===========================================================================
 void RevEngRegion::identifyOutPoints(vector<pair<double,double> >& distang,
 				     double tol, double angtol, double angtol2,
 				     vector<vector<RevEngPoint*> >& out_groups,
@@ -11951,7 +11997,7 @@ RevEngRegion::initPlaneCyl(int min_point, int min_pt_reg, double tol,
 
        double rfac = 0.5;
        size_t remain2_size = remain2.size();
-       if (remain2.size() < rfac*group_points_.size());
+       if (remain2.size() < rfac*group_points_.size())
        {
 	 vector<RevEngPoint*> ang_pts;
 	 vector<RevEngPoint*> remain_ang;
@@ -15937,6 +15983,13 @@ bool RevEngRegion::mergePlanarReg(double zero_H, double zero_K, double tol,
   	{
   	  if ((*it) == this)
   	    continue;
+	  if (!(*it)->feasiblePlane(zero_H, zero_K))
+	    continue;
+	  if ((*it)->hasSurface())
+	    continue;
+	  if ((*it)->hasAssociatedBlend())
+	    continue;
+      
   	  size_t kr;
   	  for (kr=0; kr<merge_cand.size(); ++kr)
   	    if ((*it) == merge_cand[kr])
