@@ -851,7 +851,7 @@ namespace Go
 			       std::vector<RevEngRegion*>& adj_planar,
 			       std::vector<std::vector<RevEngPoint*> >& added_groups);
 
-    void sortByAxis(vector<Point>& axis, double tol,
+    bool sortByAxis(vector<Point>& axis, double tol, double axisang, double planeang,
 		    std::vector<std::vector<RevEngPoint*> >& groups1,
 		    std::vector<std::vector<RevEngPoint*> >& groups2,
 		    std::vector<RevEngPoint*>& remaining);
@@ -960,6 +960,10 @@ namespace Go
 
     void checkReplaceSurf(Point mainaxis[3], int min_pt_reg, double tol,
 			  double angtol, bool always=false);
+
+    int checkSurfaceAccuracy(std::vector<shared_ptr<ElementarySurface> >& sfs, double tol,
+			     double angtol, double& maxd, double& avd, int& num_in,
+			     int& num2_in, int& sf_flag);
 
     void computeSurface(std::vector<RevEngPoint*>& points,
 			Point mainaxis[3], double tol, double angtol,
@@ -1080,7 +1084,17 @@ namespace Go
     void getAdjacentBlends(std::vector<RevEngRegion*>& adj_blends);
     
     bool trimSurface(double tol);
+
+    void rangeAlongAxis(const Point& pos, const Point& axis, double& tmin,
+			double& tmax);
       
+   bool planarComponent(Point vec, int min_point, int min_pt_reg, double tol,
+			 double angtol, Point mainaxis[3],
+			 std::vector<shared_ptr<HedgeSurface> >& hedgesfs,
+			 std::vector<vector<RevEngPoint*> >& out_groups,
+			 std::vector<RevEngPoint*>& single_pts,
+			 bool create_surface = true);
+
     void writeRegionInfo(std::ostream& of);
     void writeRegionPoints(std::ostream& of);
     void writeAdjacentPoints(std::ostream& of);
@@ -1264,13 +1278,7 @@ namespace Go
 			   Point& pos, Point& axis, Point& Cx, double& rad,
 			   std::vector<RevEngPoint*>& cyl_pts);
 
-    bool planarComponent(Point vec, int min_point, int min_pt_reg, double tol,
-			 double angtol, Point mainaxis[3],
-			 std::vector<shared_ptr<HedgeSurface> >& hedgesfs,
-			 std::vector<vector<RevEngPoint*> >& out_groups,
-			 std::vector<RevEngPoint*>& single_pts);
-
-    bool defineHelicalInfo(shared_ptr<Cylinder> cyl,  double tol,
+     bool defineHelicalInfo(shared_ptr<Cylinder> cyl,  double tol,
 			   double angtol, int min_point, int min_pt_reg,
 			   double avdist, int num_in1, int num_in2,
 			   std::vector<std::pair<double,double> >& dist_ang,

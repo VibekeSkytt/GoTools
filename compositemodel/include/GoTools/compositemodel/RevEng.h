@@ -318,9 +318,15 @@ namespace Go
 
     void trimSurfaces();
 
+    
+    void updateRegionsAndSurfaces(int& ix, std::vector<RevEngRegion*>& grown_regions,
+				  std::vector<HedgeSurface*>& adj_surfs);
+
+   void smallRegionSurfaces();
+
     void adaptToMainAxis();
 
-  private:
+   private:
     int model_character_;
     shared_ptr<ftPointSet> tri_sf_;
     double mean_edge_len_;
@@ -390,9 +396,6 @@ namespace Go
     bool adjustWithAdjacent(int& ix, int min_point_in, double angtol,
 			    std::vector<std::pair<shared_ptr<ElementarySurface>, RevEngRegion*> >& adj);
     
-    void updateRegionsAndSurfaces(int& ix, std::vector<RevEngRegion*>& grown_regions,
-				  std::vector<HedgeSurface*>& adj_surfs);
-
     bool segmentComposite(int& ix, int min_point_in, double angtol);
     bool segmentByPlaneGrow(int ix, int min_point_in, double angtol);
     bool segmentByAxis(int ix, int min_point_in);
@@ -408,6 +411,18 @@ namespace Go
     shared_ptr<ParamSurface> approxMergeSet(std::vector<size_t>& cand_ix,
 					    std::vector<size_t>& select_ix,
 					    ClassType type);
+
+    void defineSmallRegionSurfaces();
+    
+    bool identifySmallRotational(std::vector<RevEngRegion*>& groups,
+				 Point loc, Point axis, Point Cx,
+				 double ppar1, double ppar2,
+				 std::vector<shared_ptr<ElementarySurface> >& sfs);
+
+    bool identifySmallPlanar(std::vector<RevEngRegion*>& groups,
+			     Point loc, Point axis, Point Cx,
+			     double ppar1, double ppar2,
+			     std::vector<shared_ptr<ElementarySurface> >& sfs);
 
     void doAdaptToAxis();
 

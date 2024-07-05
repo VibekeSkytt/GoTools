@@ -248,6 +248,11 @@ namespace Go {
 		      int ik, int in, 
 		      shared_ptr<SplineCurve>& curve);
     
+    void  curveApprox(std::vector<Point>& points,
+		      std::vector<double>& param,
+		      int ik, int in, 
+		      shared_ptr<SplineCurve>& curve);
+    
     shared_ptr<SplineCurve> createCurve(std::vector<RevEngPoint*>& points, int degree,
 					double tol, int maxiter);
 

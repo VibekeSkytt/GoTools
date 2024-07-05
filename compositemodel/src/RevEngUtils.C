@@ -70,6 +70,7 @@ using std::pair;
 //#define DEBUG
 #define DEBUG_BLEND
 #define DEBUG_CONE
+#define DEBUG_APPROX
 
 typedef MatrixXD<double, 3> Matrix3D;
 
@@ -2525,6 +2526,52 @@ void  RevEngUtils::curveApprox(vector<Point>& points,
     }
   for (int ka=ik; ka<in; ++ka)
     et[ka] = tmin2 + (ka-ik+1)*tdel;
+
+  vector<double> ecoef(3*in, 0.0);
+  shared_ptr<SplineCurve> cv(new SplineCurve(in, ik, &et[0], &ecoef[0], 3));
+
+  SmoothCurve smooth(3);
+  vector<int> cfn(in, 0);
+  vector<double> wgts(param.size(), 1.0);
+  smooth.attach(cv, &cfn[0]);
+
+  smooth.setOptim(0.0, 0.001, 0.001);
+  smooth.setLeastSquares(pts, param, wgts, 0.998);
+
+  smooth.equationSolve(curve);
+  int stop_break = 1;
+}
+
+//===========================================================================
+void  RevEngUtils::curveApprox(vector<Point>& points,
+			       vector<double>& param,
+			       int ik, int in, 
+			       shared_ptr<SplineCurve>& curve)
+//===========================================================================
+{
+  if (points.size() == 0)
+    return;
+  if (points.size() != param.size())
+    return;
+  vector<double> pts;
+  double tmin = std::numeric_limits<double>::max();
+  double tmax = std::numeric_limits<double>::lowest();
+  for (size_t ki=0; ki<points.size(); ++ki)
+    {
+      pts.insert(pts.end(), points[ki].begin(), points[ki].end());
+      tmin = std::min(tmin, param[ki]);
+      tmax = std::max(tmax, param[ki]);
+    }
+
+  double tdel = (tmax - tmin)/(double)(in - ik + 1);
+  vector<double> et(ik+in);
+  for (int ka=0; ka<ik; ++ka)
+    {
+      et[ka] = tmin;
+      et[in+ka] = tmax;
+    }
+  for (int ka=ik; ka<in; ++ka)
+    et[ka] = tmin + (ka-ik+1)*tdel;
 
   vector<double> ecoef(3*in, 0.0);
   shared_ptr<SplineCurve> cv(new SplineCurve(in, ik, &et[0], &ecoef[0], 3));

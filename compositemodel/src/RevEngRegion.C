@@ -210,6 +210,7 @@ RevEngRegion::~RevEngRegion()
 {
   if (associated_blend_ != 0)
     associated_blend_->removeBlendReg(this);
+  removeFromAdjacent();
   int stop_break = 1;
 }
 
@@ -981,7 +982,9 @@ bool RevEngRegion::segmentByPlaneAxis(Point mainaxis[3], int min_point_in,
 
   vector<vector<RevEngPoint*> > group1, group2;
   vector<RevEngPoint*> remaining;
-  sortByAxis(dir, tol, group1, group2, remaining);
+  double axisang = 0.1*M_PI;
+  double planeang = 0.05;
+  bool divided = sortByAxis(dir, tol, axisang, planeang, group1, group2, remaining);
 
   vector<RevEngPoint*> all;
   for (size_t ki=0; ki<group1.size(); ++ki)
@@ -11001,26 +11004,27 @@ void RevEngRegion::analyseCylinderProperties(Point avvec, double angtol,
 
 
 //===========================================================================
-void RevEngRegion::sortByAxis(vector<Point>& axis, double tol,
+bool RevEngRegion::sortByAxis(vector<Point>& axis, double tol,
+			      double axisang, double planeang,
 			      vector<vector<RevEngPoint*> >& groups1,
 			      vector<vector<RevEngPoint*> >& groups2,
 			      vector<RevEngPoint*>& remaining)
 //===========================================================================
 {
   double pihalf = 0.5*M_PI;
-  double axisang = 0.1*M_PI;
-  double planeang = 0.05;
   groups1.resize(2*axis.size());
   groups2.resize(axis.size());
   for (size_t kr=0; kr<group_points_.size(); ++kr)
     {
       Point normal = group_points_[kr]->getMongeNormal();
+      Point normal2 = group_points_[kr]->getTriangNormal();
       int min_ix1 = -1, min_ix2 = -1;
       double min_ang1 = pihalf, min_ang2 = pihalf;
       for (int ka=0; ka<(int)axis.size(); ++ka)
 	{
 	  double ang = axis[ka].angle(normal);
-	  ang = fabs(pihalf-ang);
+	  double ang2 = axis[ka].angle(normal2);
+	  ang = std::min(fabs(pihalf-ang), fabs(pihalf-ang2));
 	  if (ang < min_ang2)
 	    {
 	      min_ang2 = ang;
@@ -11030,14 +11034,15 @@ void RevEngRegion::sortByAxis(vector<Point>& axis, double tol,
       for (int ka=0; ka<(int)axis.size(); ++ka)
 	{
 	  double ang = axis[ka].angle(normal);
-	  if (ang < min_ang1)
+	  double ang2 = axis[ka].angle(normal2);
+	  if (std::min(ang,ang2) < min_ang1)
 	    {
-	      min_ang1 = ang;
+	      min_ang1 = std::min(ang,ang2);
 	      min_ix1 = 2*ka+1;
 	    }
-	  else if (M_PI-ang < min_ang1)
+	  else if (std::min(M_PI-ang,M_PI-ang2) < min_ang1)
 	    {
-	      min_ang1 = M_PI-ang;
+	      min_ang1 = std::min(M_PI-ang,M_PI-ang2);
 	      min_ix1 = 2*ka;
 	    }
 	}
@@ -11082,7 +11087,17 @@ void RevEngRegion::sortByAxis(vector<Point>& axis, double tol,
 	of3 << remaining[ka]->getPoint() << std::endl;
     }
 #endif
-  int stop_break = 1;
+  int num_groups = 0;
+  for (size_t ki=0; ki<groups1.size(); ++ki)
+    if (groups1.size() > 0)
+      num_groups++;
+  for (size_t ki=0; ki<groups2.size(); ++ki)
+    if (groups2.size() > 0)
+      num_groups++;
+  if (remaining.size() > 0)
+    num_groups++;
+    
+  return (num_groups > 1);
 }
 
 //===========================================================================
@@ -11394,6 +11409,23 @@ void RevEngRegion::updateSurfaceAndInfo(shared_ptr<ParamSurface> surf,
 	if (missing > 0)
 	  nopar_edgs.push_back(rev_edges_[kj]);
       }
+}
+
+//===========================================================================
+void RevEngRegion::rangeAlongAxis(const Point& pos, const Point& axis, 
+				  double& tmin, double& tmax)
+//===========================================================================
+{
+  tmin = std::numeric_limits<double>::max();
+  tmax = std::numeric_limits<double>::lowest();
+  for (size_t ki=0; ki<group_points_.size(); ++ki)
+    {
+      Vector3D xyz = group_points_[ki]->getPoint();
+      Point point(xyz[0], xyz[1], xyz[2]);
+      double tpar = (point - pos)*axis;
+      tmin = std::min(tmin, tpar);
+      tmax = std::max(tmax, tpar);
+    }
 }
 
 //===========================================================================
@@ -12532,12 +12564,13 @@ bool RevEngRegion::planarComponent(Point vec, int min_point, int min_pt_reg,
 				   double tol, double angtol, Point mainaxis[3],
 				   vector<shared_ptr<HedgeSurface> >& hedgesfs,
 				   vector<vector<RevEngPoint*> >& out_groups,
-				   vector<RevEngPoint*>& single_pts)
+				   vector<RevEngPoint*>& single_pts,
+				   bool create_surface)
 //===========================================================================
 {
   vector<vector<RevEngPoint*> > vec_pts(2);
   vector<RevEngPoint*> remaining;
-  int min_size = std::min(min_point, (int)group_points_.size()/20);
+  int min_size = std::max(10, std::min(min_point, (int)group_points_.size()/20));
   for (size_t ki=0; ki<group_points_.size(); ++ki)
     {
       Point normal = group_points_[ki]->getMongeNormal();
@@ -12692,20 +12725,24 @@ bool RevEngRegion::planarComponent(Point vec, int min_point, int min_pt_reg,
 				 avdist2, false);
 	}
     }
-  
-  for (size_t ki=0; ki<group_points_.size(); ++ki)
+
+  if (create_surface)
     {
-      group_points_[ki]->setPar(Vector2D(parvals2[2*ki],parvals2[2*ki+1]));
-      group_points_[ki]->setSurfaceDist(dist_ang2[ki].first, dist_ang2[ki].second);
+      for (size_t ki=0; ki<group_points_.size(); ++ki)
+	{
+	  group_points_[ki]->setPar(Vector2D(parvals2[2*ki],parvals2[2*ki+1]));
+	  group_points_[ki]->setSurfaceDist(dist_ang2[ki].first, dist_ang2[ki].second);
+	}
+      setAccuracy(maxdist2, avdist2, num_inside2, num2_inside2);
+      shared_ptr<HedgeSurface> hedge(new HedgeSurface(plane2, this));
+      setHedge(hedge.get());
+      hedgesfs.push_back(hedge);
+      if ((int)group_points_.size() < min_pt_reg)
+	sf_flag = FEW_POINTS;
+      setSurfaceFlag(sf_flag);
     }
-  setAccuracy(maxdist2, avdist2, num_inside2, num2_inside2);
-  shared_ptr<HedgeSurface> hedge(new HedgeSurface(plane2, this));
-  setHedge(hedge.get());
-  hedgesfs.push_back(hedge);
-  if ((int)group_points_.size() < min_pt_reg)
-    sf_flag = FEW_POINTS;
-  setSurfaceFlag(sf_flag);
   updateInfo(tol, angtol);
+    
    
   // Split remaining points into connected components
   if (conn_groups[ix].size() > 0)
@@ -17210,6 +17247,54 @@ void RevEngRegion::checkReplaceSurf(Point mainaxis[3], int min_pt_reg,
     }
 }
 
+
+//===========================================================================
+int RevEngRegion::checkSurfaceAccuracy(vector<shared_ptr<ElementarySurface> >& sfs,
+				       double tol, double angtol, double& maxd,
+				       double& avd, int& num_in,
+				       int& num2_in, int& sf_flag)
+//===========================================================================
+{
+  vector<double> maxdist(sfs.size());
+  vector<double> avdist(sfs.size());
+  vector<int> num_inside(sfs.size());
+  vector<int> num2_inside(sfs.size());
+  vector<int> surf_flag(sfs.size());
+
+  for (size_t ki=0; ki<sfs.size(); ++ki)
+    {
+      bool cyllike = (sfs[ki]->instanceType() == Class_Cylinder ||
+		      sfs[ki]->instanceType() == Class_Cone);
+      vector<RevEngPoint*> inpt, outpt;
+      vector<pair<double, double> > dist_ang;
+      vector<double> parvals;
+      RevEngUtils::distToSurf(group_points_.begin(), group_points_.end(),
+			      sfs[ki], tol, maxdist[ki], avdist[ki],
+			      num_inside[ki], num2_inside[ki],
+			      inpt, outpt, parvals, dist_ang, angtol);
+      surf_flag[ki] = defineSfFlag(0, tol, num_inside[ki], num2_inside[ki], 
+				   avdist[ki], cyllike);
+    }
+
+  int ix = 0;
+  double fac = 1.2;
+  for (size_t ki=1; ki<sfs.size(); ++ki)
+    {
+      if (surf_flag[ki] < surf_flag[ix] ||
+	  (surf_flag[ki] == surf_flag[ix] &&
+	   ((num2_inside[ki] >= num2_inside[ix] && avdist[ki] <= avdist[ix]) ||
+	    (double)num2_inside[ki] >= fac*(double)num2_inside[ix] ||
+	    fac*avdist[ki] <= avdist[ix])))
+	ix = (int)ki;
+    }
+  maxd = maxdist[ix];
+  avd = avdist[ix];
+  num_in = num_inside[ix];
+  num2_in = num2_inside[ix];
+  sf_flag = surf_flag[ix];
+  
+  return (sf_flag < NOT_SET) ? ix : -1;
+}
 
 //===========================================================================
 bool RevEngRegion::isCompatible(ClassType classtype, int sfcode)
