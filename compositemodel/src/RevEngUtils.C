@@ -1835,6 +1835,59 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>::iterator start,
 }
 
 //===========================================================================
+void RevEngUtils::distToSurf(vector<RevEngPoint*>& points,
+			     shared_ptr<ParamSurface> surf, double tol,
+			     double angtol, double& maxdist, double& avdist,
+			     int& inside, int& inside2,
+			     vector<pair<double,double> >& dist_ang)
+//===========================================================================
+{
+  double eps = 1.0e-6;
+  maxdist = avdist = 0.0;
+  inside = inside2 = 0;
+  int num = 0;
+  double *seed = 0;
+  double seed2[2];
+  Point prev;
+  double fac = 100.0;
+  double upar, vpar, dist;
+  Point close;
+  Point norm1, norm2, norm3;
+  double ang, ang2;
+  for (size_t ki=0; ki<points.size(); ++ki)
+    {
+      Vector3D xyz = points[ki]->getPoint();
+      Point pnt(xyz[0], xyz[1], xyz[2]);
+      if (prev.dimension() == pnt.dimension() && prev.dist(pnt) < fac*tol)
+	seed = seed2;
+      
+      surf->closestPoint(pnt, upar, vpar, close, dist, eps, 0, seed);
+      surf->normal(norm1, upar, vpar);
+      norm2 = points[ki]->getMongeNormal();
+      norm3 = points[ki]->getTriangNormal();
+      maxdist = std::max(maxdist, dist);
+      avdist += dist;
+      ang = norm1.angle(norm2);
+      ang2 = norm1.angle(norm3);
+      ang = std::min(std::min(M_PI-ang, ang), std::min(M_PI-ang2,ang2));
+      dist_ang.push_back(std::make_pair(dist, ang));
+      if (dist <= tol)
+	{
+	  ++inside2;
+	  if (angtol < 0.0 || ang <= angtol)
+	    {
+	      ++inside;
+	    }
+	}
+      seed2[0] = upar;
+      seed2[1] = vpar;
+      prev = pnt;
+      ++num;
+    }
+  avdist /= (double)num;
+}
+
+//===========================================================================
 void RevEngUtils::distToSurf(vector<Point>& points,
 			     shared_ptr<ParamSurface> surf, double tol,
 			     double& maxdist, double& avdist, int& num_inside,
@@ -1926,6 +1979,33 @@ void RevEngUtils::distToCurve(vector<Point>& points,
   avdist /= (double)num;
 }
 
+
+//===========================================================================
+shared_ptr<ElementarySurface>
+RevEngUtils::elemsurfWithAxis(shared_ptr<ElementarySurface> sf_in,
+			      vector<RevEngPoint*>& points,
+			      Point mainaxis[3], double diag)
+//===========================================================================
+{
+  Point axis = sf_in->direction();
+  Point loc = sf_in->location();
+  Point Cx = sf_in->direction2();
+  if (sf_in->instanceType() == Class_Plane)
+    return planeWithAxis(points, axis, loc, mainaxis);
+  else if (sf_in->instanceType() == Class_Cylinder)
+    return cylinderWithAxis(points, axis, Cx, loc);
+  else if (sf_in->instanceType() == Class_Torus)
+    return torusWithAxis(points, axis, Cx, loc);
+  else if (sf_in->instanceType() == Class_Sphere)
+    return sphereWithAxis(points, axis, Cx, loc);
+  else if (sf_in->instanceType() == Class_Cone)
+    return coneWithAxis(points, axis, Cx, loc, diag);
+  else
+    {
+      shared_ptr<ElementarySurface> dummy;
+      return dummy;
+    }
+}
 
 //===========================================================================
 shared_ptr<Plane> RevEngUtils::planeWithAxis(vector<RevEngPoint*>& points,
@@ -3151,5 +3231,37 @@ void RevEngUtils::setLoopSeq(vector<shared_ptr<CurveOnSurface> >& cvs)
 }
 
 
+//===========================================================================
+void RevEngUtils::identifyConGroups(vector<RevEngPoint*>& init,
+				    vector<vector<RevEngPoint*> >& groups)
+//===========================================================================
+{
+  // The points may belong to different regions and have different
+  // classifications. Mark to identify
+  int mark = 1;
+  for (size_t ki=0; ki<init.size(); ++ki)
+    init[ki]->setMarkIx(mark);
+
+  for (size_t ki=0; ki<init.size(); ++ki)
+    {
+      if (init[ki]->visited())
+	continue;
+      vector<RevEngPoint*> curr_group;
+      init[ki]->fetchConnectedMarked(mark, curr_group);
+       groups.push_back(curr_group);
+     }
+
+  for (size_t ki=0; ki<init.size(); ++ki)
+    {
+      init[ki]->unsetMarkIx();
+      init[ki]->unsetVisited();
+    }
+
+  // Sort groups according to size
+  for (size_t ki=0; ki<groups.size(); ++ki)
+    for (size_t kj=ki+1; kj<groups.size(); ++kj)
+      if (groups[kj].size() > groups[ki].size())
+	std::swap(groups[ki], groups[kj]);
+}
 
 

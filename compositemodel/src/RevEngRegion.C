@@ -1412,7 +1412,10 @@ bool RevEngRegion::segmentByAdjSfContext(Point mainaxis[3], int min_point_in,
       //return true;
     }
   else if (numPoints() == 0)
-    removeFromAdjacent();
+    {
+      removeFromAdjacent();
+      clearRegionAdjacency();
+    }
 
   return false;
 }
@@ -2545,18 +2548,19 @@ void RevEngRegion::neighbourBlends(vector<shared_ptr<CurveOnSurface> >& cvs,
 	continue;
       if ((*it)->hasRevEdges())
 	continue;
-      if ((*it)->isInBlend(cvs, width, tol))
+      int in_blend = 0;
+      if ((*it)->isInBlend(cvs, width, tol, in_blend))
 	new_blends.push_back(*it);
     }
 }
 
 //===========================================================================
 bool RevEngRegion::isInBlend(vector<shared_ptr<CurveOnSurface> >& cvs,
-			      double width, double tol)
+			     double width, double tol, int& in_blend)
 //===========================================================================
 {
   double lim = 0.9;
-  int in_blend = 0;
+  in_blend = 0;
   double tmin = cvs[0]->startparam();
   double tmax = cvs[cvs.size()-1]->endparam();
   for (size_t ki=0; ki<group_points_.size(); ++ki)
@@ -4142,7 +4146,6 @@ bool RevEngRegion::extractCone(double tol, int min_pt, int min_pt_reg,
 	    prevsfs.push_back(associated_sf_[kh]);
 	  setHedge(hedge.get());
 	  hedgesfs.push_back(hedge);
-	  hedgesfs.push_back(hedge);
 	  if ((int)group_points_.size() < min_pt_reg)
 	    sf_flag = FEW_POINTS;
 	  setSurfaceFlag(sf_flag);
@@ -5463,7 +5466,10 @@ bool RevEngRegion::contextTorus(Point mainaxis[3],
 	  updateInfo(tol, angtol);
 	}
       else
-	removeFromAdjacent();
+	{
+	  removeFromAdjacent();
+	  clearRegionAdjacency();
+	}
     }
 
 
@@ -5482,32 +5488,36 @@ bool RevEngRegion::contextTorus(Point mainaxis[3],
 
 //===========================================================================
 bool RevEngRegion::addPointsToGroup(vector<RevEngPoint*>& points,
-				    double tol, double angtol)
+				    double tol, double angtol, bool compute_accuracy)
 //===========================================================================
 {
   if (!hasSurface())
     return false;
 
   shared_ptr<ParamSurface> surf = getSurface(0)->surface();
-  
-  // Compute accuracy
-  vector<RevEngPoint*> inpt, outpt;
-  vector<pair<double, double> > dist_ang;
-  double maxd, avd;
-  int num_in, num2_in;
-  vector<double> parvals;
-  RevEngUtils::distToSurf(points.begin(), points.end(),
-			  surf, tol, maxd, avd, num_in, num2_in,
-			  inpt, outpt, parvals, dist_ang,
-			  angtol);
 
-  // Update info in ponts
-  for (size_t kh=0; kh<points.size(); ++kh)
+  if (compute_accuracy)
     {
-      points[kh]->setPar(Vector2D(parvals[2*kh],parvals[2*kh+1]));
-      points[kh]->setSurfaceDist(dist_ang[kh].first, dist_ang[kh].second);
-      points[kh]->setRegion(this);
+      // Compute accuracy
+      vector<RevEngPoint*> inpt, outpt;
+      vector<pair<double, double> > dist_ang;
+      double maxd, avd;
+      int num_in, num2_in;
+      vector<double> parvals;
+      RevEngUtils::distToSurf(points.begin(), points.end(),
+			      surf, tol, maxd, avd, num_in, num2_in,
+			      inpt, outpt, parvals, dist_ang,
+			      angtol);
+
+      // Update info in points
+      for (size_t kh=0; kh<points.size(); ++kh)
+	{
+	  points[kh]->setPar(Vector2D(parvals[2*kh],parvals[2*kh+1]));
+	  points[kh]->setSurfaceDist(dist_ang[kh].first, dist_ang[kh].second);
+	}
     }
+  for (size_t kh=0; kh<points.size(); ++kh)
+      points[kh]->setRegion(this);
   group_points_.insert(group_points_.end(), points.begin(), points.end());
   updateInfo(tol, angtol);
 
@@ -6408,8 +6418,11 @@ void RevEngRegion::growFromNeighbour(Point mainaxis[3], int min_pt_reg,
       int sf_flag = defineSfFlag(min_pt_reg, tol, num_inside_,
 				 num_inside2_, avdist_, cyllike);
       setSurfaceFlag(sf_flag);
-      if (do_update && (double)next_pts.size() > frac*(double)num_init)
+      if (do_update && surf_adaption_ == INITIAL &&
+	  (double)next_pts.size() > frac*(double)num_init)
 	checkReplaceSurf(mainaxis, min_pt_reg, tol, angtol);
+      for (size_t kj=0; kj<rev_edges_.size(); ++kj)
+	rev_edges_[kj]->increaseExtendCount();
 
       neighbour->updateInfo();
     }
@@ -6587,6 +6600,10 @@ void RevEngRegion::testBlendGap(vector<shared_ptr<CurveOnSurface> >& cvs,
       for (kh=0; kh<cvs.size(); ++kh)
 	if (cvs[kh]->startparam() <= cpar && cvs[kh]->endparam() >= cpar)
 	  break;
+      if (kh >= cvs.size())
+	{
+	  std::cout << cvs.size() << " " << kh << std::endl;
+	}
       Point cpt = cvs[kh]->ParamCurve::point(cpar);
       double dist;
       RevEngPoint* rpt = closestPoint(cpt, dist);
@@ -6638,6 +6655,7 @@ void RevEngRegion::estimateBlendDimensions(vector<shared_ptr<CurveOnSurface> >& 
   //   return;  // Must consider this later. Will it happen?
   
   // Parameterize points with respect to the given curve
+  double eps = 1.0e-9;
   vector<double> param(bd_points.size());
   vector<double> distance(bd_points.size());
   
@@ -6669,6 +6687,9 @@ void RevEngRegion::estimateBlendDimensions(vector<shared_ptr<CurveOnSurface> >& 
 	num_in_lim++;
     }
 
+  if (tmax < tmin+eps)
+    return;
+  
   // Sort
   for (size_t ki=0; ki<bd_points.size(); ++ki)
     for (size_t kj=ki+1; kj<bd_points.size(); ++kj)
@@ -6681,7 +6702,7 @@ void RevEngRegion::estimateBlendDimensions(vector<shared_ptr<CurveOnSurface> >& 
 
   // Limit point sequence
   size_t first = 0, last = param.size()-1;
-  double eps = std::min(1.0e-9, 1.0e-6*(tmax-tmin));
+  eps = std::min(1.0e-9, 1.0e-6*(tmax-tmin));
   for (; first<last; ++first)
     if (param[first+1]-param[0] > eps)
       break;
@@ -6799,7 +6820,7 @@ void RevEngRegion::estimateBlendDimensions(vector<shared_ptr<CurveOnSurface> >& 
       size_t nmb = t1_t2.size();
       vector<pair<double,double> > t3_t4;
       vector<double> width2;
-      if (t1_t2[0].first > tmin)
+      if (t1_t2[0].first > tmin+eps)
 	{
 	  vector<pair<double,double> > not_gap;
 	  testBlendGap(cvs, tmin, t1_t2[0].first, tdel, width[0], not_gap);
@@ -6826,7 +6847,7 @@ void RevEngRegion::estimateBlendDimensions(vector<shared_ptr<CurveOnSurface> >& 
 	  t3_t4.push_back(t1_t2[kj]);
 	  width2.push_back(width[kj]);
 	}
-      if (tmax > t1_t2[nmb-1].second)
+     if (tmax > t1_t2[nmb-1].second)
 	{
 	  vector<pair<double,double> > not_gap;
 	  testBlendGap(cvs, t1_t2[nmb-1].second, tmax, tdel, width[nmb-1], not_gap);
@@ -9451,19 +9472,25 @@ bool RevEngRegion::arrangeEdgeLoop(double tol)
 	    }
 
 	  // Identify first and last point along edge
-	  RevEngPoint *first_pt, *last_pt;
+	  RevEngPoint *first_pt=0, *last_pt=0;
 	  double t1, t2;
 	  RevEngUtils::identifyEndPoints(edge_pts, sfcv[cv_ix], first_pt, t1, last_pt, t2);
 #ifdef DEBUG_TRIM
 	  if (t2 > t1)
 	    {
 	      std::ofstream ofpt("edge_ends.g2");
-	      ofpt << "400 1 0 4 100 100 55 255" << std::endl;
-	      ofpt << "1" << std::endl;
-	      ofpt << first_pt->getPar() << " 0.0" << std::endl;
-	      ofpt << "400 1 0 4 100 100 55 255" << std::endl;
-	      ofpt << "1" << std::endl;
-	      ofpt << last_pt->getPar() << " 0.0" << std::endl;
+	      if (first_pt)
+		{
+		  ofpt << "400 1 0 4 100 100 55 255" << std::endl;
+		  ofpt << "1" << std::endl;
+		  ofpt << first_pt->getPar() << " 0.0" << std::endl;
+		}
+	      if (last_pt)
+		{
+		  ofpt << "400 1 0 4 100 100 55 255" << std::endl;
+		  ofpt << "1" << std::endl;
+		  ofpt << last_pt->getPar() << " 0.0" << std::endl;
+		}
 	    }
 #endif
 	  if (t2 < t1)
@@ -9807,6 +9834,52 @@ void RevEngRegion::extractPointsAtSeam(vector<RevEngPoint*>& seam_pts1,
       vector<RevEngPoint*> tmp2_pts2(tmp_pts2.begin(), tmp_pts2.end());
       seam_pts2 = tmp2_pts2;
     }
+}
+
+//===========================================================================
+void RevEngRegion::getAdjCandMerge(vector<RevEngRegion*>& adj_surf,
+				   vector<RevEngRegion*>& adj_nosurf)
+//===========================================================================
+{
+  vector<RevEngRegion*> adj_reg;
+  adj_reg.insert(adj_reg.end(), adjacent_regions_.begin(), adjacent_regions_.end());
+  for (size_t ki=0; ki<adj_reg.size(); ++ki)
+    for (size_t kj=ki+1; kj<adj_reg.size(); ++kj)
+      if (adj_reg[kj]->numPoints() > adj_reg[ki]->numPoints())
+	std::swap(adj_reg[ki], adj_reg[kj]);
+  for (size_t ki=0; ki<adj_reg.size(); ++ki)
+    
+    {
+      if (adj_reg[ki]->prev_region_ && adj_reg[ki]->prev_region_ == this)
+	continue;
+      if (commonRevEdge(adj_reg[ki]) || adj_reg[ki]->hasAssociatedBlend() ||
+	  adj_reg[ki]->hasBlendEdge())
+	continue;
+
+      if (adj_reg[ki]->hasSurface())
+	{
+	  // Check compatibility (todo)
+	  adj_surf.push_back(adj_reg[ki]);
+	}
+      else
+	{
+	  // Check compatibility (todo)
+	  adj_nosurf.push_back(adj_reg[ki]);
+	}
+    }
+}
+
+//===========================================================================
+bool RevEngRegion::commonRevEdge(RevEngRegion *other)
+//===========================================================================
+{
+  vector<RevEngEdge*> other_edgs = other->getAllRevEdges();
+  for (size_t ki=0; ki<rev_edges_.size(); ++ki)
+    for (size_t kj=0; kj<other_edgs.size(); ++kj)
+      if (rev_edges_[ki] == other_edgs[kj])
+	return true;
+
+  return false;
 }
 
 //===========================================================================
@@ -11277,7 +11350,7 @@ bool RevEngRegion::updateSurfaceWithAxis(int min_pt_reg, Point adj_axis,
 	    num_in1++;
 	}
     }
-  int sf_flag1 = defineSfFlag(min_pt_reg, tol, num_in1, num2_in1,
+  int sf_flag1 = defineSfFlag(0, tol, num_in1, num2_in1,
 			      avdist1, cyllike);
   
   vector<double> maxdist(curr_axis.size());
@@ -11346,7 +11419,10 @@ bool RevEngRegion::updateSurfaceWithAxis(int min_pt_reg, Point adj_axis,
        setSurfaceFlag(sf_flag[alt_ix]);
        updateInfo(tol, angtol);
        for (size_t kj=0; kj<rev_edges_.size(); ++kj)
-	 rev_edges_[kj]->replaceSurf(this, surf[alt_ix], tol);
+	 {
+	   rev_edges_[kj]->replaceSurf(this, surf[alt_ix], tol);
+	   rev_edges_[kj]->increaseSurfChangeCount();
+	 }
        surf_adaption_ = (adj_axis.dimension() != 0 && alt_ix == 0) ?
 	 ADJACENT_ADAPTED : AXIS_ADAPTED;
        updated = true;
@@ -11405,6 +11481,7 @@ void RevEngRegion::updateSurfaceAndInfo(shared_ptr<ParamSurface> surf,
     for (size_t kj=0; kj<rev_edges_.size(); ++kj)
       {
 	rev_edges_[kj]->replaceSurf(this, surf, tol);
+	rev_edges_[kj]->increaseSurfChangeCount();
 	int missing = rev_edges_[kj]->missingParCrv();
 	if (missing > 0)
 	  nopar_edgs.push_back(rev_edges_[kj]);
@@ -13049,7 +13126,7 @@ int RevEngRegion::defineSfFlag(int min_point, double tol, int num_in,
 {
   int sf_flag = NOT_SET;
   double fac = 2.0;
-  bool OK = accuracyOK(min_point, tol, num_in, avd);
+  bool OK = accuracyOK(0, tol, num_in, avd);
   int nfac = 2;
   if (OK)
     sf_flag = ACCURACY_OK;
@@ -13069,6 +13146,9 @@ int RevEngRegion::defineSfFlag(int min_point, double tol, int num_in,
   if ((sf_flag == ANGULAR_DEVIATION ||
        (num_in2 >= nfac*num_in && sf_flag < NOT_SET)) && type_cyl)
     sf_flag = PROBABLE_HELIX;
+
+  if (sf_flag < NOT_SET && (int)group_points_.size() < min_point)
+    sf_flag = FEW_POINTS;
 
   return sf_flag;
 }
@@ -13134,49 +13214,52 @@ void RevEngRegion::updateInfo(double tol, double angtol)
       bbox_.addUnionWith(point2);
     }
 
-  normalcone_ = DirectionCone(group_points_[0]->getMongeNormal());
-  normalcone2_ = DirectionCone(group_points_[0]->getTriangNormal());
-  avnorm_ = Point(0.0, 0.0, 0.0);
-  avnorm2_ = Point(0.0, 0.0, 0.0);
-  for  (size_t kj=0; kj<group_points_.size(); ++kj)
+  if (group_points_.size() > 0)
     {
-      Point norm = group_points_[kj]->getMongeNormal();
-      normalcone_.addUnionWith(norm);
-      avnorm_ += fac*norm;
-      Point norm2 = group_points_[kj]->getTriangNormal();
-      normalcone2_.addUnionWith(norm2);
-      avnorm2_ += fac*norm2;
-    }
-  // (void)avnorm_.normalize_checked();
-  // (void)avnorm2_.normalize_checked();
+      normalcone_ = DirectionCone(group_points_[0]->getMongeNormal());
+      normalcone2_ = DirectionCone(group_points_[0]->getTriangNormal());
+      avnorm_ = Point(0.0, 0.0, 0.0);
+      avnorm2_ = Point(0.0, 0.0, 0.0);
+      for  (size_t kj=0; kj<group_points_.size(); ++kj)
+	{
+	  Point norm = group_points_[kj]->getMongeNormal();
+	  normalcone_.addUnionWith(norm);
+	  avnorm_ += fac*norm;
+	  Point norm2 = group_points_[kj]->getTriangNormal();
+	  normalcone2_.addUnionWith(norm2);
+	  avnorm2_ += fac*norm2;
+	}
+      // (void)avnorm_.normalize_checked();
+      // (void)avnorm2_.normalize_checked();
 
-  double anglim = 0.2;
-  if (normalcone_.angle() <= anglim)
-    frac_norm_in_ = 1.0;
-  else
-    {
-      int nmb_in = 0;
-      for (size_t kr=0; kr<group_points_.size(); ++kr)
+      double anglim = 0.2;
+      if (normalcone_.angle() <= anglim)
+	frac_norm_in_ = 1.0;
+      else
 	{
-	  Point normal = group_points_[kr]->getMongeNormal();
-	  if (avnorm_.angle(normal) <= anglim)
-	    nmb_in++;
+	  int nmb_in = 0;
+	  for (size_t kr=0; kr<group_points_.size(); ++kr)
+	    {
+	      Point normal = group_points_[kr]->getMongeNormal();
+	      if (avnorm_.angle(normal) <= anglim)
+		nmb_in++;
+	    }
+	  frac_norm_in_ = (double)nmb_in/(double)group_points_.size();
 	}
-      frac_norm_in_ = (double)nmb_in/(double)group_points_.size();
-    }
   
-  if (normalcone2_.angle() <= anglim)
-    frac_norm_in2_ = 1.0;
-  else
-    {
-      int nmb_in = 0;
-      for (size_t kr=0; kr<group_points_.size(); ++kr)
+      if (normalcone2_.angle() <= anglim)
+	frac_norm_in2_ = 1.0;
+      else
 	{
-	  Point normal = group_points_[kr]->getTriangNormal();
-	  if (avnorm2_.angle(normal) <= anglim)
-	    nmb_in++;
+	  int nmb_in = 0;
+	  for (size_t kr=0; kr<group_points_.size(); ++kr)
+	    {
+	      Point normal = group_points_[kr]->getTriangNormal();
+	      if (avnorm2_.angle(normal) <= anglim)
+		nmb_in++;
+	    }
+	  frac_norm_in2_ = (double)nmb_in/(double)group_points_.size();
 	}
-      frac_norm_in2_ = (double)nmb_in/(double)group_points_.size();
     }
   
   if (hasSurface() && group_points_.size() > 0)
@@ -14010,6 +14093,8 @@ bool RevEngRegion::integrateInAdjacent(double mean_edge_len, int min_next,
 	continue;
       if (info[kj].avd > tol || (info[kj].nmb_in < num/2 && info[kj].maxd > tol))
 	continue;
+      if (info[kj].adjacent->hasAssociatedBlend())
+	continue;  // Not to be extended
       double frac1 = (double)info[kj].nmb_in/(double)num;
       double frac2 = (double)info[kj].nmb_in_adj/(double)info[kj].nmb_pt_adj;
       if (frac1 < 0.9*frac2 && info[kj].maxd > tol)
@@ -14730,6 +14815,8 @@ void RevEngRegion::growWithSurf(Point mainaxis[3], int max_nmb,
 
   if (hasAssociatedBlend())
     return;
+
+  size_t num_group_points = group_points_.size();
   
   shared_ptr<ParamSurface> surf = associated_sf_[0]->surface();
   int classtype = surf->instanceType();
@@ -14825,7 +14912,7 @@ void RevEngRegion::growWithSurf(Point mainaxis[3], int max_nmb,
 		 {
 		   RevEngRegion *adj1, *adj2;
 		   rev_edgs[kr]->getAdjacent(adj1, adj2);
-		   RevEngRegion *other = (adj1 == this) ? adj2 : adj1;
+		   RevEngRegion *other = (adj1 == adj_reg[ki]) ? adj2 : adj1;
 		   other->removeRevEngEdge(rev_edgs[kr]);
 		 }
 	       adj_edgs.insert(adj_edgs.end(), rev_edgs.begin(), rev_edgs.end());
@@ -14850,8 +14937,52 @@ void RevEngRegion::growWithSurf(Point mainaxis[3], int max_nmb,
 			tol, angtol, grown_regions, adj_surfs);
       int stop_break = 1;
     }
+
+  double fac = 1.5;
+  if ((int)group_points_.size() > (int)(fac*num_group_points) ||
+      adj_surfs.size() > 0)
+    {
+      for (size_t kj=0; kj<rev_edges_.size(); ++kj)
+	rev_edges_[kj]->increaseExtendCount();
+    }
 }
 
+
+//===========================================================================
+int RevEngRegion::getGrowAccuracy(RevEngRegion *other, double tol,
+				  double angtol, double& maxdist,
+				  double& avdist, int& num_inside, 
+				  int& num2_inside, double& maxdist2,
+				  double& avdist2, int& num_in2,
+				  int& num2_in2,vector<double>& parvals,
+				  vector<pair<double,double> >& distang)
+//===========================================================================
+{
+  if (!hasSurface())
+    return NOT_SET;
+
+  shared_ptr<ParamSurface> surf = getSurface(0)->surface();
+  
+  vector<RevEngPoint*> in, out;
+  RevEngUtils::distToSurf(other->pointsBegin(),
+			  other->pointsEnd(), surf, tol,
+			  maxdist2, avdist2, num_in2, num2_in2,
+			  in, out, parvals, distang, angtol);
+
+  maxdist = std::max(maxdist_, maxdist2);
+  int all_pts = (int)group_points_.size() + other->numPoints();
+  double fac1 = (double)(group_points_.size())/(double)all_pts;
+  double fac2 = (double)(other->numPoints())/(double)all_pts;
+  avdist = fac1*avdist_ + fac2*avdist2;
+  num_inside = num_inside_ + num_in2;
+  num2_inside = num_inside2_ + num2_in2;
+
+  bool cyllike = (surf->instanceType() == Class_Cylinder ||
+		  surf->instanceType() == Class_Cone);
+  int sf_flag = other->defineSfFlag(0, tol, num_in2, num2_in2, avdist2,
+				    cyllike);
+  return sf_flag;
+ }
 
 //===========================================================================
 void RevEngRegion::getDomainBoundaries(double tol, double angtol,
@@ -15005,6 +15136,7 @@ void RevEngRegion::growBlendSurf(vector<RevEngRegion*>& next_blend, double tol,
 				num2_in, parvals, dist_ang,
 				added_adjacent);
 	  adj_reg[ki]->removeFromAdjacent();
+	  adj_reg[ki]->clearRegionAdjacency();
 	  grown_regions.push_back(adj_reg[ki]);
 
 	}
@@ -15079,6 +15211,7 @@ void RevEngRegion::growBlendSurf(vector<RevEngRegion*>& next_blend, double tol,
 		      
 		    }
 		  adj_reg[ki]->removeFromAdjacent();
+		  adj_reg[ki]->clearRegionAdjacency();
 		  grown_regions.push_back(adj_reg[ki]);
 		  continue;
 		}
@@ -15207,6 +15340,7 @@ void RevEngRegion::growBlendSurf(vector<RevEngRegion*>& next_blend, double tol,
 	  if (adj_reg[ki]->numPoints() == 0)
 	    {
 	      adj_reg[ki]->removeFromAdjacent();
+	      adj_reg[ki]->clearRegionAdjacency();
 	      grown_regions.push_back(adj_reg[ki]);
 	    }
 	  else
@@ -15525,8 +15659,8 @@ void RevEngRegion::integrateGrowCand(vector<grow_cand>& cand,
 
       double maxdist = maxd[0];
       double avdist = (double)all_num[0]*avd[0]/(double)num;
-      double num_inside = num_in[0];
-      double num2_inside = num2_in[0];
+      int num_inside = num_in[0];
+      int num2_inside = num2_in[0];
       double meanang = (double)all_num[0]*avang[0]/(double)num;
       int inside_ang = ang_in[0];
       
@@ -16086,7 +16220,8 @@ bool RevEngRegion::mergePlanarReg(double zero_H, double zero_K, double tol,
 //===========================================================================
 void RevEngRegion::mergeAdjacentSimilar(double tol, double angtol,
 					vector<RevEngRegion*>& grown_regions,
-					vector<HedgeSurface*>& adj_surfs)
+					vector<HedgeSurface*>& adj_surfs,
+					vector<RevEngEdge*>& adj_edgs)
 //===========================================================================
 {
   if (associated_sf_.size() == 0)
@@ -16095,6 +16230,10 @@ void RevEngRegion::mergeAdjacentSimilar(double tol, double angtol,
   if (hasAssociatedBlend())
     return;
 
+#ifdef DEBUG_MERGE
+  std::ofstream of1("source_group.g2");
+  writeRegionPoints(of1);
+#endif
   int sfcode;
   ClassType classtype = associated_sf_[0]->instanceType(sfcode);
   bool cyllike = (classtype == Class_Cylinder || classtype == Class_Cone);
@@ -16123,8 +16262,6 @@ void RevEngRegion::mergeAdjacentSimilar(double tol, double angtol,
     return; // Nothing with which to merge
 
 #ifdef DEBUG_MERGE
-  std::ofstream of1("source_group.g2");
-  writeRegionPoints(of1);
   std::ofstream of2("adj_group.g2");
   for (size_t ki=0; ki<adj_reg.size(); ++ki)
     adj_reg[ki]->writeRegionPoints(of2);
@@ -16287,6 +16424,15 @@ void RevEngRegion::mergeAdjacentSimilar(double tol, double angtol,
 	  int num_sf = adj_reg[kb]->numSurface();
 	  for (int kc=0; kc<num_sf; ++kc)
 	    adj_surfs.push_back(adj_reg[kb]->getSurface(kc));
+	  vector<RevEngEdge*> rev_edgs = adj_reg[kb]->getAllRevEdges();
+	  for (size_t kr=0; kr<rev_edgs.size(); ++kr)
+	    {
+	      RevEngRegion *adj1, *adj2;
+	      rev_edgs[kr]->getAdjacent(adj1, adj2);
+	      RevEngRegion *other = (adj1 == adj_reg[kb]) ? adj2 : adj1;
+	      other->removeRevEngEdge(rev_edgs[kr]);
+	    }
+	  adj_edgs.insert(adj_edgs.end(), rev_edgs.begin(), rev_edgs.end());
 	  removeAdjacentRegion(adj_reg[kb]);
 	}
       updateInfo(tol, angtol);
@@ -16335,6 +16481,54 @@ RevEngRegion::includeAdjacentRegion(RevEngRegion* reg, double maxd, double avd,
 	  (*it2)->removeAdjacentRegion(reg);
 	}
     }
+}
+
+//===========================================================================
+void RevEngRegion::checkEdgeAssociation(double tol, int min_point_reg,
+					vector<HedgeSurface*>& removed_sfs)
+//===========================================================================
+{
+  vector<RevEngRegion*> adj_regs(adjacent_regions_.begin(), adjacent_regions_.end());
+  std::set<RevEngEdge*> rev_edgs;
+  for (size_t ki=0; ki<adj_regs.size(); ++ki)
+    if (adj_regs[ki]->hasRevEdges())
+      {
+	vector<RevEngEdge*> curr_edgs = adj_regs[ki]->getAllRevEdges();
+	rev_edgs.insert(curr_edgs.begin(), curr_edgs.end());
+      }
+  vector<RevEngEdge*> edges(rev_edgs.begin(), rev_edgs.end());
+  for (size_t ki=0; ki<edges.size(); ++ki)
+    {
+      vector<RevEngRegion*> blend_regs;
+      edges[ki]->getAllBlendRegs(blend_regs);
+      size_t kj = 0;
+      for (kj=0; kj<blend_regs.size(); ++kj)
+	if (blend_regs[kj]->isAdjacent(this))
+	  {
+	    //std::cout << "Potential edge" << std::endl;
+	    vector<shared_ptr<CurveOnSurface> > cvs;
+	    edges[ki]->getCurve(cvs);
+	    double width = edges[ki]->getDistance();
+	    int num_in_blend = 0;
+	    if (isInBlend(cvs, 2.0*width, tol, num_in_blend))
+	      {
+		edges[ki]->addBlendRegion(this);
+		setAssociatedBlend(edges[ki]);
+	      }
+	    else if (num_in_blend > 0 && (int)group_points_.size() < min_point_reg)
+	      {
+		// Dubious surface
+		if (associated_sf_.size() > 0)
+		  removed_sfs.insert(removed_sfs.end(), associated_sf_.begin(),
+				     associated_sf_.end());
+		clearSurface();
+	      }
+	    break;
+	  }
+      if (kj < blend_regs.size())
+	break;
+    }
+  int stop_break = 1;
 }
 
 //===========================================================================
@@ -17079,6 +17273,17 @@ bool RevEngRegion::getCurveRestriction(vector<shared_ptr<CurveOnSurface> >& cvs,
       endpars[ki] = std::make_pair(start,end);
     }
 
+  // Special treatment of closed curve
+  double seam_dist = std::numeric_limits<double>::max();
+  if (cvs.size() == 1)
+    {
+      Point startpt = cvs[0]->ParamCurve::point(cvs[0]->startparam());
+      Point endpt = cvs[0]->ParamCurve::point(cvs[0]->endparam());
+      if (startpt.dist(endpt) <= tol)
+	{
+	  closestPoint(startpt, seam_dist);
+	}
+    }
 
   // Restrict curve with respect to parameter domain
   double fac = 0.1;
@@ -17102,8 +17307,8 @@ bool RevEngRegion::getCurveRestriction(vector<shared_ptr<CurveOnSurface> >& cvs,
 	  Point close;
 	  pcurve->closestPoint(corner[ka], pcurve->startparam(),
 			       pcurve->endparam(), cvparam[ka], close, dist);
-	  if (u1 < domain_[0]-udel || u2 > domain_[1]+udel ||
-	      v1 < domain_[2]-vdel || v2 > domain_[3]+vdel)
+	  if (dist < seam_dist && (u1 < domain_[0]-udel || u2 > domain_[1]+udel ||
+				   v1 < domain_[2]-vdel || v2 > domain_[3]+vdel))
 	    inside = false;
 	}
       std::sort(cvparam.begin(), cvparam.end());
@@ -17829,40 +18034,42 @@ void RevEngRegion::read(std::istream& is,
   mink1_ = std::numeric_limits<double>::max();
   MAH_ = MAK_ = avH_ = avK_ = 0.0;
   bbox_ = BoundingBox(3);
-  double fac = 1.0/(double)group_points_.size();
-  for  (size_t kj=0; kj<group_points_.size(); ++kj)
+  if (group_points_.size() > 0)
     {
-      double k1 = group_points_[kj]->minPrincipalCurvature();
-      double k2 = group_points_[kj]->maxPrincipalCurvature();
-      double H = group_points_[kj]->meanCurvature();
-      double K = group_points_[kj]->GaussCurvature();
-      mink1_ = std::min(mink1_, fabs(k1));
-      maxk1_ = std::max(maxk1_, fabs(k1));
-      mink2_ = std::min(mink2_, fabs(k2));
-      maxk2_ = std::max(maxk2_, fabs(k2));
-      avH_ += fac*H;
-      avK_ += fac*K;
-      MAH_ += fac*fabs(H);
-      MAK_ += fac*fabs(K);
-      Vector3D point = group_points_[kj]->getPoint();
-      Point point2(point[0], point[1], point[2]);
-      bbox_.addUnionWith(point2);
-    }
+      double fac = 1.0/(double)group_points_.size();
+      for  (size_t kj=0; kj<group_points_.size(); ++kj)
+	{
+	  double k1 = group_points_[kj]->minPrincipalCurvature();
+	  double k2 = group_points_[kj]->maxPrincipalCurvature();
+	  double H = group_points_[kj]->meanCurvature();
+	  double K = group_points_[kj]->GaussCurvature();
+	  mink1_ = std::min(mink1_, fabs(k1));
+	  maxk1_ = std::max(maxk1_, fabs(k1));
+	  mink2_ = std::min(mink2_, fabs(k2));
+	  maxk2_ = std::max(maxk2_, fabs(k2));
+	  avH_ += fac*H;
+	  avK_ += fac*K;
+	  MAH_ += fac*fabs(H);
+	  MAK_ += fac*fabs(K);
+	  Vector3D point = group_points_[kj]->getPoint();
+	  Point point2(point[0], point[1], point[2]);
+	  bbox_.addUnionWith(point2);
+	}
   
-  normalcone_ = DirectionCone(group_points_[0]->getMongeNormal());
-  normalcone2_ = DirectionCone(group_points_[0]->getTriangNormal());
-  avnorm_ = Point(0.0, 0.0, 0.0);
-  avnorm2_ = Point(0.0, 0.0, 0.0);
-  for  (size_t kj=1; kj<group_points_.size(); ++kj)
-    {
-      Point norm = group_points_[kj]->getMongeNormal();
-      normalcone_.addUnionWith(norm);
-      avnorm_ += fac*norm;
-      Point norm2 = group_points_[kj]->getTriangNormal();
-      normalcone2_.addUnionWith(norm2);
-      avnorm2_ += fac*norm2;
+      normalcone_ = DirectionCone(group_points_[0]->getMongeNormal());
+      normalcone2_ = DirectionCone(group_points_[0]->getTriangNormal());
+      avnorm_ = Point(0.0, 0.0, 0.0);
+      avnorm2_ = Point(0.0, 0.0, 0.0);
+      for  (size_t kj=1; kj<group_points_.size(); ++kj)
+	{
+	  Point norm = group_points_[kj]->getMongeNormal();
+	  normalcone_.addUnionWith(norm);
+	  avnorm_ += fac*norm;
+	  Point norm2 = group_points_[kj]->getTriangNormal();
+	  normalcone2_.addUnionWith(norm2);
+	  avnorm2_ += fac*norm2;
+	}
     }
-  
 }
 
 //===========================================================================
@@ -17905,7 +18112,7 @@ void RevEngRegion::writeSubTriangulation(std::ostream& of)
 	  if (it == group_points_.end())
 	    {
 #ifdef DEBUG
-	    std::cout << "writeSubTriangulation: missing connection" << std::endl;
+	      std::cout << "writeSubTriangulation: missing connection" << std::endl;
 #endif
 	    }
 	  else

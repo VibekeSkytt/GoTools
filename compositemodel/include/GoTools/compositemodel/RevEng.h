@@ -75,14 +75,16 @@ namespace Go
     Point dir_, loc_;
     double rad1_, rad2_;
     int num_points_;
+    int surfflag_;
 
-    SurfaceProperties(int ix, ClassType type, int num, Point& dir, Point& loc,
-		      ClassType prev_type=Class_Unknown, double rad1=-1,
+    SurfaceProperties(int ix, ClassType type, int num, int surfflag, Point& dir, 
+		      Point& loc, ClassType prev_type=Class_Unknown, double rad1=-1,
 		      double rad2=-1)
     {
       sfix_ = ix;
       type_ = type;
       num_points_ = num;
+      surfflag_ = surfflag;
       dir_ = dir;
       loc_ = loc;
       prev_type_ = prev_type;
@@ -324,6 +326,8 @@ namespace Go
 
    void smallRegionSurfaces();
 
+    void growSmallRegionSurface(int& ix);
+
     void adaptToMainAxis();
 
    private:
@@ -371,6 +375,31 @@ namespace Go
     Point mainaxis_[3];
     std::vector<AxisInfo> model_axis_;
     
+    struct SmallSurface
+    {
+      int axis_ix_, pos_ix_, lev_ix_;
+      vector<vector<RevEngPoint*> > assos_points_;
+      vector<shared_ptr<ElementarySurface> > surfs_;
+      vector<BoundingBox> bbox_;
+      int type_;   // 1 = plane1, 2=plane2, 3=rotational
+
+      SmallSurface(int ix1, int ix2, int ix3, int type,
+		   vector<shared_ptr<ElementarySurface> >& surfs)
+      {
+	axis_ix_ = ix1;
+	pos_ix_ = ix2;
+	lev_ix_ = ix3;
+	type_ = type;
+	surfs_ = surfs;
+      }
+
+      void addPoints(vector<RevEngPoint*>& points, BoundingBox bb)
+      {
+	assos_points_.push_back(points);
+	bbox_.push_back(bb);
+      }
+    };
+  
     void initParameters();
     void updateParameters();
     bool recognizeOneSurface(int& ix, int min_point_in, double angtol,
@@ -413,16 +442,43 @@ namespace Go
 					    ClassType type);
 
     void defineSmallRegionSurfaces();
+    void defineSmallRegionSurfaces0();
     
     bool identifySmallRotational(std::vector<RevEngRegion*>& groups,
 				 Point loc, Point axis, Point Cx,
 				 double ppar1, double ppar2,
 				 std::vector<shared_ptr<ElementarySurface> >& sfs);
 
+    bool identifySmallRotational(std::vector<RevEngPoint*>& points,
+				 Point midp, Point loc, Point axis, Point Cx,
+				 double ppar1, double ppar2,
+				 std::vector<shared_ptr<ElementarySurface> >& sfs);
+
     bool identifySmallPlanar(std::vector<RevEngRegion*>& groups,
 			     Point loc, Point axis, Point Cx,
-			     double ppar1, double ppar2,
+			     double ppar1, double ppar2, double delta,
 			     std::vector<shared_ptr<ElementarySurface> >& sfs);
+
+    bool identifySmallPlanar(std::vector<RevEngPoint*>& groups,
+			     Point loc, Point axis, Point Cx,
+			     double ppar1, double ppar2, double delta,
+			     std::vector<shared_ptr<ElementarySurface> >& sfs);
+    
+    void planarAtPlane(shared_ptr<Plane> axis_plane,
+		       std::vector<RevEngPoint*>& points,
+		       std::vector<HedgeSurface*>& sfs,
+		       std::vector<shared_ptr<RevEngRegion> >& plane_sf_reg,
+		       std::vector<shared_ptr<HedgeSurface> >& plane_sf_hedge);
+    
+    void integrateInSmallSurfs(std::vector<shared_ptr<RevEngRegion> >& small_sf_reg,
+			       std::vector<RevEngRegion*>& nosf_reg,
+			       std::vector<RevEngRegion*>& include_reg);
+    
+    void extractSmallSurfs(SmallSurface& small_surf,
+			   std::vector<shared_ptr<RevEngRegion> >& small_sf_reg,
+			   std::vector<shared_ptr<HedgeSurface> >& small_sf_hedge,
+			   std::vector<RevEngRegion*>& nosf_reg,
+			   std::vector<RevEngPoint*>& non_assigned_pts);
 
     void doAdaptToAxis();
 
@@ -482,7 +538,7 @@ namespace Go
 		  double width, std::vector<RevEngRegion*>& common_reg);
     
     RevEngPoint* getDistantPoint(shared_ptr<CurveOnSurface>& cv,
-				 double tmin, double tmax,
+				 double tmin, double tmax, double dd,
 				 std::vector<RevEngPoint*>& points);
 
     void extendBlendAssociation(size_t ix);
@@ -549,6 +605,8 @@ namespace Go
     bool defineTorusCorner(size_t ix);
 
     bool defineMissingCorner(size_t ix, std::vector<RevEngRegion*>& adj_blends);
+
+    void defineMissingCorner(std::vector<RevEngRegion*>& cand_adj);
 
     bool createTorusBlend(size_t ix);
 

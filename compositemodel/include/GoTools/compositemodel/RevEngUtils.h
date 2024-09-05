@@ -178,7 +178,13 @@ namespace Go {
 		    double& maxdist, double& avdist, int& inside,
 		    std::vector<double>& distance);
     
-    void distToCurve(std::vector<Point>& points,
+     void distToSurf(std::vector<RevEngPoint*>& points,
+		    shared_ptr<ParamSurface> surf, double tol,
+		     double angtol, double& maxdist, double& avdist, 
+		     int& inside, int& inside2,
+		     std::vector<std::pair<double,double> >& dist_ang);
+    
+   void distToCurve(std::vector<Point>& points,
 		    shared_ptr<ParamCurve> curve, double tol,
 		    double& maxdist, double& avdist, int& inside);
 
@@ -187,6 +193,10 @@ namespace Go {
 		      double& maxdist, double& avdist, int& inside,
 		      std::vector<double>& dist);
 
+    shared_ptr<ElementarySurface> elemsurfWithAxis(shared_ptr<ElementarySurface> sf_in,
+						 std::vector<RevEngPoint*>& points,
+						   Point mainaxis[3], double diag);
+    
    shared_ptr<Plane> planeWithAxis(std::vector<RevEngPoint*>& points,
 				    Point axis, Point init_loc,
 				    Point mainaxis[3]);
@@ -283,7 +293,9 @@ namespace Go {
 			   RevEngPoint*& first_pt, double& t1, RevEngPoint*& last_pt, double& t2);
     
     void setLoopSeq(std::vector<shared_ptr<CurveOnSurface> >& cvs);
-    
+
+    void identifyConGroups(std::vector<RevEngPoint*>& init,
+			   std::vector<std::vector<RevEngPoint*> >& groups);
   }
   
 } // namespace Go

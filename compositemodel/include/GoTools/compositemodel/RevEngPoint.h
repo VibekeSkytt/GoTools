@@ -169,6 +169,9 @@ namespace Go
     void fetchConnected(RevEngRegion *region, int max_nmb,
 			std::vector<RevEngPoint*>& group);
 
+    void fetchConnectedMarked(int mark,
+			      std::vector<RevEngPoint*>& group);
+
     void setVisited()
     {
       visited_ = 1;
@@ -420,6 +423,8 @@ namespace Go
 
     void adjacentRegions(std::vector<RevEngRegion*>& adj) const;
 
+    bool nextToRegion(RevEngRegion *reg);
+
     int C1_surf()
     {
       return surf_[1];
@@ -480,6 +485,8 @@ namespace Go
     }
 
     bool isNeighbour(RevEngRegion* reg) const;
+
+    bool isNeighbour(RevEngPoint* pt) const;
 
     void addMove()
     {

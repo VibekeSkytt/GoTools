@@ -591,11 +591,11 @@ void HedgeSurface::limitSurf(double diag)
       shared_ptr<Cylinder> cyl = dynamic_pointer_cast<Cylinder,ParamSurface>(surf);
       shared_ptr<Cone> cone = dynamic_pointer_cast<Cone,ParamSurface>(surf);
       if (plane.get())
-	plane->setParameterBounds(-0.5*diag, -0.5*diag, 0.5*diag, 0.5*diag);
+	plane->setParameterBounds(-diag, -diag, diag, diag);
       else if (cyl.get())
-	cyl->setParamBoundsV(-0.5*diag, 0.5*diag);
+	cyl->setParamBoundsV(-diag, diag);
       else if (cone.get())
-	cone->setParamBoundsV(-0.5*diag, 0.5*diag);
+	cone->setParamBoundsV(-diag, diag);
     }
 }
 

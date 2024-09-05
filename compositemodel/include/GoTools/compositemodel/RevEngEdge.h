@@ -167,6 +167,36 @@ namespace Go
       radius_ = radius;
     }
 
+    int getSurfChangeCount()
+    {
+      return surfchangecount_;
+    }
+    
+    void increaseSurfChangeCount()
+    {
+      surfchangecount_++;
+    }
+
+    void resetSurfChangeCount()
+    {
+      surfchangecount_ = 0;
+    }
+
+    int getExtendCount()
+    {
+      return extendcount_;
+    }
+    
+    void increaseExtendCount()
+    {
+      extendcount_++;
+    }
+
+    void resetExtendCount()
+    {
+      extendcount_ = 0;
+    }
+    
     void setBlendRegSurf(RevEngRegion* blend)
     {
       defined_blend_ = blend;
@@ -237,7 +267,15 @@ namespace Go
     void splitAtSeam(double tol, std::vector<shared_ptr<RevEngEdge> >& added_edgs,
 		     std::vector<shared_ptr<RevEngRegion> >& added_regs,
 		     std::vector<shared_ptr<HedgeSurface> >& added_sfs);
-    
+
+    bool updateCurve(double int_tol, double tol, double len);
+
+    bool
+    extendCurve(double int_tol, double tol, double anglim, 
+		double len, double lenlim, double blendlim,
+		std::vector<shared_ptr<RevEngRegion> >& added_regions,
+		std::vector<std::vector<RevEngPoint*> >& extract_groups,
+		std::vector<HedgeSurface*>& out_sfs);
   private:
     int Id_;
     RevEngRegion* adjacent1_;
@@ -251,6 +289,8 @@ namespace Go
     double radius_;
     bool outer1_;
     bool outer2_;
+    int surfchangecount_;
+    int extendcount_;
 
     shared_ptr<RevEngEdge> doSplit(size_t ix, int side, double par, double tol,
 				   std::vector<shared_ptr<RevEngRegion> >& added_regs,

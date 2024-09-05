@@ -386,6 +386,29 @@ void RevEngPoint::fetchConnected(RevEngRegion *region, int max_nmb,
 }
 
 //===========================================================================
+void RevEngPoint::fetchConnectedMarked(int mark,
+				       vector<RevEngPoint*>& group)
+//===========================================================================
+{
+  setVisited();
+  group.push_back(this);
+  for (size_t ki=0; ki<group.size(); ++ki)
+    {
+      vector<ftSamplePoint*> next = group[ki]->getNeighbours();
+      for (size_t kj=0; kj<next.size(); ++kj)
+	{
+	  RevEngPoint* curr = dynamic_cast<RevEngPoint*>(next[kj]);
+	  if (curr->visited())
+	    continue;
+	  if (curr->getMarkIx() != mark)
+	    continue;
+	  curr->setVisited();
+	  group.push_back(curr);
+	}
+    }
+}
+  
+///===========================================================================
 void RevEngPoint::getNearby(Vector3D xyz, double radius, int max_nmb,
 			    vector<RevEngPoint*>& near, RevEngRegion* region)
 //===========================================================================
@@ -577,6 +600,20 @@ void RevEngPoint::adjacentRegions(vector<RevEngRegion*>& adj) const
 }
 
 //===========================================================================
+bool RevEngPoint::nextToRegion(RevEngRegion *reg)
+//===========================================================================
+{
+  for (size_t ki=0; ki<next_.size(); ++ki)
+    {
+      RevEngPoint *pt = dynamic_cast<RevEngPoint*>(next_[ki]);
+      if (pt->region_ && pt->region_ == reg)
+	return true;
+    }
+  return false;
+}
+
+
+//===========================================================================
 int RevEngPoint::nmbSameClassification(int classification_type) const
 //===========================================================================
 {
@@ -603,6 +640,19 @@ bool RevEngPoint::isNeighbour(RevEngRegion* reg) const
     }
   return false;
 }
+
+//===========================================================================
+bool RevEngPoint::isNeighbour(RevEngPoint* pt) const
+//===========================================================================
+{
+  for (size_t ki=0; ki<next_.size(); ++ki)
+    {
+      if (pt == next_[ki])
+	return true;
+    }
+  return false;
+}
+
 
 
 //===========================================================================

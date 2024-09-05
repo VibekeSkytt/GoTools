@@ -315,4 +315,19 @@ void RectDomain::intersectWith(const RectDomain& rd)
   //   return true;
   // return false;
 }
+
+//===========================================================================
+bool RectDomain::overlap(const RectDomain& rd, double tol1, double tol2)
+//===========================================================================
+{
+  if (ll_[0] > rd.ur_[0]+tol1)
+    return false;
+  if (ur_[0] < rd.ll_[0]-tol1)
+    return false;
+  if (ll_[1] > rd.ur_[1]+tol2)
+    return false;
+  if (ur_[1] < rd.ll_[1]-tol2)
+    return false;
+  return true;
+}
 } // namespace Go

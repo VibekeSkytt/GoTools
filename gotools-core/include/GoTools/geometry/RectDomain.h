@@ -154,6 +154,10 @@ public:
     /// included
     bool overlap(const RectDomain& rd, double tol);
 
+    /// Check if two domains overlap, boundary overlap within tolerance
+    /// dependent on parameter direction included
+    bool overlap(const RectDomain& rd, double tol1, double tol2);
+
     /// Get the 'lower left' corner of this RectDomain.
     /// \return a 2D array containing the 'lower left' corner of this RectDomain
     Array<double, 2> lowerLeft()  const { return ll_; }

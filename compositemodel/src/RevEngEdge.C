@@ -44,9 +44,11 @@
 #include "GoTools/geometry/ObjectHeader.h"
 #include "GoTools/geometry/SurfaceTools.h"
 #include "GoTools/geometry/ClosestPoint.h"
+#include "GoTools/geometry/BoundedUtils.h"
 #include <fstream>
 
 #define DEBUG
+#define DEBUG_BLEND
 
 using namespace Go;
 using std::vector;
@@ -58,7 +60,7 @@ RevEngEdge::RevEngEdge()
 //===========================================================================
   : adjacent1_(0), adjacent2_(0), defined_blend_(0),
     blend_type_(BLEND_NOT_SET), outer1_(false), outer2_(false),
-    distance_(0.0), radius_(0.0)
+    distance_(0.0), radius_(0.0), surfchangecount_(0), extendcount_(0)
 {
 }
 
@@ -67,7 +69,7 @@ RevEngEdge::RevEngEdge(RevEngRegion* reg1, RevEngRegion* reg2)
 //===========================================================================
   : adjacent1_(reg1), adjacent2_(reg2), defined_blend_(0),
     blend_type_(BLEND_NOT_SET), outer1_(false), outer2_(false),
-    distance_(0.0), radius_(0.0)
+    distance_(0.0), radius_(0.0), surfchangecount_(0), extendcount_(0)
 {
 }
 
@@ -79,7 +81,8 @@ RevEngEdge::RevEngEdge(int type, RevEngRegion* reg1,
 		       bool out2, double distance, double radius)
 //===========================================================================
   : adjacent1_(reg1), adjacent2_(reg2), defined_blend_(0), blend_type_(type),
-    outer1_(out1), outer2_(out2), distance_(distance), radius_(radius)
+    outer1_(out1), outer2_(out2), distance_(distance), radius_(radius),
+    surfchangecount_(0), extendcount_(0)
 {
   cvs1_.insert(cvs1_.end(), cvs1.begin(), cvs1.end());
   cvs2_.insert(cvs2_.end(), cvs2.begin(), cvs2.end());
@@ -227,7 +230,8 @@ void RevEngEdge::store(ostream& os)
   os << std::endl;
 
   os << blend_type_ << " " << distance_ << " " << radius_ << " ";
-  os << outer1_ << " " << outer2_ << std::endl;
+  os << outer1_ << " " << outer2_ << " ";
+  os << surfchangecount_ << " " << extendcount_ << std::endl;
 }
 
 
@@ -316,6 +320,7 @@ void RevEngEdge::read(istream& is, int& reg_id1, int& reg_id2, int& reg_id3,
     is >> blend_id[ka];
   
   is >> blend_type_ >> distance_ >> radius_ >> outer1_ >> outer2_;
+  is >> surfchangecount_ >> extendcount_;
 }
 
 
@@ -982,4 +987,432 @@ RevEngEdge::doSplit(size_t ix, int side, double par, double tol,
   
   return new_edg;
 }
+
+//===========================================================================
+bool
+RevEngEdge::updateCurve(double int_tol, double tol, double len)
+//===========================================================================
+{
+  double eps = 1.0e-6;
+  if (surfchangecount_ == 0)
+    return false;
+  
+  shared_ptr<ParamSurface> surf1 = adjacent1_->getSurface(0)->surface();
+  if (!surf1->isBounded())
+    adjacent1_->getSurface(0)->limitSurf(len);
+  shared_ptr<ParamSurface> surf2 = adjacent2_->getSurface(0)->surface();
+  if (!surf2->isBounded())
+    adjacent2_->getSurface(0)->limitSurf(len);
+  shared_ptr<BoundedSurface> bd1, bd2;
+  vector<shared_ptr<CurveOnSurface> > int_cvs1, int_cvs2;
+  BoundedUtils::getSurfaceIntersections(surf1, surf2, int_tol,
+					int_cvs1, bd1,
+					int_cvs2, bd2);
+#ifdef DEBUG_BLEND
+  std::ofstream of_int("intcurves_edge.g2");
+  for (size_t ki=0; ki<cvs1_.size(); ++ki)
+    {
+      shared_ptr<ParamCurve> tmp_cv = cvs1_[ki]->spaceCurve();
+      tmp_cv->writeStandardHeader(of_int);
+      tmp_cv->write(of_int);
+    }
+  for (size_t ki=0; ki<int_cvs1.size(); ++ki)
+    {
+      shared_ptr<ParamCurve> tmp_cv = int_cvs1[ki]->spaceCurve();
+      tmp_cv->writeStandardHeader(of_int);
+      tmp_cv->write(of_int);
+    }
+#endif
+  //  #if 0
+  if (isClosed(tol))
+    replaceCurves(int_cvs1, int_cvs2);  // The seam might have moved
+      
+  else 
+    {
+      if (cvs1_[0]->isClosed())
+	{
+	  cvs1_[0] = int_cvs1[0];
+	  cvs2_[0] = int_cvs2[0];
+	}
+      else
+	{
+	  size_t st = cvs1_.size() - 1;
+	  Point pos1, pos2, pos3, pos4;
+	  double tdel1 = cvs1_[0]->endparam() - cvs1_[0]->startparam();
+	  double tdel2 = cvs1_[st]->endparam() - cvs1_[st]->startparam();
+	  cvs1_[0]->point(pos1, cvs1_[0]->startparam());
+	  cvs1_[0]->point(pos3, cvs1_[0]->startparam() + 0.1*tdel1);
+	  cvs1_[st]->point(pos2, cvs1_[st]->endparam());
+	  cvs1_[st]->point(pos4, cvs1_[st]->endparam() - 0.1*tdel2);
+	  double tp1, tp2;
+	  double td1 = std::numeric_limits<double>::max();
+	  double td2 = std::numeric_limits<double>::max();
+	  double td3 = std::numeric_limits<double>::max();
+	  double td4 = std::numeric_limits<double>::max();
+	  int ix1 = -1, ix2 = -1;
+	  for (size_t kr=0; kr<int_cvs1.size(); ++kr)
+	    {
+	      double tp1_2, tp2_2, tp1_3, tp2_3, td1_2, td2_2, td1_3, td2_3;
+	      Point cl1_2, cl2_2;
+	      double tmin = int_cvs1[kr]->startparam();
+	      double tmax = int_cvs1[kr]->endparam();
+	      int_cvs1[kr]->closestPoint(pos1, tmin, tmax, tp1_2, cl1_2, td1_2);
+	      int_cvs1[kr]->closestPoint(pos2, tmin, tmax, tp2_2, cl2_2, td2_2);
+	      int_cvs1[kr]->closestPoint(pos3, tmin, tmax, tp1_3, cl1_2, td1_3);
+	      int_cvs1[kr]->closestPoint(pos4, tmin, tmax, tp2_3, cl2_2, td2_3);
+	      if (td1_2 < td1-eps || (td1_2 <= td1+eps && td1_3 < td3))
+		{
+		  ix1 = (int)kr;
+		  tp1 = tp1_2;
+		  td1 = td1_2;
+		  td3 = td1_3;
+		}
+	      if (td2_2 < td2-eps || (td2_2 <= td2+eps && td2_3 < td4))
+		{
+		  ix2 = (int)kr;
+		  tp2 = tp2_2;
+		  td2 = td2_2;
+		  td4 = td2_3;
+		}
+	    }
+	  
+	  if (ix2 - ix1 + 1 == (int)cvs1_.size() && tp1 < tp2)
+	    {
+	      for (size_t kr=0; kr<int_cvs1.size(); )
+		{
+		  double tp3 = std::max(tp1, int_cvs1[kr]->startparam());
+		  double tp4 = std::min(tp2, int_cvs1[kr]->endparam());
+		  if (ix1 <= ix2 && ((int)kr < ix1 || (int)kr > ix2))
+		    {
+		      int_cvs1.erase(int_cvs1.begin()+kr);
+		      int_cvs2.erase(int_cvs2.begin()+kr);
+		      if ((int)kr < ix1)
+			ix1--;
+		      if ((int)kr < ix2)
+			ix2--;
+		    }
+		  else if (tp4 > tp3 && tp3 < int_cvs1[kr]->endparam() &&
+			   tp4 > int_cvs1[kr]->startparam() && 
+			   (tp3 > int_cvs1[kr]->startparam() || tp4 < int_cvs1[kr]->endparam()))
+		    {
+		      shared_ptr<CurveOnSurface> sub1(int_cvs1[kr]->subCurve(tp3, tp4));
+		      cvs1_[kr] = sub1;
+		      shared_ptr<CurveOnSurface> sub2(int_cvs2[kr]->subCurve(tp3, tp4));
+		      cvs2_[kr] = sub2;
+#ifdef DEBUG_BLEND
+		      shared_ptr<ParamCurve> tmp_cv = sub1->spaceCurve();
+		      tmp_cv->writeStandardHeader(of_int);
+		      tmp_cv->write(of_int);
+#endif
+		      ++kr;
+		    }
+		  else
+		    {
+		      cvs1_[kr] = int_cvs1[kr];
+		      cvs2_[kr] = int_cvs2[kr];
+		      ++kr;
+		    }
+		}
+	    }
+	}
+    }
+
+  resetSurfChangeCount();
+  return true;
+
+}
+
+
+//===========================================================================
+bool
+RevEngEdge::extendCurve(double int_tol, double tol, double anglim, 
+			double len, double lenlim, double blendlim,
+			vector<shared_ptr<RevEngRegion> >& added_regions,
+			vector<vector<RevEngPoint*> >& extract_groups,
+			vector<HedgeSurface*>& out_sfs)
+//===========================================================================
+{
+  double eps = 1.0e-6;
+  if (extendcount_ == 0)
+    return false;
+
+  if (isClosed(tol))
+    {
+      extendcount_ = 0;
+      return false;  // Nothing to do here
+    }
+
+    shared_ptr<ParamSurface> surf1 = adjacent1_->getSurface(0)->surface();
+  if (!surf1->isBounded())
+    adjacent1_->getSurface(0)->limitSurf(len);
+  shared_ptr<ParamSurface> surf2 = adjacent2_->getSurface(0)->surface();
+  if (!surf2->isBounded())
+    adjacent2_->getSurface(0)->limitSurf(len);
+  shared_ptr<BoundedSurface> bd1, bd2;
+  vector<shared_ptr<CurveOnSurface> > int_cvs1, int_cvs2;
+  BoundedUtils::getSurfaceIntersections(surf1, surf2, int_tol,
+					int_cvs1, bd1,
+					int_cvs2, bd2);
+#ifdef DEBUG_BLEND
+  std::ofstream of_int("intcurves_edge.g2");
+  for (size_t ki=0; ki<cvs1_.size(); ++ki)
+    {
+      shared_ptr<ParamCurve> tmp_cv = cvs1_[ki]->spaceCurve();
+      tmp_cv->writeStandardHeader(of_int);
+      tmp_cv->write(of_int);
+    }
+  for (size_t ki=0; ki<int_cvs1.size(); ++ki)
+    {
+      shared_ptr<ParamCurve> tmp_cv = int_cvs1[ki]->spaceCurve();
+      tmp_cv->writeStandardHeader(of_int);
+      tmp_cv->write(of_int);
+    }
+#endif
+
+  if (int_cvs1.size() == 0)
+    return false;
+
+  if (int_cvs1.size() > cvs1_.size())
+    {
+      // Remove possible extra curves
+      vector<Point> mid(cvs1_.size());
+      for (size_t ki=0; ki<cvs1_.size(); ++ki)
+	cvs1_[ki]->point(mid[ki], 0.5*(cvs1_[ki]->startparam()+cvs1_[ki]->endparam()));
+      size_t kr, kh;
+      for (kr=0; kr<int_cvs1.size(); )
+	{
+	  for (kh=0; kh<mid.size(); ++kh)
+	    {
+	      double tpar, dist;
+	      Point close;
+	      int_cvs1[kr]->closestPoint(mid[kh], int_cvs1[kr]->startparam(),
+					 int_cvs1[kr]->endparam(), tpar, close, dist);
+	      if (dist <= tol)
+		break;
+	    }
+	  if (kh == mid.size())
+	    {
+	      int_cvs1.erase(int_cvs1.begin()+kr);
+	      int_cvs2.erase(int_cvs2.begin()+kr);
+	    }
+	  else
+	    ++kr;
+	}
+    }
+
+  // Limit intersection curves to relevant intervals
+  vector<pair<double,double> > t1_t2, t3_t4;
+  bool OK1 =
+    adjacent1_->getCurveRestriction(int_cvs1, tol, anglim, t1_t2);
+  bool OK2 =
+    adjacent2_->getCurveRestriction(int_cvs2, tol, anglim, t3_t4);
+
+  for (int ka=(int)int_cvs1.size()-1; ka>=0; --ka)
+    {
+      double t1 = std::max(t1_t2[ka].first, t3_t4[ka].first);
+      double t2 = std::min(t1_t2[ka].second, t3_t4[ka].second);
+      if (t2 > t1 && (t1 > int_cvs1[ka]->startparam() ||
+		      t2 < int_cvs1[ka]->endparam()))
+	{
+	  double pmin = std::max(t1, int_cvs1[ka]->startparam());
+	  double pmax = std::min(t2, int_cvs1[ka]->endparam());
+	  shared_ptr<CurveOnSurface> sub1(int_cvs1[ka]->subCurve(pmin,pmax));
+	  int_cvs1[ka] = sub1;
+	  shared_ptr<CurveOnSurface> sub2(int_cvs2[ka]->subCurve(pmin,pmax));
+	  int_cvs2[ka] = sub2;
+	}
+
+      if (t2 <= t1 || int_cvs1[ka]->estimatedCurveLength() < lenlim)
+	{
+	  int_cvs1.erase(int_cvs1.begin()+ka);
+	  int_cvs2.erase(int_cvs2.begin()+ka);
+	}
+    }
+  if (int_cvs1.size() == 0)
+    return false;
+  
+  vector<RevEngRegion*> common_reg2 =
+    adjacent1_->commonAdjacent(adjacent2_);
+  for (size_t kj=0; kj<common_reg2.size(); )
+    {
+      // Check if the common region is registered already or is unfeasable for a blend
+      size_t kr=0;
+      for (kr=0; kr<blend_regs_.size(); ++kr)
+	if (common_reg2[kj] == blend_regs_[kr])
+	  break;
+      
+      if (kr < blend_regs_.size() || common_reg2[kj]->hasAssociatedBlend() ||
+	  common_reg2[kj]->hasBlendEdge())
+  	common_reg2.erase(common_reg2.begin()+kj);
+      else
+  	++kj;
+    }
+
+  // Check extension
+  vector<RevEngPoint*> bd_pts1 = adjacent1_->extractBdPoints(); 
+  vector<RevEngPoint*> bd_pts2 = adjacent2_->extractBdPoints();
+  if (bd_pts1.size() == 0 || bd_pts2.size() == 0)
+    return false;
+
+  int num_in_lim1=0, num_in_lim2=0;
+  vector<pair<double, double> > t5_t6, t7_t8;
+  vector<double> wwd1, wwd2;
+  adjacent1_->estimateBlendDimensions(int_cvs1, bd_pts1, tol, blendlim,
+				      t5_t6, wwd1, num_in_lim1);
+
+  adjacent2_->estimateBlendDimensions(int_cvs2, bd_pts2, tol, blendlim,
+				      t7_t8, wwd2, num_in_lim2);
+  if (num_in_lim1 == 0 || num_in_lim2 == 0)
+    return false;
+  if (t5_t6.size() == 0 || t7_t8.size() == 0)
+    return false;
+
+  Point midp = point(0.5*(startparam() + endparam()));
+
+  int ix1 = -1, ix2 = -1;
+  double td1 = std::numeric_limits<double>::max();
+  double td2 = std::numeric_limits<double>::max();
+  for (size_t kj=0; kj<t5_t6.size(); ++kj)
+    {
+      double tmid = 0.5*(t5_t6[kj].first + t5_t6[kj].second);
+      size_t kr;
+      for (kr=0; kr<int_cvs1.size(); ++kr)
+	if (int_cvs1[kr]->startparam()-eps <= tmid && int_cvs1[kr]->endparam()+eps >= tmid)
+	  break;
+      if (kr == int_cvs1.size())
+	return false;  // Should not happen
+
+      double tpar, tdist;
+      Point close;
+      int_cvs1[kr]->closestPoint(midp, t5_t6[kj].first, t5_t6[kj].second,
+				 tpar, close, tdist);
+      if (tdist < td1)
+	{
+	  ix1 = (int)kj;
+	  td1 = tdist;
+	}
+    }
+  
+  for (size_t kj=0; kj<t7_t8.size(); ++kj)
+    {
+      double tmid = 0.5*(t7_t8[kj].first + t7_t8[kj].second);
+      size_t kr;
+      for (kr=0; kr<int_cvs2.size(); ++kr)
+	if (int_cvs2[kr]->startparam()-eps <= tmid && int_cvs2[kr]->endparam()+eps >= tmid)
+	  break;
+      if (kr == int_cvs1.size())
+	return false;  // Should not happen
+
+      double tpar, tdist;
+      Point close;
+      int_cvs2[kr]->closestPoint(midp, t7_t8[kj].first, t7_t8[kj].second,
+				 tpar, close, tdist);
+      if (tdist < td2)
+	{
+	  ix2 = (int)kj;
+	  td2 = tdist;
+	}
+    }
+
+  double t1 = std::max(t5_t6[ix1].first, t7_t8[ix2].first);
+  double t2 = std::max(t5_t6[ix1].second, t7_t8[ix2].second);
+  if (t2 <= t1+eps)
+    return false;  // Nothing left
+  
+  for (int ka=(int)int_cvs1.size()-1; ka>=0; --ka)
+    {
+      if (t2 > t1 && (t1 > int_cvs1[ka]->startparam() ||
+		      t2 < int_cvs1[ka]->endparam()))
+	{
+	  double pmin = std::max(t1, int_cvs1[ka]->startparam());
+	  double pmax = std::min(t2, int_cvs1[ka]->endparam());
+	  shared_ptr<CurveOnSurface> sub1(int_cvs1[ka]->subCurve(pmin,pmax));
+	  int_cvs1[ka] = sub1;
+	  shared_ptr<CurveOnSurface> sub2(int_cvs2[ka]->subCurve(pmin,pmax));
+	  int_cvs2[ka] = sub2;
+	}
+
+      if (t2 <= t1 || int_cvs1[ka]->estimatedCurveLength() < lenlim)
+	{
+	  int_cvs1.erase(int_cvs1.begin()+ka);
+	  int_cvs2.erase(int_cvs2.begin()+ka);
+	}
+    }
+  if (int_cvs1.size() == 0)
+    return false;
+
+  // Adjust added common regions
+  vector<RevEngRegion*> adj_regs;
+  if (common_reg2.size() > 0)
+    {
+      int state = (surf1->instanceType() == Class_Plane ||
+		   surf2->instanceType() == Class_Plane) ? 1 : 2;
+      double angtol = 5.0*anglim;
+      double tol10 = 10.0*tol;
+      vector<RevEngPoint*> near_pts;
+      for (size_t kr=0; kr<common_reg2.size(); ++kr)
+	{
+	  vector<RevEngPoint*> adj_near1, adj_near2;
+	  double dummy_min = 0.0;
+	  for (size_t kh=0; kh<int_cvs1.size(); ++kh)
+	    {
+	      double tmin3 = int_cvs1[kh]->startparam();
+	      double tmax3 = int_cvs1[kh]->endparam();
+	      common_reg2[kr]->getNearPoints(int_cvs1[kh], tmin3, tmax3, distance_,
+					     angtol, adj_near1);
+	      if (state == 1)
+		{
+		  adj_near2 =
+		    adjacent1_->removeOutOfSurf(adj_near1, tol10,
+						angtol, outer1_, dummy_min);
+		  near_pts = 
+		    adjacent2_->removeOutOfSurf(adj_near2, tol10,
+						angtol, outer2_, dummy_min);
+		}
+	      else
+		near_pts = adj_near1;
+	    }
+
+	  if ((int)near_pts.size() == common_reg2[kr]->numPoints())
+	    adj_regs.push_back(common_reg2[kr]);
+	  else if ((int)near_pts.size() < common_reg2[kr]->numPoints())
+	    {
+	      int num_init = common_reg2[kr]->numPoints();
+	      vector<vector<RevEngPoint*> > out_groups;
+	      vector<HedgeSurface*> out_sfs;
+	      vector<vector<RevEngPoint*> > near_groups;
+	      common_reg2[kr]->extractSpesPoints(near_pts, near_groups);
+	      common_reg2[kr]->updateInfo();
+	      common_reg2[kr]->splitRegion(extract_groups);
+	      if (common_reg2[kr]->hasSurface() &&
+		  common_reg2[kr]->numPoints() < num_init/2)
+		{
+		  int num_sf = common_reg2[kr]->numSurface();
+		  for (int ka=0; ka<num_sf; ++ka)
+		    out_sfs.push_back(common_reg2[kr]->getSurface(ka));
+		  common_reg2[kr]->clearSurface();
+		}
+
+	      // Make new region
+	      shared_ptr<RevEngRegion> curr_adj(new RevEngRegion(common_reg2[kr]->getClassificationType(),
+								 common_reg2[kr]->getEdgeClassificationType(),
+								 near_pts));
+	      added_regions.push_back(curr_adj);
+	      adj_regs.push_back(curr_adj.get());
+	    }
+	      
+	}
+    }
+
+  // Update current edge
+  replaceCurves(int_cvs1, int_cvs2);
+  if (adj_regs.size() > 0)
+    addBlendRegions(adj_regs);
+  for (size_t kr=0; kr<adj_regs.size(); ++kr)
+    adj_regs[kr]->setAssociatedBlend(this);
+  extendcount_ = 0;
+  
+  return true;
+}
+  
 

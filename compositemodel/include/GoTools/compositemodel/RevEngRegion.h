@@ -182,7 +182,7 @@ namespace Go
     // NB! No testing on whether the points actually belongs to this group.
     // Accuracy statistics is computed
     bool addPointsToGroup(std::vector<RevEngPoint*>& points,
-			  double tol, double angtol);
+			  double tol, double angtol, bool compute_accuracy = true);
     
     // Remove. NB! Leaves overview information invalid.
     void removePoint(RevEngPoint* point);
@@ -265,13 +265,21 @@ namespace Go
 		       double angtol, std::vector<RevEngRegion*>& grown_regions,
 		       std::vector<std::vector<RevEngPoint*> >& added_regions);
 
+    int getGrowAccuracy(RevEngRegion *other, double tol,
+			double angtol, double& maxdist,
+			double& avdist, int& num_in, int& num2_in,
+			double& maxdist2, double& avdist2, int& num_in2,
+			int& num2_in2, std::vector<double>& parvals,
+			std::vector<std::pair<double,double> >& distang);
+
     bool mergePlanarReg(double zero_H, double zero_K, double tol,
 			Point mainaxis[3],
 			std::vector<RevEngRegion*>& grown_regions);
     
     void mergeAdjacentSimilar(double tol, double angtol,
 			      std::vector<RevEngRegion*>& grown_regions,
-			      std::vector<HedgeSurface*>& adj_surfs);
+			      std::vector<HedgeSurface*>& adj_surfs,
+			      std::vector<RevEngEdge*>& adj_edgs);
 
     void
     initPlaneCyl(int min_point, int min_pt_reg,
@@ -474,7 +482,10 @@ namespace Go
     void extractPointsAtSeam(std::vector<RevEngPoint*>& seam_pts1,
 			     std::vector<RevEngPoint*>& seam_pts2, bool along_udir);
     
-    void testBlendGap(std::vector<shared_ptr<CurveOnSurface> >& cvs,
+    void getAdjCandMerge(std::vector<RevEngRegion*>& adj_surf,
+			 std::vector<RevEngRegion*>& adj_nosurf);
+
+   void testBlendGap(std::vector<shared_ptr<CurveOnSurface> >& cvs,
 		      double tmin, double tmax, double tdel, double width,
 		      std::vector<std::pair<double,double> >& not_gap);
 
@@ -593,6 +604,11 @@ namespace Go
       surfflag_ = surfflag;
     }
 
+    int getAdaptionHistory()
+    {
+      return surf_adaption_;
+    }
+    
     void getDomain(double dom[4])
     {
       for (int ka=0; ka<4; ++ka)
@@ -880,7 +896,7 @@ namespace Go
 			 std::vector<RevEngRegion*>& new_blends);
 
     bool isInBlend(std::vector<shared_ptr<CurveOnSurface> >& cvs,
-		   double width, double tol);
+		   double width, double tol, int& in_blend);
 
     void getAdjacentElemInfo(std::vector<std::pair<shared_ptr<ElementarySurface>, RevEngRegion*>  >& adj_elem,
 			     std::vector<std::pair<shared_ptr<ElementarySurface>, RevEngRegion*>  >& adj_elem_base);
@@ -1033,6 +1049,8 @@ namespace Go
       if (it != rev_edges_.end())
 	rev_edges_.erase(it);
     }
+
+    bool commonRevEdge(RevEngRegion *other);
     
     void setBlendEdge(RevEngEdge* edge)
     {
@@ -1095,6 +1113,15 @@ namespace Go
 			 std::vector<RevEngPoint*>& single_pts,
 			 bool create_surface = true);
 
+    void includeAdjacentRegion(RevEngRegion* reg, double maxd, double avd,
+			       int num_inside, int num_inside2,
+			       std::vector<double>& parvals,
+			       std::vector<std::pair<double, double> >& dist_ang,
+			       std::vector<RevEngRegion*>& added_adjacent);
+
+    void checkEdgeAssociation(double tol, int min_point_reg,
+			      std::vector<HedgeSurface*>& removed_sfs);
+    
     void writeRegionInfo(std::ostream& of);
     void writeRegionPoints(std::ostream& of);
     void writeAdjacentPoints(std::ostream& of);
@@ -1250,12 +1277,6 @@ namespace Go
 
     void extendInCorner(std::vector<double>& data, std::vector<double>& param,
 			double umin, double umax, double vmin, double vmax);
-
-    void includeAdjacentRegion(RevEngRegion* reg, double maxd, double avd,
-			       int num_inside, int num_inside2,
-			       std::vector<double>& parvals,
-			       std::vector<std::pair<double, double> >& dist_ang,
-			       std::vector<RevEngRegion*>& added_adjacent);
 
     bool computeIntegrateInfo(std::vector<RevEngPoint*>& points, RevEngRegion *adj_reg,
 			      double tol, double angtol, double radius, bool local_approx, 

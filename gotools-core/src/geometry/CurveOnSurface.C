@@ -58,6 +58,8 @@
 #include <fstream>
 #include <cassert>
 
+#define SBR_DEBUG
+
 using namespace Go;
 using std::vector;
 using std::max;
@@ -1496,6 +1498,13 @@ bool CurveOnSurface::ensureParCrvExistence(double epsgeo,
 		elem_cv = shared_ptr<ElementaryCurve>(elem_cv2->clone());
 	      elem_cv->setParamBounds(bd_cv->startparam(), bd_cv->endparam());
 	    }
+	  if (!elem_cv)
+	    {
+	      double tol = epsgeo;
+	      Point dir;
+	      bool linear = spacecurve_->isLinear(dir, epsgeo);
+	      int stop_break = 1;
+	    }
 	}
 
       if (elem_sf.get() && elem_cv.get())
@@ -1511,51 +1520,51 @@ bool CurveOnSurface::ensureParCrvExistence(double epsgeo,
   if (!pcurve_)
     {
 
-#ifdef SBR_DBG
+#ifdef SBR_DEBUG
       {
 	  Point spacecv_startpt = spacecurve_->point(spacecurve_->startparam());
 	  Point spacecv_endpt = spacecurve_->point(spacecurve_->endparam());
-	  Point lifted_startpt = surface_->point(startpt[0], startpt[1]);
-	  Point lifted_endpt = surface_->point(endpt[0], endpt[1]);
-	  double dist_start = spacecv_startpt.dist(lifted_startpt);
-	  double dist_end = spacecv_endpt.dist(lifted_endpt);
-	  if (dist_start > epspar || dist_end > epspar)
-	  {
-	      MESSAGE("Mismatch between space_cv and proj end pts, dist_start: "
-		      << dist_start << ", dist_end: " << dist_end);
+	  // Point lifted_startpt = surface_->point(startpt[0], startpt[1]);
+	  // Point lifted_endpt = surface_->point(endpt[0], endpt[1]);
+	  // double dist_start = spacecv_startpt.dist(lifted_startpt);
+	  // double dist_end = spacecv_endpt.dist(lifted_endpt);
+	  // if (dist_start > epspar || dist_end > epspar)
+	  // {
+	  //     MESSAGE("Mismatch between space_cv and proj end pts, dist_start: "
+	  // 	      << dist_start << ", dist_end: " << dist_end);
 
 	      // We write to file the iso-curves in these parameters.
-	      std::ofstream debug_sf("tmp/under_sf.g2");
+	      std::ofstream debug_sf("under_sf.g2");
               surface_->writeStandardHeader(debug_sf);
               surface_->write(debug_sf);
-	      std::ofstream debug("tmp/iso_cvs.g2");
+	      std::ofstream debug("iso_cvs.g2");
 	      spacecurve_->writeStandardHeader(debug);
 	      spacecurve_->write(debug);
-	      vector<double> pts;
-	      pts.insert(pts.end(), spacecv_startpt.begin(), spacecv_startpt.end());
-	      pts.insert(pts.end(), lifted_startpt.begin(), lifted_startpt.end());
-	      pts.insert(pts.end(), spacecv_endpt.begin(), spacecv_endpt.end());
-	      pts.insert(pts.end(), lifted_endpt.begin(), lifted_endpt.end());
-	      PointCloud3D pt_cl(pts.begin(), 4);
-	      pt_cl.writeStandardHeader(debug);
-	      pt_cl.write(debug);
-	      vector<double> iso_par(4);
-	      iso_par[0] = startpt[0];
-	      iso_par[1] = startpt[1];
-	      iso_par[2] = endpt[0];
-	      iso_par[3] = endpt[1];
-	      for (size_t ki = 0; ki < iso_par.size(); ++ki)
-	      {
-		  bool pardir_is_u = (ki%2 == 1); // Direction of moving parameter.
-		  vector<shared_ptr<ParamCurve> > const_cvs = surface_->constParamCurves(iso_par[ki], pardir_is_u);
-		  for (size_t kj = 0; kj < const_cvs.size(); ++kj)
-		  {
-		      const_cvs[kj]->writeStandardHeader(debug);
-		      const_cvs[kj]->write(debug);
-		  }
-	      }
+	      // vector<double> pts;
+	      // pts.insert(pts.end(), spacecv_startpt.begin(), spacecv_startpt.end());
+	      // pts.insert(pts.end(), lifted_startpt.begin(), lifted_startpt.end());
+	      // pts.insert(pts.end(), spacecv_endpt.begin(), spacecv_endpt.end());
+	      // pts.insert(pts.end(), lifted_endpt.begin(), lifted_endpt.end());
+	      // PointCloud3D pt_cl(pts.begin(), 4);
+	      // pt_cl.writeStandardHeader(debug);
+	      // pt_cl.write(debug);
+	      // vector<double> iso_par(4);
+	      // iso_par[0] = startpt[0];
+	      // iso_par[1] = startpt[1];
+	      // iso_par[2] = endpt[0];
+	      // iso_par[3] = endpt[1];
+	      // for (size_t ki = 0; ki < iso_par.size(); ++ki)
+	      // {
+	      // 	  bool pardir_is_u = (ki%2 == 1); // Direction of moving parameter.
+	      // 	  vector<shared_ptr<ParamCurve> > const_cvs = surface_->constParamCurves(iso_par[ki], pardir_is_u);
+	      // 	  for (size_t kj = 0; kj < const_cvs.size(); ++kj)
+	      // 	  {
+	      // 	      const_cvs[kj]->writeStandardHeader(debug);
+	      // 	      const_cvs[kj]->write(debug);
+	      // 	  }
+	      // }
 	      double debug_val = 0.0;
-	  }
+	  // }
       }
 #endif
 
