@@ -39,6 +39,7 @@
 
 #include "GoTools/compositemodel/RevEngEdge.h"
 #include "GoTools/compositemodel/HedgeSurface.h"
+#include "GoTools/compositemodel/ftEdge.h"
 #include "GoTools/geometry/Factory.h"
 #include "GoTools/geometry/GoTools.h"
 #include "GoTools/geometry/ObjectHeader.h"
@@ -405,25 +406,25 @@ int RevEngEdge::closedSfAtEnd(double tol, double& par, Point& pos, bool at_start
       if (fabs(u1-dom.umin()) <= eps)
 	{
 	  Point pos2 = surf1->point(dom.umax(), v1);
-	  if (pos.dist(pos2))
+	  if (pos.dist(pos2) <= tol)
 	    return 1;
 	}
       else if (fabs(dom.umax()-u1) <= eps)
 	{
 	  Point pos2 = surf1->point(dom.umin(), v1);
-	  if (pos.dist(pos2))
+	  if (pos.dist(pos2) <= tol)
 	    return 1;
 	}
       if (fabs(v1-dom.vmin()) <= eps)
 	{
 	  Point pos2 = surf1->point(u1, dom.vmax());
-	  if (pos.dist(pos2))
+	  if (pos.dist(pos2) <= tol)
 	    return 1;
 	}
       else if (fabs(dom.vmax()-v1) <= eps)
 	{
 	  Point pos2 = surf1->point(u1, dom.vmin());
-	  if (pos.dist(pos2))
+	  if (pos.dist(pos2) <= tol)
 	    return 1;
 	}
     }
@@ -434,7 +435,7 @@ int RevEngEdge::closedSfAtEnd(double tol, double& par, Point& pos, bool at_start
       if (fabs(u2-dom.umin()) <= eps)
 	{
 	  Point pos2 = surf2->point(dom.umax(), v2);
-	  if (pos.dist(pos2))
+	  if (pos.dist(pos2) <= tol)
 	    return 2;
 	}
       else if (fabs(dom.umax()-u2) <= eps)
@@ -446,13 +447,13 @@ int RevEngEdge::closedSfAtEnd(double tol, double& par, Point& pos, bool at_start
       if (fabs(v2-dom.vmin()) <= eps)
 	{
 	  Point pos2 = surf2->point(u2, dom.vmax());
-	  if (pos.dist(pos2))
+	  if (pos.dist(pos2) <= tol)
 	    return 2;
 	}
       else if (fabs(dom.vmax()-v2) <= eps)
 	{
 	  Point pos2 = surf2->point(u2, dom.vmin());
-	  if (pos.dist(pos2))
+	  if (pos.dist(pos2) <= tol)
 	    return 2;
 	}
     }
@@ -1416,3 +1417,118 @@ RevEngEdge::extendCurve(double int_tol, double tol, double anglim,
 }
   
 
+//===========================================================================
+void
+RevEngEdge::setTrimCurves(double tol, double angtol,
+			  vector<RevEngRegion*>& out_regs,
+			  vector<HedgeSurface*>& out_sfs)
+//===========================================================================
+{
+  if (blend_type_ != NOT_BLEND)
+    return;
+
+  // Ensure parameter curve existence
+  for (size_t ki=0; ki<cvs1_.size(); ++ki)
+    if (!cvs1_[ki]->hasParameterCurve())
+      cvs1_[ki]->ensureParCrvExistence(tol);
+  
+  for (size_t ki=0; ki<cvs2_.size(); ++ki)
+    if (!cvs2_[ki]->hasParameterCurve())
+      cvs2_[ki]->ensureParCrvExistence(tol);
+
+  // Distribute points along the curve as appropriate
+  // Start with the inbetween points
+#ifdef DEBUG_BLEND
+  std::ofstream of1("init_points.g2");
+  adjacent1_->writeRegionPoints(of1);
+  adjacent2_->writeRegionPoints(of1);
+  for (size_t kj=0; kj<blend_regs_.size(); ++kj)
+    blend_regs_[kj]->writeRegionPoints(of1);
+  for (size_t kj=0; kj<cvs1_.size(); ++kj)
+    {
+      cvs1_[kj]->spaceCurve()->writeStandardHeader(of1);
+      cvs1_[kj]->spaceCurve()->write(of1);
+    }
+#endif
+  for (int ka=(int)blend_regs_.size()-1; ka>=0; --ka)
+    {
+      vector<RevEngPoint*> points = blend_regs_[ka]->getPoints();
+      vector<RevEngPoint*> move1, move2;
+      adjacent1_->sortBlendPoints(points, cvs1_, 0.0, adjacent2_,
+				  move1, move2);
+      blend_regs_[ka]->removePoints(move1);
+      adjacent1_->addPointsToGroup(move1, tol, angtol);
+      adjacent2_->addPointsToGroup(move2, tol, angtol);
+      blend_regs_[ka]->removePoints(move2);
+      if (blend_regs_[ka]->hasSurface())
+	{
+	  int num_sf = blend_regs_[ka]->numSurface();
+	  for (int kb=0; kb<num_sf; ++kb)
+	    out_sfs.push_back(blend_regs_[ka]->getSurface(kb));
+	  blend_regs_[ka]->clearSurface();
+	}
+      
+      if (blend_regs_[ka]->numPoints() == 0)
+	{
+	  blend_regs_[ka]->removeFromAdjacent();
+	  blend_regs_[ka]->clearRegionAdjacency();
+	  out_regs.push_back(blend_regs_[ka]);
+	  blend_regs_.erase(blend_regs_.begin()+ka);
+	}
+      int stop_break0 = 1;
+    }
+
+  vector<RevEngPoint*> move_adj1, move_adj2;
+  bool do_move = false;
+  if (do_move)
+    {
+      adjacent1_->extractOutOfEdge2(cvs1_, tol, angtol, move_adj1);
+      adjacent2_->extractOutOfEdge2(cvs2_, tol, angtol, move_adj2);
+    }
+#ifdef DEBUG_BLEND
+  std::ofstream of2("move_points.g2");
+  adjacent1_->writeRegionPoints(of2);
+  if (move_adj1.size() > 0)
+    {
+      of2 << "400 1 0 4 255 0 0 255" << std::endl;
+      of2 << move_adj1.size() << std::endl;
+      for (size_t kj=0; kj<move_adj1.size(); ++kj)
+	of2 << move_adj1[kj]->getPoint() << std::endl;
+    }
+  adjacent2_->writeRegionPoints(of2);
+  if (move_adj2.size() > 0)
+    {
+      of2 << "400 1 0 4 0 255 0 255" << std::endl;
+      of2 << move_adj2.size() << std::endl;
+      for (size_t kj=0; kj<move_adj2.size(); ++kj)
+	of2 << move_adj2[kj]->getPoint() << std::endl;
+    }
+  for (size_t kj=0; kj<cvs1_.size(); ++kj)
+    {
+      cvs1_[kj]->spaceCurve()->writeStandardHeader(of2);
+      cvs1_[kj]->spaceCurve()->write(of2);
+    }
+#endif
+  if (move_adj1.size() > 0)
+    adjacent2_->addPointsToGroup(move_adj1, tol, angtol);
+  if (move_adj2.size() > 0)
+    adjacent1_->addPointsToGroup(move_adj2, tol, angtol);
+  
+  // Define trim curves
+  int stat = 0;
+  for (size_t ki=0; ki<cvs1_.size(); ++ki)
+    {
+      shared_ptr<ftEdge> edg1(new ftEdge(adjacent1_->getSurface(0),
+					 cvs1_[ki], cvs1_[ki]->startparam(),
+					 cvs1_[ki]->endparam()));
+      shared_ptr<ftEdge> edg2(new ftEdge(adjacent2_->getSurface(0),
+					 cvs2_[ki], cvs2_[ki]->startparam(),
+					 cvs2_[ki]->endparam()));
+      edg2->setReversed(true);
+      edg1->connectTwin(edg2.get(), stat);
+      adjacent1_->addTrimEdge(edg1);
+      adjacent2_->addTrimEdge(edg2);
+    }
+
+  int stop_break = 1;
+}

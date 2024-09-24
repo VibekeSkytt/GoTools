@@ -329,6 +329,10 @@ namespace Go
 			  double radius, double tol, double angtol,
 			  std::vector<RevEngPoint*>& out_points);
 
+    void extractOutOfEdge2(std::vector<shared_ptr<CurveOnSurface> >& intcv,
+			   double tol, double angtol,
+			  std::vector<RevEngPoint*>& out_points);
+
      void identifyAngPoints(std::vector<std::pair<double, double> >& dist_ang,
 			    double tol, double disttol,
 			    std::vector<RevEngPoint*>& ang_points);
@@ -1052,6 +1056,8 @@ namespace Go
 
     bool commonRevEdge(RevEngRegion *other);
     
+    bool commonTrimEdge(RevEngRegion *other);
+    
     void setBlendEdge(RevEngEdge* edge)
     {
       blend_edge_ = edge;
@@ -1075,6 +1081,11 @@ namespace Go
     void addTrimEdge(shared_ptr<ftEdge> edge)
     {
       trim_edgs_.push_back(edge);
+    }
+
+    bool hasTrimEdges()
+    {
+      return (trim_edgs_.size() > 0);
     }
 
     int numTrimEdges()
@@ -1106,6 +1117,12 @@ namespace Go
     void rangeAlongAxis(const Point& pos, const Point& axis, double& tmin,
 			double& tmax);
       
+    shared_ptr<Plane>
+    planarComponent(Point vec, int min_point, int min_pt_reg,
+		    double tol, double angtol, Point mainaxis[3],
+		    std::vector<RevEngPoint*>& remaining,
+		    std::vector<std::vector<RevEngPoint*> >& extracted);
+    
    bool planarComponent(Point vec, int min_point, int min_pt_reg, double tol,
 			 double angtol, Point mainaxis[3],
 			 std::vector<shared_ptr<HedgeSurface> >& hedgesfs,
@@ -1299,7 +1316,22 @@ namespace Go
 			   Point& pos, Point& axis, Point& Cx, double& rad,
 			   std::vector<RevEngPoint*>& cyl_pts);
 
-     bool defineHelicalInfo(shared_ptr<Cylinder> cyl,  double tol,
+    void computeFracNorm(double angtol, Point mainaxis[3], int nmb_axis[3],
+			 double& in_frac1, double& in_frac2);
+    
+    shared_ptr<ElementarySurface>
+    helicalComponent(shared_ptr<Cylinder> cyl,  double tol,
+		     double angtol, int min_point,
+		     int min_pt_reg, double avdist, int num_in2,
+		     std::vector<std::pair<double,double> >& dist_ang,
+		     std::vector<RevEngPoint*>& remaining,
+		     std::vector<std::vector<RevEngPoint*> >& extracted,
+		     double& maxd_out, double& avd_out,
+		     int& num_in_out, int& num2_in_out,
+		     std::vector<double>& parvals_out,
+		     std::vector<std::pair<double,double> >& distang_out);
+
+    bool defineHelicalInfo(shared_ptr<Cylinder> cyl,  double tol,
 			   double angtol, int min_point, int min_pt_reg,
 			   double avdist, int num_in1, int num_in2,
 			   std::vector<std::pair<double,double> >& dist_ang,

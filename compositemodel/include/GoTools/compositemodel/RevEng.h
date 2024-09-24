@@ -405,7 +405,7 @@ namespace Go
     bool recognizeOneSurface(int& ix, int min_point_in, double angtol,
 			     int pass);
     void recognizeSurfaces(int min_point_in, int pass);
-    void recognizeEdges();
+    void recognizeEdges(bool only_curve=false);
     bool createBlendSurface(int ix);
     void adjustPointRegions(int min_point_in);
     void defineAxis(Point axis[3], bool only_surf=false, int min_num=-1);
@@ -527,7 +527,8 @@ namespace Go
     std::vector<shared_ptr<RevEngEdge> >
     defineEdgesBetween(size_t ix1,shared_ptr<ElementarySurface>& surf1,
 		       Point& dir1, size_t ix2, shared_ptr<ElementarySurface>& surf2,
-		       Point& dir2, double lenlim=-1.0, bool check_common = true);
+		       Point& dir2, bool only_curve=false,
+		       double lenlim=-1.0, bool check_common = true);
     
     shared_ptr<RevEngEdge> 
     defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
@@ -535,10 +536,12 @@ namespace Go
 		  shared_ptr<ElementarySurface>& surf2, Point& dir2,
 		  shared_ptr<CurveOnSurface>& int_cv1,
 		  shared_ptr<CurveOnSurface>& int_cv2,
-		  double width, std::vector<RevEngRegion*>& common_reg);
+		  double width, std::vector<RevEngRegion*>& common_reg,
+		  bool only_curve);
     
     RevEngPoint* getDistantPoint(shared_ptr<CurveOnSurface>& cv,
 				 double tmin, double tmax, double dd,
+				 double width,
 				 std::vector<RevEngPoint*>& points);
 
     void extendBlendAssociation(size_t ix);

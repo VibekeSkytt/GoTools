@@ -587,15 +587,21 @@ void HedgeSurface::limitSurf(double diag)
     {
       if (diag < 0.0)
 	diag = bbox_.low().dist(bbox_.high());
+      double domain[4];
+      regions_[0]->getDomain(domain);
+      double midu = 0.5*(domain[0]+domain[1]);
+      double midv = 0.5*(domain[2]+domain[3]);
+      double fac = 1.0;
       shared_ptr<Plane> plane = dynamic_pointer_cast<Plane,ParamSurface>(surf);
       shared_ptr<Cylinder> cyl = dynamic_pointer_cast<Cylinder,ParamSurface>(surf);
       shared_ptr<Cone> cone = dynamic_pointer_cast<Cone,ParamSurface>(surf);
       if (plane.get())
-	plane->setParameterBounds(-diag, -diag, diag, diag);
+	plane->setParameterBounds(midu-fac*diag, midv-fac*diag,
+				  midu+fac*diag, midv+fac*diag);
       else if (cyl.get())
-	cyl->setParamBoundsV(-diag, diag);
+	cyl->setParamBoundsV(midv-fac*diag, midv+fac*diag);
       else if (cone.get())
-	cone->setParamBoundsV(-diag, diag);
+	cone->setParamBoundsV(midv-fac*diag, midv+fac*diag);
     }
 }
 

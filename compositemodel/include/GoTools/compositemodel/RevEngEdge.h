@@ -82,6 +82,11 @@ namespace Go
       Id_ = Id;
     }
 
+    int getType()
+    {
+      return blend_type_;
+    }
+
     void setReg1(RevEngRegion *reg);
     
     void setReg2(RevEngRegion *reg);
@@ -276,6 +281,11 @@ namespace Go
 		std::vector<shared_ptr<RevEngRegion> >& added_regions,
 		std::vector<std::vector<RevEngPoint*> >& extract_groups,
 		std::vector<HedgeSurface*>& out_sfs);
+
+    void setTrimCurves(double tol, double angtol,
+		       std::vector<RevEngRegion*>& out_regs,
+		       std::vector<HedgeSurface*>& out_sfs);
+    
   private:
     int Id_;
     RevEngRegion* adjacent1_;
