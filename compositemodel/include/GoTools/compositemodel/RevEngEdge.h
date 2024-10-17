@@ -275,6 +275,8 @@ namespace Go
 
     bool updateCurve(double int_tol, double tol, double len);
 
+    void updateParCurve(RevEngRegion* adj, double int_tol);
+
     bool
     extendCurve(double int_tol, double tol, double anglim, 
 		double len, double lenlim, double blendlim,

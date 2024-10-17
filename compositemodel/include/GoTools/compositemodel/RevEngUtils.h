@@ -146,6 +146,11 @@ namespace Go {
 		      std::vector<RevEngPoint*>::iterator> >& points,
 		      Point& pos, Point& norm);
 
+    void computeLine(vector<Point>& points, Point& pos, Point& dir);
+    
+    void computePlane(std::vector<Point>& points, Point normal,Point mainaxis[3],
+		      Point& pos, Point& norm, Point& Cx, Point& Cy);
+
     void rotateToPlane(std::vector<std::pair<std::vector<RevEngPoint*>::iterator,
 		       std::vector<RevEngPoint*>::iterator> >& points,
 		       Point& xvec, Point& axis, Point& mid, std::vector<Point>& rotated);
@@ -192,6 +197,11 @@ namespace Go {
 		      shared_ptr<ParamCurve> curve, double tol,
 		      double& maxdist, double& avdist, int& inside,
 		      std::vector<double>& dist);
+
+     void distToCurve(std::vector<Point>& points,
+		      shared_ptr<ParamCurve> curve, double tol,
+		      double& maxdist, double& avdist, int& inside,
+		      std::vector<double>& parvals, std::vector<double>& dist);
 
     shared_ptr<ElementarySurface> elemsurfWithAxis(shared_ptr<ElementarySurface> sf_in,
 						 std::vector<RevEngPoint*>& points,

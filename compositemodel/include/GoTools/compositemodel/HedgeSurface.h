@@ -183,7 +183,7 @@ public:
 	      double tol,
 	      std::vector<shared_ptr<HedgeSurface> >& added_sfs);
   void limitSurf(double diag = -1.0);
-  void trimWithPoints(double aeps);
+  bool trimWithPoints(double aeps);
 
   void store(std::ostream& os) const;
   void read(std::istream& is);

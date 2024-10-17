@@ -606,7 +606,7 @@ void HedgeSurface::limitSurf(double diag)
 }
 
 //===========================================================================
-void HedgeSurface::trimWithPoints(double aeps)
+bool HedgeSurface::trimWithPoints(double aeps)
 //===========================================================================
 {
   // Extract data points
@@ -642,9 +642,12 @@ void HedgeSurface::trimWithPoints(double aeps)
   
 
   // Rough trimming curve
+  double tol = 1.0e-5;
   int max_rec = 1;
   int nmb_div = std::min(num_pts/70, 8); //15;
 
+  if (extent[1]-extent[0] < tol || extent[3]-extent[2] < tol)
+    return false;
     // Compute trimming seqence
   bool only_outer = true;
   vector<vector<double> > seqs;
@@ -660,12 +663,11 @@ void HedgeSurface::trimWithPoints(double aeps)
   int nmb_loops = only_outer ? std::min(1,(int)seqs.size()) : (int)seqs.size();
   vector<vector<vector<double> > >  all_seqs(nmb_loops);
   if (nmb_loops == 0)
-    return;
+    return false;
   for (int kh=0; kh<nmb_loops; ++kh)
     all_seqs[kh].push_back(seqs[kh]);
 
   int nmb_match = 4;
-  double tol = 1.0e-5;
   double eps = std::max(udel, vdel);
   vector<vector<shared_ptr<CurveOnSurface> > > loop(nmb_loops);
   for (int kh=0; kh<nmb_loops; ++kh)
@@ -759,7 +761,7 @@ void HedgeSurface::trimWithPoints(double aeps)
   shared_ptr<BoundedSurface> bdsf(new BoundedSurface(surface(), loop, aeps));
   replaceSurf(bdsf);
 
-  int stop_break = 1;
+  return true;
 }
 
 //===========================================================================

@@ -1560,6 +1560,7 @@ void RevEngUtils::computeRadius(vector<Point>& points, Point& axis,
   radius = (r2 + sx*sx + sy*sy < 0.0) ? 0.0 : sqrt(r2 + sx*sx + sy*sy);
  }
 
+
 //===========================================================================
 void RevEngUtils::computePlane(vector<pair<vector<RevEngPoint*>::iterator,
 			       vector<RevEngPoint*>::iterator> >& points,
@@ -1666,6 +1667,71 @@ void RevEngUtils::computePlane(vector<pair<vector<RevEngPoint*>::iterator,
   norm2.normalize();
 
   int stop_break = 1;
+}
+
+//===========================================================================
+void RevEngUtils::computePlane(vector<Point>& points, Point normal,
+			       Point mainaxis[3],
+			       Point& pos, Point& norm, Point& Cx, Point& Cy)
+//===========================================================================
+{
+  Point pos0(0.0, 0.0, 0.0);
+  double wgt = 1.0/(double)(points.size());
+  for (size_t ki=0; ki<points.size(); ++ki)
+    pos0 += wgt*points[ki];
+  
+  shared_ptr<ImplicitApprox> impl(new ImplicitApprox());
+  impl->approxPoints(points, 1);
+  impl->projectPoint(pos0, normal, pos, norm);
+  if (normal*norm < 0.0)
+    norm *= -1.0;
+
+  // Define x-axis
+  int ix = -1;
+  double minang = M_PI;
+  for (int ka=0; ka<3; ++ka)
+    {
+      double ang = mainaxis[ka].angle(norm);
+      ang = std::min(ang, M_PI-ang);
+      if (ang < minang)
+	{
+	  minang = ang;
+	  ix = ka;
+	}
+    }
+
+  Cy = mainaxis[(ix+1)%3].cross(norm);
+  Cx = norm.cross(Cy);
+}
+
+//===========================================================================
+void RevEngUtils::computeLine(vector<Point>& points, Point& pos, Point& dir)
+//===========================================================================
+{
+  size_t num = points.size();
+  pos = Point(0.0, 0.0, 0.0);
+  dir = Point(0.0, 0.0, 0.0);
+  if (num == 0)
+    return;
+  
+  double fac = 1.0/(double)num;
+  BoundingBox bb(3);
+  for (size_t ki=0; ki<num; ++ki)
+    {
+      pos += fac*points[ki];
+      bb.addUnionWith(points[ki]);
+    }
+
+  Point dir0 = bb.high() - bb.low();
+  for (size_t ki=0; ki<num; ++ki)
+    {
+      Point tmp = points[ki] - pos;
+      (void)tmp.normalize_checked();
+      if (tmp*dir0 < 0.0)
+	tmp *= -1;
+      dir += fac*tmp;
+    }
+  (void)dir.normalize_checked();
 }
 
 //===========================================================================
@@ -1966,6 +2032,38 @@ void RevEngUtils::distToCurve(vector<Point>& points,
       Point close;
       curve->closestPoint(points[ki], curve->startparam(), curve->endparam(),
 			  tpar, close, dist[ki]);
+      maxdist = std::max(maxdist, dist[ki]);
+      avdist += dist[ki];
+      if (dist[ki] <= tol)
+	++num_inside;
+      else
+	{
+	  int stop_break = 1;
+	}
+      ++num;
+    }
+  avdist /= (double)num;
+}
+
+//===========================================================================
+void RevEngUtils::distToCurve(vector<Point>& points,
+			      shared_ptr<ParamCurve> curve, double tol,
+			      double& maxdist, double& avdist, int& num_inside,
+			      vector<double>& parvals, vector<double>& dist)
+//===========================================================================
+{
+  double eps = 1.0e-6;
+  maxdist = avdist = 0.0;
+  num_inside = 0;
+  int num = 0;
+  parvals.resize(points.size());
+  dist.resize(points.size());
+  for (size_t ki=0; ki<points.size(); ++ki)
+    {
+      double tpar;
+      Point close;
+      curve->closestPoint(points[ki], curve->startparam(), curve->endparam(),
+			  parvals[ki], close, dist[ki]);
       maxdist = std::max(maxdist, dist[ki]);
       avdist += dist[ki];
       if (dist[ki] <= tol)

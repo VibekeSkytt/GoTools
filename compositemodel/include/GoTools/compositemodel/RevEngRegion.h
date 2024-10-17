@@ -910,7 +910,8 @@ namespace Go
       prev_region_ = prev;
     }
     
-    void adjustBoundaries(double mean_edge_len, double tol, double angtol);
+    void extendBoundaries(double mean_edge_len, int min_point_reg, double tol, 
+			  double angtol, Point mainaxis[3]);
     
     std::vector<RevEngPoint*> sortPtsSeq(double mean_edge_len,
 					 std::vector<RevEngPoint*>& seq_pts,
@@ -985,6 +986,8 @@ namespace Go
 			     double angtol, double& maxd, double& avd, int& num_in,
 			     int& num2_in, int& sf_flag);
 
+    void parameterizePoints(double tol, double angtol);
+    
     void computeSurface(std::vector<RevEngPoint*>& points,
 			Point mainaxis[3], double tol, double angtol,
 			ClassType classtype, shared_ptr<ParamSurface>& updated,
@@ -1374,8 +1377,9 @@ namespace Go
 
     bool arrangeEdgeLoop(double tol);
     
-    shared_ptr<CurveOnSurface> constParSfCv(shared_ptr<ParamSurface> surf, int dir,
-					    double par, int bd, double len);
+    shared_ptr<CurveOnSurface>
+    constParSfCv(shared_ptr<ParamSurface> surf, int dir,
+		 double par, int bd, double t1, double t2);
 
     void getDomainBoundaries(double tol, double angtol,
 			     std::vector<std::pair<int, double> >& bd_par1,

@@ -383,6 +383,9 @@ void RevEngEdge::closestPoint(const Point& pos, double& par, Point& close,
 int RevEngEdge::closedSfAtEnd(double tol, double& par, Point& pos, bool at_start)
 //===========================================================================
 {
+  if (cvs1_.size() == 0)
+    return 0;
+  
   shared_ptr<ParamSurface> surf1 = cvs1_[0]->underlyingSurface();
   shared_ptr<ParamSurface> surf2 = cvs2_[0]->underlyingSurface();
 
@@ -465,6 +468,8 @@ int RevEngEdge::closedSfAtEnd(double tol, double& par, Point& pos, bool at_start
 bool RevEngEdge::isClosed(double tol)
 //===========================================================================
 {
+  if (cvs1_.size() == 0)
+    return false;
   double par1 = cvs1_[0]->startparam();
   double par2 = cvs1_[cvs1_.size()-1]->endparam();
   Point pos1 = cvs1_[0]->ParamCurve::point(par1);
@@ -477,6 +482,8 @@ bool RevEngEdge::isClosed(double tol)
 bool RevEngEdge::isAdjacent(RevEngEdge* other, double tol, double& par1, double& par2)
 //===========================================================================
 {
+  if (cvs1_.size() == 0)
+    return false;
   double tpar1 = cvs1_[0]->startparam();
   double tpar2 = cvs1_[cvs1_.size()-1]->endparam();
   Point pos1 = cvs1_[0]->ParamCurve::point(tpar1);
@@ -522,6 +529,10 @@ bool RevEngEdge::isAdjacent(RevEngEdge* other, double tol, double& par1, double&
 Point RevEngEdge::point(double par)
 //===========================================================================
 {
+  Point dummy;
+  if (cvs1_.size() == 0)
+    return dummy;
+  
   size_t ix = 0;
   for (ix; ix<cvs1_.size() && cvs1_[ix]->endparam() <= par; ++ix);
   if (ix == cvs1_.size())
@@ -550,6 +561,9 @@ bool RevEngEdge::append(RevEngEdge* other, double tol)
     return false;  // Not an appendable configuration
 
   size_t ncv1 = cvs1_.size();
+  if (ncv1 == 0)
+    return false;
+  
   size_t ix1 = 0;
   for (; ix1<ncv1 && cvs1_[ix1]->endparam() <= tpar1; ++ix1);
   if (ix1 == ncv1)
@@ -897,6 +911,8 @@ RevEngEdge::doSplit(size_t ix, int side, double par, double tol,
 //===========================================================================
 {
   shared_ptr<RevEngEdge> new_edg;
+  if (ix >= cvs1_.size() || cvs1_.size() == 0)
+    return new_edg;
 
   if (par <= cvs1_[ix]->startparam() || par >= cvs1_[ix]->endparam())
     return new_edg;
@@ -996,6 +1012,9 @@ RevEngEdge::updateCurve(double int_tol, double tol, double len)
 {
   double eps = 1.0e-6;
   if (surfchangecount_ == 0)
+    return false;
+
+  if (cvs1_.size() == 0)
     return false;
   
   shared_ptr<ParamSurface> surf1 = adjacent1_->getSurface(0)->surface();
@@ -1123,6 +1142,22 @@ RevEngEdge::updateCurve(double int_tol, double tol, double len)
 
 }
 
+//===========================================================================
+void
+RevEngEdge::updateParCurve(RevEngRegion *adj, double int_tol)
+//===========================================================================
+{
+  if (adj == adjacent1_)
+    {
+      for (size_t ki=0; ki<cvs1_.size(); ++ki)
+	cvs1_[ki]->ensureParCrvExistence(int_tol);
+    }
+  else if (adj == adjacent2_)
+    {
+      for (size_t ki=0; ki<cvs2_.size(); ++ki)
+	cvs2_[ki]->ensureParCrvExistence(int_tol);
+    }
+}
 
 //===========================================================================
 bool
@@ -1137,6 +1172,9 @@ RevEngEdge::extendCurve(double int_tol, double tol, double anglim,
   if (extendcount_ == 0)
     return false;
 
+  if (cvs1_.size() == 0)
+    return false;
+  
   if (isClosed(tol))
     {
       extendcount_ = 0;
@@ -1316,7 +1354,7 @@ RevEngEdge::extendCurve(double int_tol, double tol, double anglim,
     }
 
   double t1 = std::max(t5_t6[ix1].first, t7_t8[ix2].first);
-  double t2 = std::max(t5_t6[ix1].second, t7_t8[ix2].second);
+  double t2 = std::min(t5_t6[ix1].second, t7_t8[ix2].second);
   if (t2 <= t1+eps)
     return false;  // Nothing left
   

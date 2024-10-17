@@ -2683,7 +2683,8 @@ void RevEng::recognizeEdges(bool only_curve)
       
       int code;
       int classtype = regions_[ki]->getSurface(0)->instanceType(code);
-      if (classtype != Class_Plane && classtype != Class_Cylinder && classtype != Class_Cone)
+      if (classtype != Class_Plane && classtype != Class_Cylinder &&
+	  classtype != Class_Cone && classtype != Class_Sphere)
 	continue;  // Preliminary
 
       shared_ptr<ParamSurface> surf1 = regions_[ki]->getSurface(0)->surface();
@@ -2695,6 +2696,7 @@ void RevEng::recognizeEdges(bool only_curve)
 	dir1 *= -1;
       for (size_t kj=ki+1; kj<regions_.size(); ++kj)
 	{
+	  bool only_curve2 = only_curve;
 	  if (!regions_[kj]->hasSurface())
 	    continue;
 	  if (regions_[ki]->hasAssociatedBlend())
@@ -2721,27 +2723,32 @@ void RevEng::recognizeEdges(bool only_curve)
  	  int code2;
 	  int classtype2 = regions_[kj]->getSurface(0)->instanceType(code2);
 	  if (classtype2 != Class_Plane && classtype2 != Class_Cylinder &&
-	      classtype2 != Class_Cone)
+	      classtype2 != Class_Cone && classtype2 != Class_Sphere)
 	    continue;  // Preliminary
+	  if (classtype == Class_Sphere || classtype2 == Class_Sphere)
+	    only_curve2 = true;
 	  if (classtype == Class_Cylinder && classtype2 == Class_Cylinder)
 	    continue;
 	  if (classtype == Class_Cone && classtype2 == Class_Cone)
 	    continue;
+	  if ((classtype == Class_Sphere && classtype2 != Class_Plane) ||
+	      (classtype2 == Class_Sphere && classtype != Class_Plane))
+	    continue;
 
+#ifdef DEBUG_EDGE
+	  std::ofstream of1("adj_regs.g2");
+	  regions_[ki]->writeRegionPoints(of1);
+	  regions_[ki]->writeSurface(of1);
+	  regions_[kj]->writeRegionPoints(of1);
+	  regions_[kj]->writeSurface(of1);
+#endif
 	  shared_ptr<ParamSurface> surf2 = regions_[kj]->getSurface(0)->surface();
 	  shared_ptr<ElementarySurface> elem2 =
 	    dynamic_pointer_cast<ElementarySurface,ParamSurface>(surf2);
 	  if (regions_[ki]->isAdjacent(regions_[kj].get())
-	      || (only_curve == false &&
+	      || (only_curve2 == false &&
 		  regions_[ki]->isNextToAdjacent(regions_[kj].get())))
 	    {
-#ifdef DEBUG_EDGE
-	      std::ofstream of1("adj_regs.g2");
-	      regions_[ki]->writeRegionPoints(of1);
-	      regions_[ki]->writeSurface(of1);
-	      regions_[kj]->writeRegionPoints(of1);
-	      regions_[kj]->writeSurface(of1);
-#endif
 	      Point dir2 = elem2->direction();
 	      if (elem2->instanceType() == Class_Plane &&
 		  dir2*regions_[kj]->getPoint(0)->getTriangNormal() < 0.0)
@@ -2757,7 +2764,7 @@ void RevEng::recognizeEdges(bool only_curve)
 	      else if (classtype == Class_Plane || classtype2 == Class_Plane)
 		{
 		  if (ang < blendfac*angtol ||
-		      (only_curve && fabs(pihalf-ang) > blendfac*angtol))
+		      (only_curve2 && fabs(pihalf-ang) > blendfac*angtol))
 		    compute_edge = true;
 		  else if (fabs(pihalf-ang) < blendfac*angtol)
 		    {
@@ -2844,7 +2851,7 @@ void RevEng::recognizeEdges(bool only_curve)
 
 		  vector<shared_ptr<RevEngEdge> > edges =
 		    defineEdgesBetween(ki, elem1, dir1,kj, elem2, dir2,
-				       only_curve);
+				       only_curve2);
 		  if (edges.size() > 0)
 		    edges_.insert(edges_.end(), edges.begin(),edges.end());
 		}
@@ -3176,8 +3183,8 @@ RevEng::defineEdgesBetween(size_t ix1, shared_ptr<ElementarySurface>& surf1,
 
   //double angtol = 5.0*anglim_;
   double diag = bbox_.low().dist(bbox_.high());
-  double blendlim = std::min(0.1*diag, 20.0*mean_edge_len_);
-  double maxwidth = std::max(blendlim, 0.05*diag);
+  double blendlim = std::min(0.1*diag, 30.0*mean_edge_len_);
+  double maxwidth = std::max(blendlim, 0.1*diag);
   double lenlim = 10.0*mean_edge_len_; //blendlim;
   if (lenlim0 > 0.0)
     lenlim= std::min(lenlim, lenlim0);
@@ -3700,7 +3707,8 @@ RevEng::defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
       if (connection)
 	break;
     }
-  if ((!connection) && (!adjacent))
+  if ((!connection) && (!adjacent) && (!regions_[ix1]->hasBlendEdge()) &&
+      (!regions_[ix2]->hasBlendEdge()))
     return dummy_edg;
 	      
   vector<pair<vector<RevEngPoint*>::iterator,
@@ -5727,6 +5735,8 @@ void RevEng::manageBlends2()
       vector<shared_ptr<ftEdge> > trim_edgs;
       for (size_t kr=0; kr<regions_.size(); ++kr)
 	{
+	  if (regions_[kr]->numPoints() == 0)
+	    std::cout << "Finished set blend boundaries, empty region, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
 	  int num = regions_[kr]->numTrimEdges();
 	  if (num > 0)
 	    {
@@ -5791,6 +5801,8 @@ void RevEng::manageBlends2()
       vector<shared_ptr<ftEdge> > trim_edgs;
       for (size_t kr=0; kr<regions_.size(); ++kr)
 	{
+	  if (regions_[kr]->numPoints() == 0)
+	    std::cout << "Finished grow blend surface, empty region, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
 	  int num = regions_[kr]->numTrimEdges();
 	  if (num > 0)
 	    {
@@ -5871,6 +5883,8 @@ void RevEng::manageBlends2()
       vector<shared_ptr<ftEdge> > trim_edgs;
       for (size_t kr=0; kr<regions_.size(); ++kr)
 	{
+	  if (regions_[kr]->numPoints() == 0)
+	    std::cout << "Grow master surface, empty region, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
 	  int num = regions_[kr]->numTrimEdges();
 	  if (num > 0)
 	    {
@@ -6007,6 +6021,8 @@ void RevEng::manageBlends2()
       vector<shared_ptr<ftEdge> > trim_edgs;
       for (size_t kr=0; kr<regions_.size(); ++kr)
 	{
+	  if (regions_[kr]->numPoints() == 0)
+	    std::cout << "Torus corner, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
 	  int num = regions_[kr]->numTrimEdges();
 	  if (num > 0)
 	    {
@@ -6128,6 +6144,8 @@ void RevEng::manageBlends2()
       vector<shared_ptr<ftEdge> > trim_edgs;
       for (size_t kr=0; kr<regions_.size(); ++kr)
 	{
+	  if (regions_[kr]->numPoints() == 0)
+	    std::cout << "Missing corner, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
 	  int num = regions_[kr]->numTrimEdges();
 	  if (num > 0)
 	    {
@@ -7961,14 +7979,17 @@ void RevEng::setBlendBoundaries(RevEngRegion *reg)
 		}
 	      
 	      // Check for seam. Solution could be improved
-	      if (fabs(u1-upar1) < eps2 && umid > u2 && upar2 < u2)
+	      if (fabs(u1-upar1) < eps2 && umid > u2) // && upar2 < u2)
 		u1 = upar2;
 	      else if (fabs(upar2-u1) < eps2 && umid < u2)
 		u1 = upar1;
 	      if (fabs(u2-upar1) < eps2 && umid > u1)
 		u2 = upar2;
-	      else if (fabs(upar2-u2) < eps2 && umid < u1 && upar1 > u1)
+	      else if (fabs(upar2-u2) < eps2 && umid < u1) // && upar1 > u1)
 		u2 = upar1;
+
+	      if (u2 < u1)
+		std::swap(u1, u2);
 	    }
 	      
 	  upar1 = std::max(upar1, u1);
@@ -9062,7 +9083,7 @@ bool RevEng::createBlendSurface(int ix)
   double angtol = 5.0*anglim_;
   double diag = bbox_.low().dist(bbox_.high());
   double eps = 1.0e-6;
-  double blendlim = 50.0*mean_edge_len_;
+  double blendlim = std::min(0.1*diag, 30.0*mean_edge_len_); //50.0*mean_edge_len_;
   double lenlim = 10.0*mean_edge_len_; //blendlim;
   
   // Adjacent regions
@@ -9106,6 +9127,9 @@ bool RevEng::createBlendSurface(int ix)
     updated_edge = edges_[ix]->updateCurve(int_tol_, approx_tol_, diag);
   if (!updated_edge)
     edges_[ix]->fixMismatchCurves(approx_tol_);  // @@@ Should this be done always?
+
+  if (edges_[ix]->getType() == NOT_BLEND)
+    return false;  // Should not create blend surfaces
   
   // Regions in blend area
   vector<RevEngRegion*> blend_regs;
@@ -12965,8 +12989,8 @@ void RevEng::smallRegionSurfaces()
 	  std::cout << "Inconsistent region pointers, post define small region surfaces: " << ki << " " << ka << std::endl;
     }
 #endif
-   if ((int)surfaces_.size() > nmb_sfs)
-     recognizeEdges();
+   // if ((int)surfaces_.size() > nmb_sfs)
+   //   recognizeEdges();
    
 #ifdef DEBUG
    checkConsistence("Regions10_1_2");
@@ -13026,6 +13050,7 @@ void RevEng::smallRegionSurfaces()
        // 	 }
      }
    
+   recognizeEdges();
  
    
 
@@ -13083,7 +13108,6 @@ void RevEng::smallRegionSurfaces()
 #endif
    std::cout << "Define small region surfaces, regions: " << regions_.size() << ", surfaces: " << surfaces_.size() << std::endl;
 #endif
-   //recognizeEdges();
    int stop_break = 1;
 }
 
@@ -14111,7 +14135,8 @@ void RevEng::planarAtPlane(shared_ptr<Plane> axis_plane,
   Point axis = axis_plane->direction();
   Point loc = axis_plane->location();
   int min_num_pts = min_point_region_/5;
-  
+  double int_tol = 1.0e-4;
+
   // Check accuracy with respect to axis plane
   double angtol = 5.0*anglim_;
   double maxdist, avdist;
@@ -14353,10 +14378,18 @@ void RevEng::planarAtPlane(shared_ptr<Plane> axis_plane,
 		  if (con_all[ki][kj]->region() != sfs_reg[ix2])
 		    added_pts.push_back(con_all[ki][kj]);
 		}
-	      sfs_reg[ix2]->addPointsToGroup(added_pts, approx_tol_, angtol, false);
-	      vector<RevEngEdge*> rev_edgs = sfs_reg[ix2]->getAllRevEdges();
-	      for (size_t kj=0; kj<rev_edgs.size(); ++kj)
-		rev_edgs[kj]->increaseExtendCount();
+	      if (added_pts.size() > 0)
+		{
+		  sfs_reg[ix2]->addPointsToGroup(added_pts, approx_tol_, angtol, false);
+		  vector<RevEngEdge*> rev_edgs = sfs_reg[ix2]->getAllRevEdges();
+		  for (size_t kj=0; kj<rev_edgs.size(); ++kj)
+		    rev_edgs[kj]->increaseExtendCount();
+		}
+	      if (ix2 != ix)
+		{
+		  // Reset parameterization
+		  sfs_reg[ix2]->parameterizePoints(approx_tol_, angtol);
+		}
 	    }
 	  int stop_break5 = 1;
 	}
@@ -14386,6 +14419,10 @@ void RevEng::planarAtPlane(shared_ptr<Plane> axis_plane,
 		  ang = std::min(std::min(M_PI-ang, ang), std::min(M_PI-ang2,ang2));
 		  currpt->setPar(Vector2D(upar, vpar));
 		  currpt->setSurfaceDist(dist, ang);
+		  
+		  // vector<RevEngEdge*> rev_edgs = curreg->getAllRevEdges();
+		  // for (size_t kj=0; kj<rev_edgs.size(); ++kj)
+		  //   rev_edgs[kj]->updateParCurve(curreg, int_tol);
 		}
 	    }
 	}
@@ -17807,7 +17844,7 @@ void RevEng::trimSurfaces()
 
   vector<RevEngRegion*> out_regs;
   vector<HedgeSurface*> out_sfs;
-  for (size_t kj=num_edg; kj<edges_.size(); ++kj)
+  for (size_t kj=0; kj<edges_.size(); ++kj)
     {
       int type = edges_[kj]->getType();
       if (type == NOT_BLEND)
@@ -17818,8 +17855,35 @@ void RevEng::trimSurfaces()
       int ix = -1;
       updateRegionsAndSurfaces(ix, out_regs, out_sfs);
     }
-      
-  for (size_t ki=0; ki<regions_.size(); ++ki)
+#ifdef DEBUG_TRIM
+      vector<shared_ptr<ftEdge> > trim_edgs1;
+      for (size_t kr=0; kr<regions_.size(); ++kr)
+	{
+	  if (regions_[kr]->numPoints() == 0)
+	    std::cout << "Finished set blend boundaries, empty region, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
+	  int num = regions_[kr]->numTrimEdges();
+	  if (num > 0)
+	    {
+	      vector<shared_ptr<ftEdge> > curr_edgs = regions_[kr]->getTrimEdges();
+	      trim_edgs1.insert(trim_edgs1.end(), curr_edgs.begin(), curr_edgs.end());
+	    }
+	}
+      if (trim_edgs1.size() > 0)
+	{
+	  std::ofstream oft1("trim_edges_1.g2");
+	  for (size_t kr=0; kr<trim_edgs1.size(); ++kr)
+	    {
+	      shared_ptr<ParamCurve> tmp = trim_edgs1[kr]->geomCurve();
+	      shared_ptr<CurveOnSurface> tmp2 =
+		dynamic_pointer_cast<CurveOnSurface,ParamCurve>(tmp);
+	      shared_ptr<ParamCurve> tmp3 = tmp2->spaceCurve();
+	      tmp3->writeStandardHeader(oft1);
+	      tmp3->write(oft1);
+	    }
+	}
+#endif
+
+   for (size_t ki=0; ki<regions_.size(); ++ki)
     {
       if (!regions_[ki]->hasSurface())
 	continue;
@@ -17830,28 +17894,75 @@ void RevEng::trimSurfaces()
 
       if (regions_[ki]->numTrimEdges() == 0)
 	continue;
-      regions_[ki]->adjustBoundaries(mean_edge_len_, approx_tol_, angtol);
+      if (regions_[ki]->hasBlendEdge())
+	continue;
+      regions_[ki]->extendBoundaries(mean_edge_len_, min_point_region_,
+				     approx_tol_, angtol, mainaxis_);
     }
       
+#ifdef DEBUG_TRIM
+      vector<shared_ptr<ftEdge> > trim_edgs2;
+      for (size_t kr=0; kr<regions_.size(); ++kr)
+	{
+	  if (regions_[kr]->numPoints() == 0)
+	    std::cout << "Finished set blend boundaries, empty region, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
+	  int num = regions_[kr]->numTrimEdges();
+	  if (num > 0)
+	    {
+	      vector<shared_ptr<ftEdge> > curr_edgs = regions_[kr]->getTrimEdges();
+	      trim_edgs2.insert(trim_edgs2.end(), curr_edgs.begin(), curr_edgs.end());
+	    }
+	}
+      if (trim_edgs2.size() > 0)
+	{
+	  std::ofstream oft2("trim_edges_2.g2");
+	  for (size_t kr=0; kr<trim_edgs2.size(); ++kr)
+	    {
+	      shared_ptr<ParamCurve> tmp = trim_edgs2[kr]->geomCurve();
+	      shared_ptr<CurveOnSurface> tmp2 =
+		dynamic_pointer_cast<CurveOnSurface,ParamCurve>(tmp);
+	      shared_ptr<ParamCurve> tmp3 = tmp2->spaceCurve();
+	      tmp3->writeStandardHeader(oft2);
+	      tmp3->write(oft2);
+	    }
+	}
+#endif
+
   for (size_t ki=0; ki<regions_.size(); ++ki)
     {
       bool trimmed;
       if (!regions_[ki]->hasSurface())
 	continue;
+#ifdef DEBUG_TRIM
+      std::ofstream of2("trimreg2.g2");
+      regions_[ki]->writeRegionPoints(of2);
+#endif
       if (regions_[ki]->numTrimEdges() == 0)
 	{
 	  trimmed = true;
 	  regions_[ki]->getSurface(0)->trimWithPoints(approx_tol_);
 	}
       else
-	trimmed = regions_[ki]->trimSurface(approx_tol_);
+	{
+	  try {
+	    trimmed = regions_[ki]->trimSurface(approx_tol_);
+	  }
+	  catch (...)
+	    {
+	      trimmed = regions_[ki]->getSurface(0)->trimWithPoints(approx_tol_);
+	    }
+	  if (!trimmed)
+	    {
+	      trimmed = regions_[ki]->getSurface(0)->trimWithPoints(approx_tol_);
+	    }
+	}
       
 #ifdef DEBUG_TRIM
       if (trimmed)
 	{
 	  shared_ptr<ParamSurface> tsurf = regions_[ki]->getSurface(0)->surface();
-	  tsurf->writeStandardHeader(of0);
-	  tsurf->write(of0);
+	  tsurf->writeStandardHeader(of2);
+	  tsurf->write(of2);
 	}
 #endif
 	
