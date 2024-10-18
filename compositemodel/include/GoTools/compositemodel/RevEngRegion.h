@@ -289,17 +289,7 @@ namespace Go
 		 std::vector<vector<RevEngPoint*> >& out_groups,
 		 std::vector<RevEngPoint*>& single_pts, bool& repeat);
     
-    void
-    splitComposedRegions(int classtype,
-			 std::vector<shared_ptr<RevEngRegion> >& added_groups,
-			 std::vector<RevEngPoint*>& single_pts);
     
-    void
-    splitWithShapeIndex(std::vector<shared_ptr<RevEngRegion> >& updated_regions);
-    
-    void
-    splitFromSurfaceNormals(std::vector<RevEngPoint*>& smallrad,
-			    std::vector<std::vector<RevEngPoint*> >& separate_group);
     void splitRegion(std::vector<std::vector<RevEngPoint*> >& separate_groups);
 
     void splitPlanar(double lim_cone, int min_point_reg, 
@@ -368,10 +358,6 @@ namespace Go
     {
       if (classification_type_ == CLASSIFICATION_CURVATURE)
 	return group_points_[0]->C1_surf();
-      else if (classification_type_ == CLASSIFICATION_SHAPEINDEX)
-	return group_points_[0]->SI_surf();
-      else if (classification_type_ == CLASSIFICATION_POINTASSOCIATION)
-	return group_points_[0]->RP_surf();
       else
 	return -1;
     }
@@ -381,9 +367,6 @@ namespace Go
       if (classification_type_ == CLASSIFICATION_CURVATURE)
 	return (group_points_[0]->C1_surf() == C1_RIDGE ||
 		group_points_[0]->C1_surf() == C1_VALLEY);
-      else if (classification_type_ == CLASSIFICATION_SHAPEINDEX)
-	return (group_points_[0]->SI_surf() == SI_RUT ||
-		group_points_[0]->SI_surf() == SI_RID);
       else
 	return false;
     }
@@ -392,8 +375,6 @@ namespace Go
     {
       if (classification_type_ == CLASSIFICATION_CURVATURE)
 	return (group_points_[0]->C1_surf() == C1_FLAT);
-      else if (classification_type_ == CLASSIFICATION_SHAPEINDEX)
-	return (group_points_[0]->SI_surf() == SI_PLANE);
       else
 	return false;
     }
@@ -1219,9 +1200,6 @@ namespace Go
 			   double angtol, std::vector<RevEngRegion*>& grown_regions,
 			   std::vector<HedgeSurface*>& adj_surfs);
     
-    //Point& pluckerAxis();
-    void extendWithGaussRad();
-    void extendWithGaussRad2();
     void analyseNormals(double tol, Point& normal, Point& centre, double& radius);
     void analysePlaneProperties(Point avnorm, double angtol,
 				std::vector<RevEngPoint*>& in,

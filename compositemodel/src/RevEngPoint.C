@@ -75,18 +75,12 @@ RevEngPoint::RevEngPoint()
   sfang_ = -1.0;
   nmb_move_ = 0;
   meancurv0_ = meancurv_ = gausscurv0_ = gausscurv_ = 0.0;
-  sfvariation_ = curvedness_ = 0.0;
-  shapeindex_ = 2.0;
-  rp_[0] = rp_[1] = rp_[2] = 0.0;
-  fpa_ = spa_ = 0.0;
+  curvedness_ = 0.0;
   edge_[0] = PCA_EDGE_UNDEF;
   edge_[1] = C1_EDGE_UNDEF;
   edge_[2] = C2_EDGE_UNDEF;
-  edge_[3] = RP_EDGE_UNDEF;
   surf_[0] = PCA_UNDEF;
   surf_[1] = C1_UNDEF;
-  surf_[2] = SI_UNDEF;
-  surf_[3] = PS_UNDEF;
 }
 
 //===========================================================================
@@ -117,18 +111,12 @@ RevEngPoint::RevEngPoint(Vector3D xyz, int bnd)
   sfang_ = -1.0;
   nmb_move_ = 0;
   meancurv0_ = meancurv_ = gausscurv0_ = gausscurv_ = 0.0;
-  sfvariation_ = curvedness_ = 0.0;
-  shapeindex_ = 2.0;
-  rp_[0] = rp_[1] = rp_[2] = 0.0;
-  fpa_ = spa_ = 0.0;
+  curvedness_ = 0.0;
   edge_[0] = PCA_EDGE_UNDEF;
   edge_[1] = C1_EDGE_UNDEF;
   edge_[2] = C2_EDGE_UNDEF;
-  edge_[3] = RP_EDGE_UNDEF;
   surf_[0] = PCA_UNDEF;
   surf_[1] = C1_UNDEF;
-  surf_[2] = SI_UNDEF;
-  surf_[3] = PS_UNDEF;
 }
 
 //===========================================================================
@@ -461,13 +449,11 @@ RevEngPoint::addCovarianceEigen(Point& eigen1, double lambda1, Point& eigen2,
       lambda3_ /= (double)(nmb_eigen_+1);
     }
   nmb_eigen_++;
-  sfvariation_ = lambda3_/(lambda1_ + lambda2_ + lambda3_);
 }
 
 //===========================================================================
 void RevEngPoint::addMongeInfo(Point& norm, Point& mincvec, double minc, Point& maxcvec,
-			       double maxc, double currdist, double avdist,
-			       double eps)
+			       double maxc, double currdist, double avdist)
 //===========================================================================
 {
   if (nmb_monge_ == 0)
@@ -502,45 +488,7 @@ void RevEngPoint::addMongeInfo(Point& norm, Point& mincvec, double minc, Point& 
   meancurv0_ = meancurv_ = 0.5*(kmin_ + kmax_);
   gausscurv0_ = gausscurv_ = kmin_*kmax_;
   curvedness_ = sqrt(0.5*(kmin_*kmin_ + kmax_*kmax_));
-  if (fabs(kmin_) < eps && fabs(kmax_) < eps)
-    shapeindex_ = 2;
-  else if (fabs(kmax_ - kmin_) < eps)
-    shapeindex_ = (kmax_ + kmin_ > 0.0) ? -1.0 : 1.0;
-  else
-    shapeindex_ = -2.0*atan((kmax_ + kmin_)/(kmax_ - kmin_))/M_PI;
 
-  double zero = 1.0e-12;
-  double div1 = meancurv_*meancurv_ - 0.5*gausscurv_;
-  double div2 = meancurv_*meancurv_ - gausscurv_;
-  //if (div1 > zero)
-  if (div1 >= 0.0)
-    fpa_ = 2.0*atan(sqrt(div1))/M_PI;
-  //fpa_ = 2.0*atan(1.0/sqrt(div1))/M_PI;
-  else
-    std::cout << "fpa div : " << div1 << ", xyz: " << xyz_ << std::endl;
-  if (div2 > zero)
-    spa_ = -2.0*atan(1.0/sqrt(div2))/M_PI;
-  if (meancurv_ < -zero)
-    spa_ *= -1.0;
-  // else
-  //   std::cout << "spa div : " << div2 << ", xyz: " << xyz_ << ", fpa: " << fpa_ << std::endl;
-  //spa_ = shapeindex_;
-    
-}
-
-//===========================================================================
-void RevEngPoint::resetPointAssociation()
-//===========================================================================
-{
-  double zero = 1.0e-12;
-  double div1 = meancurv_*meancurv_ - 0.5*gausscurv_;
-  double div2 = meancurv_*meancurv_ - gausscurv_;
-  if (div1 >= 0.0)
-    fpa_ = 2.0*atan(sqrt(div1))/M_PI;
-  if (div2 > zero)
-    spa_ = -2.0*atan(1.0/sqrt(div2))/M_PI;
-  if (meancurv_ < -zero)
-    spa_ *= -1.0;
 }
 
 
@@ -777,16 +725,16 @@ void RevEngPoint::store(std::ostream& os) const
   os << " " << kmax_ << std::endl;
   os << ptdist_ << " " << avdist_ << std::endl;
   normalcone_.write(os);
-  for (int ka=0; ka<4; ++ka)
+  for (int ka=0; ka<3; ++ka)
     os << " " << edge_[ka];
-  for (int ka=0; ka<4; ++ka)
+  for (int ka=0; ka<2; ++ka)
     os << " " << surf_[ka];
   os << " " << outlier_ << " " << sfdist_ << " " << sfang_ << std::endl;
   os << std::endl;
 }
 
 //===========================================================================
-void RevEngPoint::read(std::istream& is, double eps, vector<int>& next_ix) 
+void RevEngPoint::read(std::istream& is, vector<int>& next_ix) 
 //===========================================================================
 {
   is >> index_ >> xyz_ >> uv_;
@@ -805,18 +753,11 @@ void RevEngPoint::read(std::istream& is, double eps, vector<int>& next_ix)
     meancurv0_ = meancurv_ = 0.5*(kmin_ + kmax_);
   gausscurv0_ = gausscurv_ = kmin_*kmax_;
   curvedness_ = sqrt(0.5*(kmin_*kmin_ + kmax_*kmax_));
-  if (fabs(kmin_) < eps && fabs(kmax_) < eps)
-    shapeindex_ = 2;
-  else if (fabs(kmax_ - kmin_) < eps)
-    shapeindex_ = (kmax_ + kmin_ > 0.0) ? -1.0 : 1.0;
-  else
-    shapeindex_ = -2.0*atan((kmax_ + kmin_)/(kmax_ - kmin_))/M_PI;
-  for (int ka=0; ka<4; ++ka)
+  for (int ka=0; ka<3; ++ka)
     is >> edge_[ka];
-  for (int ka=0; ka<4; ++ka)
+  for (int ka=0; ka<2; ++ka)
     is >> surf_[ka];
   is >> outlier_ >> sfdist_ >> sfang_;
-  resetPointAssociation();
 
 }
 

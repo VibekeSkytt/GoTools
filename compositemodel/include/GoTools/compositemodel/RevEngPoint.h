@@ -68,11 +68,6 @@ namespace Go
 
   enum
   {
-   RP_EDGE_UNDEF, RP_NOT_EDGE, RP_CLOSE_EDGE, RP_EDGE
-  };
-
-  enum
-  {
    PCA_UNDEF, PCA_PLANAR, PCA_LINEAR, PCA_OTHER
   };
 
@@ -81,18 +76,6 @@ namespace Go
    C1_UNDEF, C1_PEAK, C1_RIDGE, C1_SRIDGE, C1_NONE, C1_FLAT, C1_MINSURF, C1_PIT, C1_VALLEY, C1_SVALLEY 
   };
     
-  enum
-  {
-   SI_UNDEF, SI_PLANE, SI_SCUP, SI_TRO, SI_RUT, SI_SRUT, SI_SAD, SI_SRID, SI_RID, SI_DOM, SI_SCAP
-   // Plane, spherical cup, trough, rut, saddle rut, saddle, saddle ridge,
-   // ridge, dome, spherical cap
-  };
-
-  enum
-  {
-   PS_UNDEF, PS_PLANE, PS_UC, PS_EC, PS_PC, PS_HC, PS_HS, PS_HX, PS_PX, PS_EX, PS_UX
-  };
-
   /** Subclass of ftSamplePoint; Enhanced point for use in reverse engineering
    */
   class RevEngPoint : public ftSamplePoint
@@ -112,7 +95,7 @@ namespace Go
 			    double lambda2, Point& eigen3, double lambda3);
 
     void addMongeInfo(Point& norm, Point& mincvec, double minc, Point& maxcvec,
-		      double maxc, double currdist, double avdist, double eps);
+		      double maxc, double currdist, double avdist);
 
     Point getTriangNormal()
     {
@@ -140,7 +123,6 @@ namespace Go
 	Mongenormal_ *= -1;
       }
 
-    void resetPointAssociation();
     
     const Point& getPCAEigen1()
     {
@@ -214,16 +196,6 @@ namespace Go
       return nmb_monge_;
     }
     
-    double getSurfaceVariation()
-    {
-      return sfvariation_;
-    }
-
-    double getShapeIndex()
-    {
-      return shapeindex_;
-    }
-
     double maxPrincipalCurvature()
     {
       return kmax_;
@@ -285,41 +257,18 @@ namespace Go
       return curvedness_;
     }
 
-    void setRp(double rp[2])
-    {
-      for (int ka=0; ka<2; ++ka)
-	rp_[ka] = rp[ka];
-    }
-
-    double getRp(int ix)
-    {
-      return (ix < 0 || ix > 2) ? 0.0 : rp_[ix];
-    }
-
-    double getfpa()
-    {
-      return fpa_;
-    }
-
-    double getspa()
-    {
-      return spa_;
-    }
     
-    void setEdgeClassification(int c1_edge, int c2_edge, int pca_edge, int rp_edge)
+    void setEdgeClassification(int c1_edge)
     {
-      edge_[0] = pca_edge;
+      edge_[0] = PCA_EDGE_UNDEF;
       edge_[1] = c1_edge;
-      edge_[2] = c2_edge;
-      edge_[3] = rp_edge;
+      edge_[2] = C2_EDGE_UNDEF;
     }
 
-    void setClassification(int ctype, int si_type, int ps_type)
+    void setClassification(int ctype)
     {
       surf_[0] = PCA_UNDEF;
       surf_[1] = ctype;
-      surf_[2] = si_type;
-      surf_[3] = ps_type;
     }
 
     bool isEdge(int edge_class_type)
@@ -330,12 +279,8 @@ namespace Go
 	return (edge_[1] == C1_EDGE);
       else if  (edge_class_type == 3)
 	return (edge_[2] == C2_EDGE);
-      else if  (edge_class_type == 4)
-	return (edge_[3] == RP_EDGE);
       else
 	return false;
-      // return (edge_[0] == PCA_EDGE || edge_[1] == C1_EDGE ||
-      // 	      edge_[2] == C2_EDGE);
     }
 
     bool closeEdge(int edge_class_type)
@@ -346,12 +291,8 @@ namespace Go
 	return (edge_[1] >= C1_CLOSE_EDGE);
       else if  (edge_class_type == 3)
 	return (edge_[2] >= C2_CLOSE_EDGE);
-      else if  (edge_class_type == 4)
-	return (edge_[3] >= RP_CLOSE_EDGE);
       else
 	return false;
-      // return (edge_[0] >= PCA_CLOSE_EDGE || edge_[1] >= C1_CLOSE_EDGE ||
-      // 	      edge_[2] >= C2_CLOSE_EDGE);
     }
 
     bool notEdge(int edge_class_type)
@@ -362,12 +303,8 @@ namespace Go
 	return (edge_[1] <= C1_NOT_EDGE);
       else if  (edge_class_type == 3)
 	return (edge_[2] <= C2_NOT_EDGE);
-      else if  (edge_class_type == 4)
-	return (edge_[3] <= RP_NOT_EDGE);
       else
 	return true;
-      // return (edge_[0] <= PCA_NOT_EDGE && edge_[1] <= C1_NOT_EDGE &&
-      // 	      edge_[2] <= C2_NOT_EDGE);
     }
 
     bool isolatedEdge(int edge_class_type, int nmb, bool close);
@@ -377,7 +314,6 @@ namespace Go
       edge_[0] = PCA_EDGE_UNDEF;
       edge_[1] = C1_EDGE_UNDEF;
       edge_[2] = C2_EDGE_UNDEF;
-      edge_[3] = RP_EDGE_UNDEF;
     }
 
     double getPointDistance()
@@ -428,16 +364,6 @@ namespace Go
     int C1_surf()
     {
       return surf_[1];
-    }
-
-    int SI_surf()
-    {
-      return surf_[2];
-    }
-
-    int RP_surf()
-    {
-      return surf_[3];
     }
 
     void setGaussRad(double rad)
@@ -522,7 +448,7 @@ namespace Go
     }
     
     void store(std::ostream& os) const;
-    void read(std::istream& is, double eps, vector<int>& next_ix);
+    void read(std::istream& is, vector<int>& next_ix);
     
   private:
     double avedglen_;
@@ -541,18 +467,13 @@ namespace Go
 
     double meancurv0_, meancurv_;
     double gausscurv0_, gausscurv_;
-    double sfvariation_;  // Surface variation computed from eigenvalues
     double curvedness_;   // Curvedness computed from principal curvatures
-    double shapeindex_;   // Computed from principal curvatures
-    double rp_[2];        // Smoothness indicator
-    double fpa_;          // Flat point possibility association
-    double spa_;          // Non-flat point possibility association
 
     // Parameters corresponding to classification results
-    int edge_[4];   // Results of edge classification.
-    // Sequence: Surface variation (PCA), curvature (C1), curveness (C2), smoothness indicator (RP)
-    int surf_[4];   // Results of surface classification
-    // Sequence: PCA, curvature (C1), shape index (SI), point possibility association (PS)
+    int edge_[3];   // Results of edge classification.
+    // Sequence: Surface variation (PCA), curvature (C1), curveness (C2)
+    int surf_[2];   // Results of surface classification
+    // Sequence: PCA, curvature (C1), 
     double Grad_;
     
     // Group (segment) of classified points

@@ -142,18 +142,12 @@ namespace Go
 
     void firstEdges();
 
-    void updateRegionStructure();
-
     void surfaceCreation(int pass);
 
     void manageBlends1();
 
     void manageBlends2();
 
-    void buildSurfaces();
-
-    void validateSurfaces();
-      
     shared_ptr<SurfaceModel> createModel();
 
     void storeClassified(std::ostream& os) const;
@@ -194,27 +188,6 @@ namespace Go
       cfac_ = cfac;
     }
 
-    double getPCAlim();
-    void setPCAlim(double pca_lim)
-    {
-      pca_lim_ = pca_lim;
-    }
-    
-    double getCnesslim();
-    void setCnesslim(double cness_lim)
-    {
-      cness_lim_ = cness_lim;
-    }
-    
-    double getRPfac()
-    {
-      return rpfac_;
-    }
-    void setRPfac(double rpfac)
-    {
-      rpfac_ = rpfac;
-    }
-    
     void setClassificationParams();
     int getClassificationType()
     {
@@ -244,16 +217,6 @@ namespace Go
     void setGaussCurvatureZero(double zero_K)
     {
       zero_K_ = zero_K;
-    }
-
-    double getShapeIndexZero()
-    {
-      return zero_si_;
-    }
-
-    void setShapeIndexZero(double zero_si)
-    {
-      zero_si_ = zero_si;
     }
 
     int getElementaryPreferLevel()
@@ -335,7 +298,6 @@ namespace Go
     shared_ptr<ftPointSet> tri_sf_;
     double mean_edge_len_;
     std::vector<shared_ptr<RevEngRegion> > regions_;
-    std::vector<shared_ptr<RevEngRegion> > regions_extra_;
     std::vector<RevEngPoint*> single_points_;
     std::vector<shared_ptr<HedgeSurface> > surfaces_;  // I think the 
     // surfaces must be collected here to have a stable storage
@@ -349,26 +311,21 @@ namespace Go
     int min_next_;  // Minimum number of neighbouring points
     int max_next_;  // Estimate for maximum number of neighbouring points
     double rfac_;   // Factor for radius in which to search for neighbouring points
-    int edge_class_type_ = CURVATURE_EDGE; //CNESS_EDGE;
+    int edge_class_type_ = CURVATURE_EDGE;
     int classification_type_ = CLASSIFICATION_CURVATURE;
     double cfac_;   // Edge points from curvature is given by
     // cfac_ times the average length of triangulation edges in a vertex
-    double pca_lim_; // Limit for edge classification from surface variation
-    double cness_lim_; // Limit for edge classification from curvedness
     double norm_ang_lim_; // Limit for when the cone angle corresponding
     // to triangle normals indicate an edge
     double norm_plane_lim_;  // Limit for when the cone angle corresponding
     // to triangle normals indicate a plane
     double zero_H_;  // When mean curvature is considered zero
     double zero_K_;  // When Gauss curvature is considered zero
-    double zero_si_; // When shape index is considered zero
     int min_point_region_;
     double approx_tol_;  // Approximation tolerance in region growing
     double int_tol_;  // Intersection tolerance
     double anglim_;
     int max_nmb_outlier_;
-    int rpix_;
-    double rpfac_, ffac_, sfac_;
 
     int prefer_elementary_; // 0 = always, 1 = preferred, 2 = best accuracy
 
@@ -408,7 +365,6 @@ namespace Go
     void recognizeEdges(bool only_curve=false);
     bool createBlendSurface(int ix);
     void adjustPointRegions(int min_point_in);
-    void defineAxis(Point axis[3], bool only_surf=false, int min_num=-1);
 
     void computeAxisFromCylinder(Point initaxis[3], int min_num, double max_ang,
 				 Point axis[3], int num_points[3]);
@@ -419,12 +375,7 @@ namespace Go
     void surfaceExtractOutput(int idx,
 			      std::vector<std::vector<RevEngPoint*> > out_groups,
 			      std::vector<HedgeSurface*> prev_surfs);
-    bool integratePlanarInHelix(int& ix, shared_ptr<ElementarySurface> surf,
-				std::vector<std::pair<shared_ptr<ElementarySurface>, RevEngRegion*> > adj);
 
-    bool adjustWithAdjacent(int& ix, int min_point_in, double angtol,
-			    std::vector<std::pair<shared_ptr<ElementarySurface>, RevEngRegion*> >& adj);
-    
     bool segmentComposite(int& ix, int min_point_in, double angtol);
     bool segmentByPlaneGrow(int ix, int min_point_in, double angtol);
     bool segmentByAxis(int ix, int min_point_in);
@@ -432,23 +383,9 @@ namespace Go
     void growSurface(int& ix, int pass = 1);
     void growBlendSurface(int& ix);
     void growMasterSurface(int& ix);
-    void mergeSurfaces();
-    void mergeSplineSurfaces();
-    shared_ptr<HedgeSurface> doMerge(std::vector<size_t>& cand_ix,
-				     std::vector<double>& cand_score,
-				     ClassType type);
-    shared_ptr<ParamSurface> approxMergeSet(std::vector<size_t>& cand_ix,
-					    std::vector<size_t>& select_ix,
-					    ClassType type);
 
     void defineSmallRegionSurfaces();
-    void defineSmallRegionSurfaces0();
     
-    bool identifySmallRotational(std::vector<RevEngRegion*>& groups,
-				 Point loc, Point axis, Point Cx,
-				 double ppar1, double ppar2,
-				 std::vector<shared_ptr<ElementarySurface> >& sfs);
-
     bool identifySmallRotational(std::vector<RevEngPoint*>& points,
 				 Point midp, Point loc, Point axis, Point Cx,
 				 double ppar1, double ppar2,
@@ -482,7 +419,6 @@ namespace Go
 
     void doAdaptToAxis();
 
-    void adaptToMainAxis(Point mainaxis[3]);
     bool axisUpdate(int ix, double max_ang, double angtol);
     
     void adjustWithMainAxis(std::vector<Point>& axes, std::vector<int>& num_pts);
@@ -491,25 +427,11 @@ namespace Go
     Point rotationalFit(std::vector<int>& sf_ix, Point axis, Point Cx,
 			std::vector<RevEngEdge*>& nopar_edgs);
 
-    void cylinderFit(std::vector<int>& sf_ix, Point normal);
-    void cylinderFit(std::vector<size_t>& sf_ix, Point mainaxis[3], int ix);
-    
     void collectAxis(std::vector<SurfaceProperties>& sfprop);
-
-    shared_ptr<HedgeSurface> doMergeSpline(shared_ptr<HedgeSurface>& surf1,
-					   DirectionCone& cone1,
-					   shared_ptr<HedgeSurface>& surf2,
-					   DirectionCone& cone2);
-
-    double computeCylRadius(std::vector<std::pair<std::vector<RevEngPoint*>::iterator,
-				std::vector<RevEngPoint*>::iterator> >& points,
-			    Point mid, Point vec1, Point vec2);
 
     void computeMonge(RevEngPoint* pt, std::vector<RevEngPoint*>& points,
 		      Point& vec1, Point& vec2, double radius);
 
-    void setRp(RevEngPoint* first, double rp[2]);
-    double computeRp(RevEngPoint* first, std::vector<std::vector<int> >& tri);
     int setSmallRegionNumber();
     
     void storeParams(std::ostream& os) const;
@@ -519,10 +441,6 @@ namespace Go
     void writeRegionStage(std::ostream& of, std::ostream& ofm, std::ostream& ofs) const;
     void writeRegionWithSurf(std::ostream& of) const;
     void checkConsistence(std::string text) const;
-
-    void mergePlanes(size_t first, size_t last);
-
-    void mergeCylinders(size_t first, size_t last);
 
     std::vector<shared_ptr<RevEngEdge> >
     defineEdgesBetween(size_t ix1,shared_ptr<ElementarySurface>& surf1,
@@ -606,8 +524,6 @@ namespace Go
     void updateBlendRadius(size_t ik, double radius);
     
     bool defineTorusCorner(size_t ix);
-
-    bool defineMissingCorner(size_t ix, std::vector<RevEngRegion*>& adj_blends);
 
     void defineMissingCorner(std::vector<RevEngRegion*>& cand_adj);
 
