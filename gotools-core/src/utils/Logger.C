@@ -37,21 +37,15 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _LRBENCHMARKUTILS3D_H
-#define _LRBENCHMARKUTILS3D_H
+#include "GoTools/utils/Logger.h" // Include the header file
 
+#include <memory>
 
-#include "GoTools/lrsplines3D/LRSplineVolume.h"
-
-
-namespace Go
-{
-
-    double benchmarkVolRefinement(LRSplineVolume& lr_vol,
-				  const std::vector<LRSplineVolume::Refinement3D>& refs,
-				  bool single_insertions = false);
-
+namespace Go {
+#ifdef GOTOOLS_LOG
+    std::shared_ptr<spdlog::logger> Logger::file_logger; // Define the static member
+#else
+    size_t Logger::log_level = 3; // Initialize log_level to 3 (warn) automatically
+#endif
+    // You can also define other methods here if needed
 }
-
-#endif // _LRBENCHMARKUTILS3D_H
-

@@ -40,10 +40,7 @@
 #include "GoTools/lrsplines2D/LRSurfSmoothLS.h"
 #include "GoTools/lrsplines2D/Element2D.h"
 #include "GoTools/creators/SolveCG.h"
-
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+#include "GoTools/utils/omp.h"
 
 using namespace Go;
 using std::vector;
@@ -533,9 +530,9 @@ void LRSurfSmoothLS::setLeastSquares_omp(const double weight,
       double *subLSmat, *subLSright;
       int kcond, nc;
       vector<size_t> in_bs;
-      size_t ki, kj, kl, kr, kh, kk;
+      size_t kj, kl, kr, kh, kk;
 
-#pragma omp for schedule(auto)//guided)//static,8)//runtime)//dynamic,4)
+#pragma omp for OMP_SCHEDULE_AUTO//guided)//static,8)//runtime)//dynamic,4)
       for (ki = 0; ki < num_elem; ++ki)
       {
 	  it = elem_iters[ki];
@@ -865,7 +862,7 @@ void LRSurfSmoothLS::localLeastSquares_omp(vector<double>& points,
     // OpenMP-fitting.
 #if 1
 #pragma omp parallel default(none) private(kr, pp, ki, kj, kk, kp, kq) shared(nmbp, nmbb, del, dim, bsplines, mat, right, ncond, start_pt, pt_wgt, ptype, mat_local, ki_threated, right_local, kp_threated, outlier_test)
-#pragma omp for schedule(auto)//guided)//static,8)//runtime)//dynamic,4)
+#pragma omp for OMP_SCHEDULE_AUTO//guided)//static,8)//runtime)//dynamic,4)
 #endif
     for (kr=0; kr<nmbp[ptype]; ++kr)
     {
@@ -880,7 +877,7 @@ void LRSurfSmoothLS::localLeastSquares_omp(vector<double>& points,
 	// 201503: Tested splitting on the support of an element. Slower than without OpenMP.
 	// And that was with some minor errors in the calculations due to missing thread safety for 1 line.
 #pragma omp parallel default(none) private(ki, kj, kk, kp, kq) shared(pp, sb, nmbp, nmbb, del, dim, bsplines, mat, right, ncond, start_pt, pt_wgt, ptype, mat_local, ki_threated, right_local, kp_threated)
-#pragma omp for schedule(auto)//guided)//static,8)//runtime)//dynamic,4)
+#pragma omp for OMP_SCHEDULE_AUTO//guided)//static,8)//runtime)//dynamic,4)
 #endif
 	double val1, val2;
 	for (ki=0; ki<nmbb; ++ki)

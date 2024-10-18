@@ -48,15 +48,12 @@
 #include "GoTools/geometry/PointCloud.h"
 //#include "GoTools/lrsplines3D/LRSplinePlotUtils.h"
 #include "GoTools/trivariate/SmoothVolume.h"
+#include "GoTools/utils/omp.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <string>
 #include <cstring>
-
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 
 //#define DEBUG
 //#define DEBUG0
@@ -1360,7 +1357,7 @@ void LRVolApprox::computeAccuracy_omp(vector<Element3D*>& ghost_elems)
       double acc_prev;
       double tol;
 
-#pragma omp for schedule(auto)//guided)//static,8)//runtime)//dynamic,4)
+#pragma omp for OMP_SCHEDULE_AUTO//guided)//static,8)//runtime)//dynamic,4)
       for (kj = 0; kj < num_elem ; ++kj)
       {
 	  it = elem_iters[kj];
@@ -1661,18 +1658,20 @@ void LRVolApprox::computeAccuracyElement_omp(vector<double>& points, int nmb, in
   vector<double> tmpval;//(3*nmb_bsplines);
 
 #ifdef _OPENMP
+#ifndef _WIN32
   pthread_attr_t attr;
   size_t stacksize;
   pthread_attr_getstacksize(&attr, &stacksize);
 #endif
+#endif
   //	std::cout << "stacksize (in MB): " << (double)stacksize/(1024.0*1024.0) << std::endl;
   //	omp_set_num_threads(4);
 #pragma omp parallel default(none) private(ki, curr, dist, u_at_end, v_at_end, w_at_end, volval, kr, kj, bval, tmpval) \
-  shared(points, nmb, del, dim, umax, vmax, wmax, tol, maxiter, elem2, bsplines, nmb_bsplines)
+  shared(points, nmb, del, dim, umax, vmax, wmax, tol, maxiter, elem2, bsplines, nmb_bsplines, std::cerr)
   {
     bval.resize(bsplines.size());
     tmpval.resize(3*bsplines.size());
-#pragma omp for schedule(auto)//static, 4)//runtime)//guided)//auto)
+#pragma omp for OMP_SCHEDULE_AUTO//static, 4)//runtime)//guided)//auto)
   //#pragma omp for schedule(dynamic, 4)//static, 4)//runtime)//guided)//auto)
   for (ki=0; ki<nmb; ++ki)
     {

@@ -120,7 +120,7 @@ int main( int argc, char* argv[] )
 	  surf->normal(norm, upar, vpar);
 
 	  shared_ptr<RevEngPoint> rpt(new RevEngPoint(Vector3D(pos.begin()), -1));
-	  rpt->addMongeInfo(norm, norm, 0.0, norm, 0.0, 0.0, 0.0, 0.0);
+	  rpt->addMongeInfo(norm, norm, 0.0, norm, 0.0, 0.0, 0.0);
 	  points.push_back(rpt);
 
 	  of << pos << std::endl;

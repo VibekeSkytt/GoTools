@@ -1,18 +1,18 @@
 ########################################################################
-# CMake module for finding JsonCpp
+# CMake module for finding spdlog
 #
 # The following variables will be defined:
 #
-#  JSONCPP_FOUND
-#  JSONCPP_INCLUDE_DIR
-#  JSONCPP_LIBRARIES
+#  spdlog_FOUND
+#  spdlog_INCLUDE_DIR
+#  spdlog_LIBRARIES
 #
 
-find_path(JSONCPP_INCLUDE_DIR "json/json.h"
-#  PATHS "~/Install/jsoncpp/include"
+find_path(spdlog_INCLUDE_DIR "spdlog/spdlog.h"
+#  PATHS "~/Install/spdlog/include"
   PATHS "~/Install/include"
   "C:/local/include"
-  "/usr/include/jsoncpp"
+  "/usr/include/spdlog"
   )
 
 if(WIN32)
@@ -36,31 +36,34 @@ endif()
   endif()
 endif()
 
-find_library(JSONCPP_LIBRARY_DEBUG
-  NAMES jsoncpp
+find_library(spdlog_LIBRARY_DEBUG
+  NAMES spdlogd
   PATHS "~/Install/${MSVC_NAME}lib${WIN_LIB_TYPE}/Debug"
   	"C:/local/${MSVC_NAME}lib${WIN_LIB_TYPE}/Debug"
   )
+#message("spdlog_LIBRARY_DEBUG: " ${spdlog_LIBRARY_DEBUG})
 
-find_library(JSONCPP_LIBRARY_RELEASE
-  NAMES jsoncpp
+find_library(spdlog_LIBRARY_RELEASE
+  NAMES spdlog
   PATHS "~/Install/${MSVC_NAME}lib${WIN_LIB_TYPE}/Release"
   	"C:/local/${MSVC_NAME}lib${WIN_LIB_TYPE}/Release"
   )
+#message("spdlog_LIBRARY_RELEASE: " ${spdlog_LIBRARY_RELEASE})
 
-find_library(JSONCPP_LIBRARY
-  NAMES jsoncpp
-#  PATHS "~/Install/jsoncpp/build/src/lib_json/Release"
-  PATHS "~/Install/${MSVC_NAME}lib${WIN_LIB_TYPE}"
-  	"C:/local/${MSVC_NAME}lib${WIN_LIB_TYPE}"
+find_library(spdlog_LIBRARY
+  NAMES spdlog
+  PATHS "~/Install/${MSVC_NAME}lib${WIN_LIB_TYPE}/Release"
+  	"C:/local/${MSVC_NAME}lib${WIN_LIB_TYPE}/Release"
   )
+#message("spdlog_LIBRARY: " ${spdlog_LIBRARY})
 
-if(JSONCPP_LIBRARY_DEBUG)
-  set(JSONCPP_LIBRARIES ${JSONCPP_LIBRARIES} debug ${JSONCPP_LIBRARY_DEBUG})
+if(spdlog_LIBRARY_DEBUG)
+  set(spdlog_LIBRARIES ${spdlog_LIBRARIES} debug ${spdlog_LIBRARY_DEBUG})
 endif()
-if(JSONCPP_LIBRARY_RELEASE)
-  set(JSONCPP_LIBRARIES ${JSONCPP_LIBRARIES} optimized ${JSONCPP_LIBRARY_RELEASE})
+if(spdlog_LIBRARY_RELEASE)
+  set(spdlog_LIBRARIES ${spdlog_LIBRARIES} optimized ${spdlog_LIBRARY_RELEASE})
 endif()
-if(JSONCPP_LIBRARY)
-  set(JSONCPP_LIBRARIES ${JSONCPP_LIBRARIES} ${JSONCPP_LIBRARY})
+if(spdlog_LIBRARY)
+  set(spdlog_LIBRARIES ${spdlog_LIBRARIES} ${spdlog_LIBRARY})
 endif()
+#message("spdlog_LIBRARIES: " ${spdlog_LIBRARIES})

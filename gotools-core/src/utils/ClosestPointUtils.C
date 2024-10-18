@@ -51,9 +51,7 @@
 #include "GoTools/geometry/Plane.h"
 #include "GoTools/geometry/ClassType.h"
 #include "GoTools/utils/ClosestPointUtils.h"
-#ifdef _OPENMP
-#include <omp.h>
-#endif
+#include "GoTools/utils/omp.h"
 
 using namespace std;
 using namespace Go;
@@ -1321,7 +1319,7 @@ namespace Go
   default(none)	\
   private(pt_idx) \
   shared(nmb_points_tested, start_idx, skip, inPoints, rotationMatrix, translation, boxStructure, result, lastBoxCall, return_type, search_extend)
-#pragma omp for schedule(auto)
+#pragma omp for OMP_SCHEDULE_AUTO
 	for (pt_idx = 0; pt_idx < nmb_points_tested; ++pt_idx)
 	  closestPointSingleCalculation(pt_idx, start_idx, skip, inPoints, rotationMatrix, translation, boxStructure,
 					result, lastBoxCall, return_type, search_extend);

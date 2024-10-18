@@ -48,6 +48,7 @@
 #include "GoTools/geometry/PointCloud.h"
 #include "GoTools/geometry/Utils.h"
 #include "GoTools/creators/Eval1D3DSurf.h"
+#include "GoTools/utils/omp.h"
 #include <iostream>
 #include <fstream>
 #include <string.h>
@@ -365,7 +366,7 @@ void LRApproxApp::pointCloud2Spline(vector<double>& points,
     }
 }
 
-int compare_u_par(const void* el1, const void* el2)
+static int compare_u_par(const void* el1, const void* el2)
 {
   if (((double*)el1)[0] < ((double*)el2)[0])
     return -1;
@@ -375,7 +376,7 @@ int compare_u_par(const void* el1, const void* el2)
     return 0;
 }
 
-int compare_v_par(const void* el1, const void* el2)
+static int compare_v_par(const void* el1, const void* el2)
 {
   if (((double*)el1)[1] < ((double*)el2)[1])
     return -1;
@@ -558,7 +559,7 @@ void LRApproxApp::computeDistPointSpline_omp(vector<double>& points,
       double *curr;
       double dist;
       double aeps = 0.001;
-#pragma omp for schedule(auto)
+#pragma omp for OMP_SCHEDULE_AUTO
       for (kj=0; kj < num_kj; ++kj)
       {
 	  knotv = vknots_begin + kj; // Left side of global element.
@@ -833,7 +834,7 @@ void LRApproxApp::classifyCloudFromDist_omp(vector<double>& points,
       const double* knotu;
       const double* knotv;
       double aeps = 0.001;
-#pragma omp for schedule(auto)
+#pragma omp for OMP_SCHEDULE_AUTO
       for (kj = 0; kj < num_kj; ++kj)
       {
       	  knotv = vknots_begin + kj; // Left side of global element.
@@ -1138,7 +1139,7 @@ void LRApproxApp::categorizeCloudFromDist_omp(vector<double>& points,
       const double* knotu;
       const double* knotv;
       double aeps = 0.001;
-#pragma omp for schedule(auto)
+#pragma omp for OMP_SCHEDULE_AUTO
       for (kj = 0; kj < num_kj; ++kj)
       {
       	  knotv = vknots_begin + kj; // Left side of global element.

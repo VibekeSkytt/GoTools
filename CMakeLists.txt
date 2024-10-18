@@ -10,6 +10,9 @@ SET(GoTools_VERSION_PATCH 0)
 SET(GoTools_VERSION "${GoTools_VERSION_MAJOR}.${GoTools_VERSION_MINOR}.${GoTools_VERSION_PATCH}")
 SET(GoTools_ABI_VERSION "${GoTools_VERSION_MAJOR}.${GoTools_VERSION_MINOR}" CACHE INTERNAL "GoTools ABI version")
 
+option(BUILD_AS_SHARED_LIBRARY "Build the project as shared libraries?" OFF)
+#message("gotools: BUILD_AS_SHARED_LIBRARY: " ${BUILD_AS_SHARED_LIBRARY})
+
 option(GoTools_COPY_DATA "Copy data?" ON)
 
 OPTION(GoTools_ENABLE_OPENMP "Include OPENMP?" OFF)
@@ -17,9 +20,17 @@ IF(GoTools_ENABLE_OPENMP)
   FIND_PACKAGE(OpenMP REQUIRED)
 ENDIF()
 
+# Logger. If not enabled then all output is written to the console.
 OPTION(GoTools_ENABLE_LOGGER "Enable logger?" OFF)
 if (GoTools_ENABLE_LOGGER)
   add_definitions(-DGOTOOLS_LOG)
+  add_compile_definitions(GOTOOLS_LOG)
+endif()
+
+# CloudFlow specific logger.
+OPTION(GoTools_ENABLE_CLOUDFLOW_LOGGER "Enable CloudFlow logger?" OFF)
+if (GoTools_ENABLE_CLOUDFLOW_LOGGER)
+  add_definitions(-DGOTOOLS_CLOUDFLOW_LOG)
 endif()
 
 # Generate header with version info

@@ -37,21 +37,18 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _LRBENCHMARKUTILS3D_H
-#define _LRBENCHMARKUTILS3D_H
+#pragma once
 
+#ifdef _OPENMP
 
-#include "GoTools/lrsplines3D/LRSplineVolume.h"
+#include <omp.h>
 
+// Fallback solution for the missing auto scheduler in Visual Studio 2022 (and earlier). The runtime scheduler is the
+// closest option.
+#ifdef _WIN32
+    #define OMP_SCHEDULE_AUTO schedule(runtime)
+#else
+    #define OMP_SCHEDULE_AUTO schedule(auto)
+#endif
 
-namespace Go
-{
-
-    double benchmarkVolRefinement(LRSplineVolume& lr_vol,
-				  const std::vector<LRSplineVolume::Refinement3D>& refs,
-				  bool single_insertions = false);
-
-}
-
-#endif // _LRBENCHMARKUTILS3D_H
-
+#endif

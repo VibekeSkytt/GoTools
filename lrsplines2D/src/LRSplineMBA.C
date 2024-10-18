@@ -42,12 +42,10 @@
 #include "GoTools/lrsplines2D/Element2D.h"
 #include "GoTools/lrsplines2D/LRSplineUtils.h"
 #include "GoTools/geometry/Utils.h"
+#include "GoTools/utils/omp.h"
 
 #include <iostream>
 #include <fstream>
-#ifdef _OPENMP
-#include <omp.h>
-#endif
 
 //#define DEBUG
 
@@ -420,7 +418,7 @@ void LRSplineMBA::MBADistAndUpdate_omp(LRSplineSurface *srf,
       vector<double> Bval;
       bool u_at_end, v_at_end;
       double val, dist, wc, wgt, phi_c, total_squared_inv;
-#pragma omp for schedule(auto)//guided)//static,8)//runtime)//dynamic,4)
+#pragma omp for OMP_SCHEDULE_AUTO//guided)//static,8)//runtime)//dynamic,4)
       for (kl = 0; kl < num_elem; ++kl)
       {
 	  el1 = el1_vec[kl];
@@ -959,7 +957,7 @@ void LRSplineMBA::MBAUpdate_omp(LRSplineSurface *srf,
       const double *curr;
       double total_squared_inv, val, wgt, wc, phi_c, gamma;
 
-#pragma omp for schedule(auto)//guided)//static,8)//runtime)//dynamic,4)
+#pragma omp for OMP_SCHEDULE_AUTO//guided)//static,8)//runtime)//dynamic,4)
       for (kl = 0; kl < num_elem; ++kl)
       {
 	  el1 = el1_vec[kl];
