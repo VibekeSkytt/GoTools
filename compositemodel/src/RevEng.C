@@ -111,10 +111,36 @@ int colors[MAX_COLORS][3] = {
 #define DEBUG_SMALL
 
 //===========================================================================
-RevEng::RevEng(shared_ptr<ftPointSet> tri_sf, double mean_edge_len)
-  : tri_sf_(tri_sf), mean_edge_len_(mean_edge_len)
+RevEng::RevEng(shared_ptr<ftPointSet> tri_sf)
+  : tri_sf_(tri_sf)
 //===========================================================================
 {
+  mean_edge_len_ = 0.0;
+  int num = tri_sf_->size();
+  if (num > 0.0)
+    {
+      double fac1 = 1.0/(double)num;
+      for (int ki=0; ki<num; ++ki)
+	{
+	  double tmp_len = 0.0;
+	  ftSamplePoint* curr = (*tri_sf_)[ki];
+	  Vector3D xyz1 = curr->getPoint();
+	  vector<ftSamplePoint*> adj = curr->getNeighbours();
+	  if (adj.size() > 0)
+	    {
+	      double fac2 = 1.0/(double)adj.size();
+	      for (size_t kj=0; kj<adj.size(); ++kj)
+		{
+		  Vector3D xyz2 = adj[kj]->getPoint();
+		  tmp_len += fac2*xyz1.dist(xyz2);
+		}
+	    }
+	  mean_edge_len_ += fac1*tmp_len;
+	}
+    }
+	      
+	  
+  
   // Set default parameters
   model_character_ = ROUGH;
   initParameters();
@@ -441,12 +467,6 @@ void RevEng::enhancePoints()
 	}
     }
   
-  //setClassificationParams();
-  // of01 << "410 1 0 4 0 0 255 255" << std::endl;
-  // of01 << nmbpt << std::endl;
-  // of03 << "410 1 0 4 0 255 0 255" << std::endl;
-  // of03 << nmbpt << std::endl;
-
 
 #ifdef DEBUG_ENHANCE  
   std::cout << "Start curvature filter" << std::endl;
@@ -727,124 +747,6 @@ void RevEng::curvatureFilter()
     }
 }
 
-//===========================================================================
-void RevEng::setClassificationParams()
-//===========================================================================
-{
-#ifdef DEBUG_ENHANCE  
-  int class_type = getClassificationType();
-  std::cout << "Classification type: " << class_type << std::endl;
-#endif
-
-
-  int nmbpt = tri_sf_->size();
-#ifdef DEBUG_ENHANCE
-  std::ofstream of01("minc1.g2");
-  std::ofstream of03("maxc1.g2");
-  of01 << "410 1 0 4 200 50 0 255" << std::endl;
-  of01 << nmbpt << std::endl;
-  of03 << "410 1 0 4 0 50 200 255" << std::endl;
-  of03 << nmbpt << std::endl;
-
-  std::ofstream of("triangnorm.g2");
-  std::ofstream ofM("Mongenorm.g2");
-  std::ofstream ofP("PCAnorm.g2");
-  of << "410 1 0 4 0 0 255 255" << std::endl;
-  of << nmbpt << std::endl;
-  ofM << "410 1 0 4 255 0 0 255" << std::endl;
-  ofM << nmbpt << std::endl;
-  ofP << "410 1 0 4 0 200 55 255" << std::endl;
-  ofP << nmbpt << std::endl;
-#endif
-  vector<Vector3D> triangplane;
-  for (int ki=0; ki<nmbpt; ++ki)
-    {
-      RevEngPoint *pt = dynamic_cast<RevEngPoint*>((*tri_sf_)[ki]);
-      Point minc = pt->minCurvatureVec();
-      Point maxc = pt->maxCurvatureVec();
-      Vector3D xyz = pt->getPoint();
-      Point xyz2(xyz[0], xyz[1], xyz[2]);
-      Point norm = pt->getTriangNormal();
-      double ang = pt->getTriangAngle();
-      Point Mnorm = pt->getMongeNormal();
-      Point Pnorm = pt->getPCANormal();
-
-#ifdef DEBUG_ENHANCE
-      double avlen = pt->getMeanEdgLen();
-      double fac = (pt->nmbMonge() == 0) ? 0.0 : 5.0;
-      of01 << xyz2 << " " << xyz2+fac*avlen*minc << std::endl;
-      of03 << xyz2 << " " << xyz2+fac*avlen*maxc << std::endl;
-
-      of << xyz2 << " " << xyz2+5.0*avlen*norm << std::endl;
-      ofM << xyz2 << " " << xyz2+5.0*avlen*Mnorm << std::endl;
-
-      ofP << xyz2 << " " << xyz2+5.0*avlen*Pnorm << std::endl;
-#endif
-      if (pt->isOutlier())
-	continue;
-      
-      if (ang <= norm_plane_lim_)
-	triangplane.push_back(xyz);
-    }
-
-#ifdef DEBUG_ENHANCE
-  std::ofstream of4("triangplane.g2");
-  of4 << "400 1 0 4 200 0 200 255" << std::endl;
-  of4 << triangplane.size() << std::endl;
-  for (size_t kj=0; kj<triangplane.size(); ++kj)
-    of4 << triangplane[kj] << std::endl;
-#endif
-  
-
-}
-
-//===========================================================================
-void RevEng::setEdgeClassificationParams()
-//===========================================================================
-{
-  int edge_class_type = getEdgeClassificationType();
-#ifdef DEBUG_ENHANCE  
-  std::cout << "Edge classification type: " << edge_class_type << std::endl;
-#endif
-  // std::cout << "New classification type: " << std::endl;
-  // std::cin >> edge_class_type;
-  if (edge_class_type == CURVATURE_EDGE)
-    {
-      setEdgeClassificationType(edge_class_type);
-      if (edge_class_type == CURVATURE_EDGE)
-	{
-	  //double cfac = getCfac();
-	  // std::cout << "Edge classification factor with curvature: " << cfac << std::endl;
-	  // std::cout << "New classification factor: " << std::endl;
-	  // std::cin >> cfac;
-	  // if (cfac >= 5.0 && cfac <= 10.0)
-	  //   setCfac(cfac);
-	  
-	  vector<Vector3D> curvaturecorners;
-	  int nmbpts = tri_sf_->size();
-	  for (int ka=0; ka<nmbpts; ++ka)
-	    {
-	      RevEngPoint *pt = dynamic_cast<RevEngPoint*>((*tri_sf_)[ka]);
-	      double avlen = pt->getMeanEdgLen();
-	      double maxpc = std::max(fabs(pt->maxPrincipalCurvature()),
-				      fabs(pt->minPrincipalCurvature()));
-	      Vector3D xyz = pt->getPoint();
-	      double crvrad = 1.0/maxpc; //fabs(maxpc);
-	      if (crvrad < cfac_*avlen)
-		curvaturecorners.push_back(xyz);
-	    }
-#ifdef DEBUG_ENHANCE
-	  std::ofstream of3("curvaturecorners0.g2");
-	  of3 << "400 1 0 4 10 10 10 255" << std::endl;
-	  of3 << curvaturecorners.size() << std::endl;
-	  for (size_t kj=0; kj<curvaturecorners.size(); ++kj)
-	    of3 << curvaturecorners[kj] << std::endl;
-#endif
-	}
-    }
-
-}
-
 
 //===========================================================================
 void RevEng::edgeClassification()
@@ -933,8 +835,10 @@ void RevEng::edgeClassification()
 void RevEng::classifyPoints()
 //===========================================================================
 {
+  // First extract obvious edges
+  edgeClassification();
+  
   // Fetch relevant values for all points
-
   vector<vector<Vector3D> > class_pts(9);
   int nmbpts = tri_sf_->size();
   for (int ki=0; ki<nmbpts; ++ki)

@@ -81,7 +81,51 @@ vertices and triangles are transferred to ftPointSet with the following code sni
 from \link Go::ftSamplePoint ftSamplePoint\endlink. RevEngPoint is enhanced with information
 such as estimated surface normal and curvature as well as associated functionality.
 
+The reverse engineering process is organized as a sequence of operations that together 
+consistute a work flow. The process is as follows:
 
+ * <ol>
+ * <li> Enhance points
+ * <li> Classify points according to Gauss and mean curvature
+ * <li> Segment point cloud into regions
+ * <li> Surface creation
+ * <li> Compute global properties such as main axes and update surfaces accordingly
+ * <li> Edge creation
+ * <li> Define blend surfaces
+ * <li> Trim surfaces with respect to identified edges, blend surfaces and adjacent regions
+ * <li> Create CAD model 
 
+Point 4 to 6 are repeated three times, each time differently. The process
+is automated, but organized as a sequence of commands to RevEng. This allows for storing
+the state at a number of locations to resume the computation at a convenient time. Note that
+storing and reading the state can be time consuming. In the following, we will describe
+the process in some detail.
+
+The first function to call is RevEng::enhancePoints. The points are approximated by a surface
+in a local neighbourhood. Surface normal and principal curvature estimates are 
+computed from this surface. Approximation errors are registered and used to set an
+approximation tolerance for the proceeding computations. An additional surface normal is
+computed from the triangulation. The two versions of the surface normal have different
+pros and cons, and both are used in the computations.
+
+Classification is performed in RevEng::classifyPoints. It is based on the size and
+sign of estimated Gauss and mean curvature in the points. Very small curvature values are
+deciphered as zero. A small curvature radius compared to the average distance between
+triangle vertices indicates that the point is a part of an edge. As the expected typical 
+measured objects has rounded edges is
+further edge detection not a priority topic in the current version of the reverse engineering
+functionality.
+
+Next, the approximation tolerance is set by the call 
+RevEng::setApproximationTolerance based on information from the preceeding computations. 
+Alternatively, the application can use the
+function RevEng::setApproxTol(double tol) if more control is preferred. As the given
+point cloud is expected to be noisy, it is only required that a majority points associated 
+to a surface will be fit by the surface within this tolerance in addition to requirements
+on the average approximation error and normal direction.
+
+RevEng::segmentIntoRegions collects connected groups of points with the same classification.
+Identified edge points are excluded. Each group is stored in an instance of
+\link Go::RevEngRegion RevEngRegion\endlink. 
 */
 #endif // _REVERSEENGINEERING_DOXYMAIN_H

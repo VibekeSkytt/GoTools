@@ -120,7 +120,7 @@ namespace Go
   public:
     RevEng();
     
-    RevEng(shared_ptr<ftPointSet> tri_sf, double mean_edge_len);
+    RevEng(shared_ptr<ftPointSet> tri_sf);
 
     ~RevEng();
 
@@ -168,7 +168,6 @@ namespace Go
       return approx_tol_;
     }
 
-    void setEdgeClassificationParams();
     int getEdgeClassificationType()
     {
       return edge_class_type_;
@@ -188,7 +187,6 @@ namespace Go
       cfac_ = cfac;
     }
 
-    void setClassificationParams();
     int getClassificationType()
     {
       return classification_type_;
