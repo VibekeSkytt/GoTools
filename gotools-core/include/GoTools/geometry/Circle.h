@@ -169,6 +169,11 @@ public:
       return vec1_;
     }
 
+    Point getYAxis() const
+    {
+      return vec2_;
+    }
+
     double getRadius() const
     {
       return radius_;

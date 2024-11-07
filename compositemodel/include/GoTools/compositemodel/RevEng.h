@@ -50,23 +50,28 @@
 namespace Go
 {
   class RevEngPoint;
-  //class RevEngRegion;
   class HedgeSurface;
   class RevEngEdge;
 
-  // Elementary surface types to recognize (omitting currently
-  // ellipsoid, elliptic cylinder, ...)
+  /// Elementary surface types to be recognized
   enum
   {
    PLANE, CYLINDER, SPHERE, CONE, TORUS
   };
 
-  // Characterization of model surface
+  /** RevEng -  Reverse engineering engine. Workflow funcationality and 
+      storage of data.
+   * 
+   */
+  
+  /// Characterization of model surface. Note that the default choice is ROUGH,
+  /// and that other choices are currently not supported
   enum
   {
    SMOOTH=0, MEDIUM_ROUGH, ROUGH
   };
-  
+
+  /// Collection of surface information used in computation of global parameters
   struct SurfaceProperties
   {
     int sfix_;
@@ -93,6 +98,8 @@ namespace Go
     }
   };
 
+  /// Information computed in adaptToMainAxis. Specifies model axes including
+  /// axis location and number of points supporting the information
   struct AxisInfo
   {
     Point axis_;
@@ -118,35 +125,68 @@ namespace Go
   class RevEng
   {
   public:
+    /// Default constructor
     RevEng();
     
+    /// Constructor
+    /// \param tri_sf Initial triangulated surface
     RevEng(shared_ptr<ftPointSet> tri_sf);
 
+    /// Destructor
     ~RevEng();
 
-    // Should this class have an option to run all operations in one
-    // sequence without being started from outside?
-      
+    /// Enhance points (triangle vertices) with estimated surface normal and
+    /// curvature information
     void enhancePoints();
 
-    void edgeClassification();
+    /// Classify points with respect to estimated curvature information
+    /// Possible classifications: edge point (high curvature), peak (negative mean
+    /// curvature and positive Gauss), ridge (negative mean, zero Gauss),
+    /// sridge (negative mean and Gauss), non (zero mean, positive Gauss, not expected),
+    /// flat (zero mean and Gauss), minsurf (zero mean, negative Gauss),
+    /// pit (positive mean and Gauss), valley (positive mean, zero Gauss)
+    /// and svalley (positive mean, negative Gauss)
     void classifyPoints();
 
+    /// Group connected points with the same classification into regions
     void segmentIntoRegions();
 
+    /// Create first surfaces from large regions, simultanously dismissing
+    /// points that do not belong to the region. Possible surfaces: planes,
+    /// cylinders and cones
     void initialSurfaces();
 
+    /// Add adjacent regions to regions with surfaces if appropriate
     void growSurfaces();
 
+    /// Identify coordinate axes corresponding to the current model and
+    /// update surfaces as appropriate (if their surface normal/axis almost
+    /// corresponds to a coordinate axis and the approximation error stays
+    /// limited)
     void updateAxesAndSurfaces();
 
+    /// Compute intersection edges between defined neighbouring and almost
+    /// neighbouring surfaces provided that these surfaces
     void firstEdges();
 
-    void surfaceCreation(int pass);
+    /// 
+    void surfaceCreation(int pass=1);
+
+    
+    void updateRegionsAndSurfaces(int& ix, std::vector<RevEngRegion*>& grown_regions,
+				  std::vector<HedgeSurface*>& adj_surfs);
+
+   void smallRegionSurfaces();
+
+    void growSmallRegionSurface(int& ix);
+
+    void adaptToMainAxis();
 
     void manageBlends1();
 
     void manageBlends2();
+
+    void trimSurfaces();
 
     shared_ptr<SurfaceModel> createModel();
 
@@ -154,7 +194,6 @@ namespace Go
     void readClassified(std::istream& is);
     void storeGrownRegions(std::ostream& os);
     void readGrownRegions(std::istream& is);
-    void curvatureFilter();
 
     double getInitApproxTol();
     void setApproxTolerance();
@@ -279,19 +318,12 @@ namespace Go
       return min_point_region_;
     }
 
-    void trimSurfaces();
-
+     void writeRegionStage(std::ostream& of, std::ostream& ofm, std::ostream& ofs) const;
+    void writeRegionWithSurf(std::ostream& of) const;
     
-    void updateRegionsAndSurfaces(int& ix, std::vector<RevEngRegion*>& grown_regions,
-				  std::vector<HedgeSurface*>& adj_surfs);
-
-   void smallRegionSurfaces();
-
-    void growSmallRegionSurface(int& ix);
-
-    void adaptToMainAxis();
-
-   private:
+    void writeEdgeStage(std::ostream& of) const;
+    
+  private:
     int model_character_;
     shared_ptr<ftPointSet> tri_sf_;
     double mean_edge_len_;
@@ -336,7 +368,7 @@ namespace Go
       vector<vector<RevEngPoint*> > assos_points_;
       vector<shared_ptr<ElementarySurface> > surfs_;
       vector<BoundingBox> bbox_;
-      int type_;   // 1 = plane1, 2=plane2, 3=rotational
+      int type_;   // 1 = plane1, 2=plane2, 3=rotational, 4=from remaining
 
       SmallSurface(int ix1, int ix2, int ix3, int type,
 		   vector<shared_ptr<ElementarySurface> >& surfs)
@@ -354,7 +386,10 @@ namespace Go
 	bbox_.push_back(bb);
       }
     };
-  
+    
+    void edgeClassification();
+    void curvatureFilter();
+
     void initParameters();
     void updateParameters();
     bool recognizeOneSurface(int& ix, int min_point_in, double angtol,
@@ -399,6 +434,10 @@ namespace Go
 			     double ppar1, double ppar2, double delta,
 			     std::vector<shared_ptr<ElementarySurface> >& sfs);
     
+    shared_ptr<ElementarySurface>
+    defineElemSurf(std::vector<RevEngPoint*>& points, std::vector<RevEngPoint*>& in_points,
+		   BoundingBox& bbox, std::vector<RevEngPoint*>& remain);
+
     void planarAtPlane(shared_ptr<Plane> axis_plane,
 		       std::vector<RevEngPoint*>& points,
 		       std::vector<HedgeSurface*>& sfs,
@@ -436,8 +475,6 @@ namespace Go
     void readParams(std::istream& is);
     void setBoundingBox();
     
-    void writeRegionStage(std::ostream& of, std::ostream& ofm, std::ostream& ofs) const;
-    void writeRegionWithSurf(std::ostream& of) const;
     void checkConsistence(std::string text) const;
 
     std::vector<shared_ptr<RevEngEdge> >

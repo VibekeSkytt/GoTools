@@ -414,6 +414,8 @@ namespace Go
 
     bool isNeighbour(RevEngPoint* pt) const;
 
+    std::vector<RevEngRegion*> adjacentRegsWithSurf() const;
+
     void addMove()
     {
       nmb_move_++;

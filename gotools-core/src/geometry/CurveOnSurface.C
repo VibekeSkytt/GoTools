@@ -55,10 +55,11 @@
 #include "GoTools/creators/HermiteAppS.h"
 #include "GoTools/creators/CurveCreators.h"
 #include "GoTools/creators/CoonsPatchGen.h"
+#include "GoTools/utils/Logger.h"
 #include <fstream>
 #include <cassert>
 
-#define SBR_DEBUG
+//#define SBR_DEBUG
 
 using namespace Go;
 using std::vector;
@@ -1507,12 +1508,25 @@ bool CurveOnSurface::ensureParCrvExistence(double epsgeo,
 	    }
 	}
 
-      if (elem_sf.get() && elem_cv.get())
-	{
+      if (elem_sf.get() && elem_cv.get()) {
 	  // The function returns a curve only if the configuration is simple
-	    pcurve_ = elem_sf->getElementaryParamCurve(elem_cv.get(), epspar,
-						       start_par_pt, end_par_pt);
-	}
+          pcurve_ = elem_sf->getElementaryParamCurve(elem_cv.get(), epspar,
+                                                     start_par_pt, end_par_pt);
+          if (pcurve_) {
+              bool same_trace = sameTrace(epspar);
+              if (!same_trace) {
+                  LOG_WARN("Projected elementary curve: same_trace: " + std::to_string(same_trace) +
+                    ", elem_sf->instanceType(): " + std::to_string(elem_sf->instanceType()) +
+                    ", elem_cv->instanceType(): " + std::to_string(elem_cv->instanceType()));
+                  //std::cout << "DEBUG: debug_same_trace: " << debug_same_trace << std::endl;
+                  pcurve_ = shared_ptr<ParamCurve>();
+              }
+          } else {
+            LOG_WARN("Failed to project elementary curve: elem_sf->instanceType(): " +
+                std::to_string(elem_sf->instanceType()) + ", elem_cv->instanceType(): " +
+                std::to_string(elem_cv->instanceType()));
+          }
+      }
     }
 	     
   // If the space curve and surface are not elementary geometry or the parameter curve

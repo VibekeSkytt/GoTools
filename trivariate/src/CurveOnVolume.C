@@ -59,6 +59,7 @@ CurveOnVolume::CurveOnVolume()
 {
 }
 
+
 //===========================================================================
 CurveOnVolume::CurveOnVolume(shared_ptr<ParamVolume> vol,
 			     shared_ptr<ParamCurve> curve,

@@ -676,6 +676,8 @@ bool RevEngEdge::append(RevEngEdge* other, double tol)
   else if ((!first) && cvs4_2.size() > 1)
     cvs2_.insert(cvs2_.end(), cvs3_2.begin()+1, cvs3_2.end());
 
+  for (size_t kj=0; kj<other->blend_regs_.size(); ++kj)
+    other->blend_regs_[kj]->setAssociatedBlend(this);
   blend_regs_.insert(blend_regs_.end(), other->blend_regs_.begin(),
 		     other->blend_regs_.end());
 
@@ -910,11 +912,12 @@ RevEngEdge::doSplit(size_t ix, int side, double par, double tol,
 		    vector<shared_ptr<HedgeSurface> >& added_sfs)
 //===========================================================================
 {
+  double eps = 1.0e-9;
   shared_ptr<RevEngEdge> new_edg;
   if (ix >= cvs1_.size() || cvs1_.size() == 0)
     return new_edg;
 
-  if (par <= cvs1_[ix]->startparam() || par >= cvs1_[ix]->endparam())
+  if (par <= cvs1_[ix]->startparam()+eps || par >= cvs1_[ix]->endparam()-eps)
     return new_edg;
 
   // Split curves
@@ -999,8 +1002,14 @@ RevEngEdge::doSplit(size_t ix, int side, double par, double tol,
 						  cvs1_2, outer1_, adjacent2_,
 						  cvs2_2, outer2_, radius_,
 						  distance_));
+  adjacent1_->addRevEdge(new_edg.get());
+  adjacent2_->addRevEdge(new_edg.get());
   if (move_reg.size() > 0)
-    new_edg->addBlendRegions(move_reg);
+    {
+      for (size_t kr=0; kr<move_reg.size(); ++kr)
+	move_reg[kr]->setAssociatedBlend(new_edg.get());
+      new_edg->addBlendRegions(move_reg);
+    }
   
   return new_edg;
 }

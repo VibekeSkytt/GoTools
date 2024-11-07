@@ -202,9 +202,16 @@ void SplineDebugUtils::writeTrimmedInfo(BoundedSurface& bd_sf,
 		    writeSpaceParamCurve(*line_cv,
 					 os);
 		}
+		else if (par_cv->instanceType() == Class_Circle) {
+		    shared_ptr<Circle> circle_cv =
+			dynamic_pointer_cast<Circle, ParamCurve>
+			(par_cv);
+		    writeSpaceParamCurve(*circle_cv,
+					 os);
+		}
 		else
 		{
-		    MESSAGE("Curve type not supported!");
+		    MESSAGE("Curve type not supported! par_cv->instanceType(): " + par_cv->instanceType());
 		}
 	    }
 	    shared_ptr<ParamCurve> space_cv =
@@ -299,11 +306,12 @@ void SplineDebugUtils::writeBoundary(BoundedSurface& bd_sf,
 
 //===========================================================================
 void SplineDebugUtils::writeOuterBoundaryLoop(ParamSurface& sf,
+                                               double epsgeo,
 					      std::ostream& os)
 //===========================================================================
 {
     // We also write the boundary loops of the underlying surface.
-    CurveLoop outer_loop = sf.outerBoundaryLoop();
+    CurveLoop outer_loop = sf.outerBoundaryLoop(epsgeo);
     for (size_t ki = 0; ki < outer_loop.size(); ++ki)
     {
 	outer_loop[ki]->writeStandardHeader(os);

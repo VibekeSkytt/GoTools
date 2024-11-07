@@ -178,6 +178,15 @@ namespace Go {
 		   std::vector<std::pair<double,double> >& distang,
 		   double angtol=-1.0);
     
+   void distToSurf(std::vector<RevEngPoint*>::iterator start,
+		   std::vector<RevEngPoint*>::iterator end,
+		   shared_ptr<ParamSurface> surf, double tol,
+		   double& maxdist, double& avdist,
+		   int& inside, int& inside2,
+		   std::vector<double>& parvals,
+		   std::vector<std::pair<double,double> >& distang,
+		   double angtol=-1.0);
+    
     void distToSurf(std::vector<Point>& points,
 		    shared_ptr<ParamSurface> surf, double tol,
 		    double& maxdist, double& avdist, int& inside,

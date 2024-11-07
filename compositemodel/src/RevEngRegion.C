@@ -7082,6 +7082,8 @@ bool RevEngRegion::extractTorus(Point mainaxis[3], double tol, int min_pt,
 					angtol);
   if (!tor1.get())
     return false;
+  if (tor1->getMajorRadius() <= tor1->getMinorRadius())
+    return false;
   
   // Check accuracy
   double maxd1, avd1, maxd2=100*tol, avd2=100*tol;
@@ -8560,6 +8562,9 @@ bool RevEngRegion::trimSurface(double tol)
 
       shared_ptr<BoundedSurface> bdsurf(new BoundedSurface(surf, loops));
 #ifdef DEBUG_TRIM
+      int valid_state;
+      bool valid = bdsurf->isValid(valid_state);
+      std::cout << "BoundedSurf is valid? " << valid << " " << valid_state << std::endl;
       std::ofstream of5("bounded_surf.g2");
       bdsurf->writeStandardHeader(of5);
       bdsurf->write(of5);
@@ -8733,10 +8738,17 @@ bool RevEngRegion::arrangeEdgeLoop(double tol)
 	  double dd = info[ki][kj].dist_;
 	  if (dd <= tol2)
 	    {
-	      if (ix1 < 0)
-		ix1 = (int)kj;
-	      else if (ix2 < 0)
-		ix2 = (int)kj;
+	      int num_small = 0;
+	      for (size_t kr=0; kr<info[kj].size(); ++kr)
+		if (info[kj][kr].dist_ < dd)
+		  num_small++;
+	      if (num_small < 2)
+		{
+		  if (ix1 < 0)
+		    ix1 = (int)kj;
+		  else if (ix2 < 0)
+		    ix2 = (int)kj;
+		}
 	    }
 	}
       if (ix1 < 0 || (ix2 < 0 && ix1 != (int)ki))
@@ -9059,7 +9071,7 @@ bool RevEngRegion::arrangeEdgeLoop(double tol)
 	  //     t2 = (ki < kj) ? info[ki][kj].par3_ : info[ki][kj].par4_;
 	  //   }
       //}
-      if (td1 > tol && td2 > tol && td0 < std::min(td1, td2))
+      if (/*td1 > tol && td2 > tol &&*/ td0 < std::min(td1, td2))
 	{
 	  // Closed loop
 	  ix1 = ix2 = (int)ki;

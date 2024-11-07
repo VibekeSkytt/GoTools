@@ -657,6 +657,30 @@ vector<RevEngRegion*> RevEngPoint::getAdjacentRegions() const
 }
 
 //===========================================================================
+vector<RevEngRegion*> RevEngPoint::adjacentRegsWithSurf() const
+//===========================================================================
+{
+  vector<RevEngRegion*> adj_reg;
+  for (size_t ki=0; ki<next_.size(); ++ki)
+    {
+      RevEngPoint *pt = dynamic_cast<RevEngPoint*>(next_[ki]);
+      RevEngRegion *curr = pt->region();
+      if (!curr)
+	continue;
+      if (!curr->hasSurface())
+	continue;
+      size_t kj;
+      for (kj=0; kj<adj_reg.size(); ++kj)
+	if (adj_reg[kj] == curr)
+	  break;
+      if (kj == adj_reg.size())
+	adj_reg.push_back(curr);
+    }
+		    
+  return adj_reg;
+}
+
+//===========================================================================
 int RevEngPoint::numAdjacentRegions() const
 //===========================================================================
 {

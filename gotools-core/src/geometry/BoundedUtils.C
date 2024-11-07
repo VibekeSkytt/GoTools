@@ -2713,8 +2713,8 @@ BoundedUtils::intersectWithCone(shared_ptr<ParamSurface>& surf,
 //===========================================================================
 vector<shared_ptr<CurveOnSurface> >
 BoundedUtils::intersectWithTorus(shared_ptr<ParamSurface>& surf,
-				 Point pnt, Point normal, double rad1,
-				 double rad2, double geom_tol)
+				 Point pnt, Point normal, double radius1,
+				 double radius2, double geom_tol)
 //===========================================================================
 {
     vector<shared_ptr<CurveOnSurface> > curves;
@@ -2741,7 +2741,7 @@ BoundedUtils::intersectWithTorus(shared_ptr<ParamSurface>& surf,
     SISLIntcurve** intcurves = 0;
     int stat;
     // Find the topology of the intersection
-    s1369(sislsf, pnt.begin(), normal.begin(), rad1, rad2, dim, epsco, 
+    s1369(sislsf, pnt.begin(), normal.begin(), radius1, radius2, dim, epsco, 
 	  geom_tol, &numintpt, &pointpar, &numintcr, &intcurves, &stat);
     // @@sbr Not sure this is the right solution. Maybe stat!=0 because of warning.
     ALWAYS_ERROR_IF(stat!=0,
@@ -2754,7 +2754,7 @@ BoundedUtils::intersectWithTorus(shared_ptr<ParamSurface>& surf,
 //     epsge = tol_.neighbour;
      for (int i = 0; i < numintcr; ++i) {
 	// March out the intersection curves
-       s1318(sislsf,pnt.begin(), normal.begin(), rad1, rad2, dim, epsco, 
+       s1318(sislsf,pnt.begin(), normal.begin(), radius1, radius2, dim, epsco, 
 	      geom_tol, maxstep, intcurves[i], makecurv, graphic, &stat);
 	SISLCurve* sc = intcurves[i]->pgeom;
 	if (sc == 0) {
@@ -5002,11 +5002,17 @@ void BoundedUtils::fixInvalidBoundedSurface(shared_ptr<BoundedSurface>& bd_sf,
 	if ((pos_state%8 > 1) || (pos_state%16 > 1))
 	{
 	    // Loops not closed or in wrong order/orientation.
+#ifdef SBR_DBG
+                {
+                    std::ofstream outfile_failures("tmp/bd_sf_failures.g2");
+                    SplineDebugUtils::writeTrimmedInfo(*bd_sf, outfile_failures, 0.0);
+                }
+#endif
 	    double max_gap = -1.0;
 	    bool success = bd_sf->fixInvalidSurface(max_gap);
 	    if (!success)
 	    {
-		LOG_INFO("max_gap = " + std::to_string(max_gap));
+		LOG_INFO("Loop not closed or in wrong order/orientation, failed to fix. max_gap = " + std::to_string(max_gap));
 	    }
 	}
 
@@ -5372,7 +5378,8 @@ bool BoundedUtils::createMissingParCvs(CurveLoop& bd_loop, bool loop_is_ccw)
 #ifndef NDEBUG
         {
             std::ofstream debug3("tmp/undersf_outer_loop.g2");
-            Go::SplineDebugUtils::writeOuterBoundaryLoop(*under_sf, debug3);
+            Go::SplineDebugUtils::writeOuterBoundaryLoop(*under_sf, bd_loop.getSpaceEpsilon(),
+                                                          debug3);
             double debug_val = 0.0;
         }
 #endif // NDEBUG

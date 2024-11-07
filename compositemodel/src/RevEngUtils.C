@@ -1851,7 +1851,11 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>::iterator start,
   double eps = 1.0e-6;
   maxdist = avdist = 0.0;
   num_inside = num_inside2 = 0;
-  int num = 0;
+  int num = (int)(end-start);
+  parvals.resize(2*num);
+  distang.resize(num);
+  in.clear();
+  out.clear();
   double *seed = 0;
   double seed2[2];
   Point prev;
@@ -1860,7 +1864,9 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>::iterator start,
   Point close;
   Point norm1, norm2, norm3;
   double ang, ang2;
-  for (auto it=start; it!=end; ++it)
+  double dfac = 1.0/(double)num;
+  size_t ki=0;
+  for (auto it=start; it!=end; ++it, ++ki)
     {
       Vector3D xyz = (*it)->getPoint();
       Point pnt(xyz[0], xyz[1], xyz[2]);
@@ -1868,24 +1874,24 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>::iterator start,
 	seed = seed2;
       
       surf->closestPoint(pnt, upar, vpar, close, dist, eps, 0, seed);
-      parvals.push_back(upar);
-      parvals.push_back(vpar);
+      parvals[2*ki] = upar;
+      parvals[2*ki+1] = vpar;
       surf->normal(norm1, upar, vpar);
       norm2 = (*it)->getMongeNormal();
       norm3 = (*it)->getTriangNormal();
       maxdist = std::max(maxdist, dist);
-      avdist += dist;
+      avdist += dfac*dist;
       ang = norm1.angle(norm2);
       ang2 = norm1.angle(norm3);
       ang = std::min(std::min(M_PI-ang, ang), std::min(M_PI-ang2,ang2));
-      distang.push_back(std::make_pair(dist, ang));
+      distang[ki] = std::make_pair(dist, ang);
       if (dist <= tol)
 	{
 	  ++num_inside2;
 	  if (angtol < 0.0 || ang <= angtol)
 	    {
 	      in.push_back(*it);
-	      ++num_inside;
+		++num_inside;
 	    }
 	  else
 	    out.push_back(*it);
@@ -1895,9 +1901,65 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>::iterator start,
       seed2[0] = upar;
       seed2[1] = vpar;
       prev = pnt;
-      ++num;
     }
-  avdist /= (double)num;
+}
+
+//===========================================================================
+void RevEngUtils::distToSurf(vector<RevEngPoint*>::iterator start,
+			     vector<RevEngPoint*>::iterator end,
+			     shared_ptr<ParamSurface> surf, double tol,
+			     double& maxdist, double& avdist,
+			     int& num_inside, int& num_inside2,
+			     vector<double>& parvals,
+			     vector<pair<double,double> >& distang,
+			     double angtol)
+//===========================================================================
+{
+  double eps = 1.0e-6;
+  maxdist = avdist = 0.0;
+  num_inside = num_inside2 = 0;
+  int num = (int)(end-start);
+  parvals.resize(2*num);
+  distang.resize(num);
+  double *seed = 0;
+  double seed2[2];
+  Point prev;
+  double fac = 100.0;
+  double upar, vpar, dist;
+  Point close;
+  Point norm1, norm2, norm3;
+  double ang, ang2;
+  double dfac = 1.0/(double)num;
+  size_t ki=0;
+  for (auto it=start; it!=end; ++it, ++ki)
+    {
+      Vector3D xyz = (*it)->getPoint();
+      Point pnt(xyz[0], xyz[1], xyz[2]);
+      if (prev.dimension() == pnt.dimension() && prev.dist(pnt) < fac*tol)
+	seed = seed2;
+      
+      surf->closestPoint(pnt, upar, vpar, close, dist, eps, 0, seed);
+      parvals[2*ki] = upar;
+      parvals[2*ki+1] = vpar;
+      surf->normal(norm1, upar, vpar);
+      norm2 = (*it)->getMongeNormal();
+      norm3 = (*it)->getTriangNormal();
+      maxdist = std::max(maxdist, dist);
+      avdist += dfac*dist;
+      ang = norm1.angle(norm2);
+      ang2 = norm1.angle(norm3);
+      ang = std::min(std::min(M_PI-ang, ang), std::min(M_PI-ang2,ang2));
+      distang[ki] = std::make_pair(dist, ang);
+      if (dist <= tol)
+	{
+	  ++num_inside2;
+	  if (angtol < 0.0 || ang <= angtol)
+	    ++num_inside;
+	}
+      seed2[0] = upar;
+      seed2[1] = vpar;
+      prev = pnt;
+    }
 }
 
 //===========================================================================
@@ -1911,7 +1973,8 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>& points,
   double eps = 1.0e-6;
   maxdist = avdist = 0.0;
   inside = inside2 = 0;
-  int num = 0;
+  int num = (int)points.size();
+  dist_ang.resize(num);
   double *seed = 0;
   double seed2[2];
   Point prev;
@@ -1920,6 +1983,7 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>& points,
   Point close;
   Point norm1, norm2, norm3;
   double ang, ang2;
+  double dfac = 1.0/(double)num;
   for (size_t ki=0; ki<points.size(); ++ki)
     {
       Vector3D xyz = points[ki]->getPoint();
@@ -1932,11 +1996,11 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>& points,
       norm2 = points[ki]->getMongeNormal();
       norm3 = points[ki]->getTriangNormal();
       maxdist = std::max(maxdist, dist);
-      avdist += dist;
+      avdist += dfac*dist;
       ang = norm1.angle(norm2);
       ang2 = norm1.angle(norm3);
       ang = std::min(std::min(M_PI-ang, ang), std::min(M_PI-ang2,ang2));
-      dist_ang.push_back(std::make_pair(dist, ang));
+      dist_ang[ki] = std::make_pair(dist, ang);
       if (dist <= tol)
 	{
 	  ++inside2;
@@ -1948,9 +2012,7 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>& points,
       seed2[0] = upar;
       seed2[1] = vpar;
       prev = pnt;
-      ++num;
     }
-  avdist /= (double)num;
 }
 
 //===========================================================================
@@ -1963,15 +2025,16 @@ void RevEngUtils::distToSurf(vector<Point>& points,
   double eps = 1.0e-6;
   maxdist = avdist = 0.0;
   num_inside = 0;
-  int num = 0;
-  distance.resize(points.size());
+  int num = (int)points.size();
+  distance.resize(num);
+  double fac = 1.0/(double)num;
   for (size_t ki=0; ki<points.size(); ++ki)
     {
       double upar, vpar, dist;
       Point close;
       surf->closestPoint(points[ki], upar, vpar, close, dist, eps);
       maxdist = std::max(maxdist, dist);
-      avdist += dist;
+      avdist += fac*dist;
       distance[ki] = dist;
       if (dist <= tol)
 	++num_inside;
@@ -1979,9 +2042,7 @@ void RevEngUtils::distToSurf(vector<Point>& points,
 	{
 	  int stop_break = 1;
 	}
-      ++num;
     }
-  avdist /= (double)num;
 }
 
 //===========================================================================
@@ -1993,7 +2054,8 @@ void RevEngUtils::distToCurve(vector<Point>& points,
   double eps = 1.0e-6;
   maxdist = avdist = 0.0;
   num_inside = 0;
-  int num = 0;
+  int num = (int)points.size();
+  double fac = 1.0/(double)num;
   for (size_t ki=0; ki<points.size(); ++ki)
     {
       double tpar, dist;
@@ -2001,16 +2063,14 @@ void RevEngUtils::distToCurve(vector<Point>& points,
       curve->closestPoint(points[ki], curve->startparam(), curve->endparam(),
 			  tpar, close, dist);
       maxdist = std::max(maxdist, dist);
-      avdist += dist;
+      avdist += fac*dist;
       if (dist <= tol)
 	++num_inside;
       else
 	{
 	  int stop_break = 1;
 	}
-      ++num;
     }
-  avdist /= (double)num;
 }
 
 
