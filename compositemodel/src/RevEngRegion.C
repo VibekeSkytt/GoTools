@@ -8331,6 +8331,7 @@ bool RevEngRegion::trimSurface(double tol)
     }
   
   bool do_bound = false;  // Necessary to trim only if not all curves are boundary curves
+  vector<int> adjusted(trim_edgs_.size(), 0);
   for (size_t ki=0; ki<trim_edgs_.size(); ++ki)
     {
       shared_ptr<CurveOnSurface> sfcv =
@@ -8342,6 +8343,14 @@ bool RevEngRegion::trimSurface(double tol)
 	    adaptOneEdge(trim_edgs_[ki], dom2);
 	    bool same;
 	    int bd = sfcv->whichBoundary(tol, same);
+#ifdef DEBUG_TRIM
+	    bool same_orient = sfcv->sameOrientation();
+	    bool same_trace = sfcv->sameTrace(tol);
+	    bool same_cv = sfcv->sameCurve(tol);
+	    if ((!same_orient) || (!same_trace) || (!same_cv))
+	      std::cout << "Surface curve mismatch " << ki << " " << sfcv << " " << same_orient << " " << same_trace << " " << same_cv << std::endl;
+	    
+#endif
 	    if (bd < 0)
 	      do_bound = true;
 	  }
@@ -8362,6 +8371,11 @@ bool RevEngRegion::trimSurface(double tol)
 		double t4 = sfcv2->endparam();
 		if (sfcv2->isConstantCurve() && (t3 > t1 || t4 < t2))
 		  {
+		    int mod = 0;
+		    if (t3 > t1)
+		      mod += 1;
+		    if (t4 < t2)
+		      mod += 2;
 		    double tmin = std::max(t1, t3);
 		    double tmax = std::min(t2, t4);
 		    shared_ptr<CurveOnSurface> sub(sfcv->subCurve(tmin, tmax));
@@ -8370,6 +8384,7 @@ bool RevEngRegion::trimSurface(double tol)
 		    trim_edgs_[ki]->disconnectTwin();
 		    subedge->connectTwin(twin, status);
 		    trim_edgs_[ki] = subedge;
+		    adjusted[ki] = mod;
 		  }
 		int stop_break1 = 1;
 	      }
@@ -8380,7 +8395,7 @@ bool RevEngRegion::trimSurface(double tol)
     {
       // Check if the parameter bound in the surface and in the existing trimming edges
       // is constent
-      //int stop_check = 1;
+      int stop_check = 1;
     }
   
 #ifdef DEBUG_TRIM
@@ -8400,7 +8415,7 @@ bool RevEngRegion::trimSurface(double tol)
 
   if (do_bound)
     {
-      bool OK = arrangeEdgeLoop(tol);
+      bool OK = arrangeEdgeLoop(tol, adjusted);
       if (!OK)
 	return false;
       if (trim_edgs_.size() == 0)
@@ -8413,8 +8428,10 @@ bool RevEngRegion::trimSurface(double tol)
       bool missing_par_cvs = false;
       for (size_t ki=0; ki<trim_edgs_.size(); ++ki)
 	{
-	  trim_cvs[ki] =
+	  shared_ptr<CurveOnSurface> tmp_sfcv =
 	    dynamic_pointer_cast<CurveOnSurface,ParamCurve>(trim_edgs_[ki]->geomCurve());
+	  trim_cvs[ki] = shared_ptr<CurveOnSurface>(tmp_sfcv->clone());  // To avoid inconsistencies
+	  // if two edges share the same curve in geometry space
 	  if (!trim_cvs[ki].get())
 	    {
 	      missing_par_cvs = true;
@@ -8440,24 +8457,42 @@ bool RevEngRegion::trimSurface(double tol)
 	  shared_ptr<ParamCurve> pcv2 = trim_cvs[kb]->parameterCurve();
 	  Point end = pcv1->point(pcv1->endparam());
 	  Point start = pcv2->point(pcv2->startparam());
-	  if (end.dist(start) > tol)
+	  double next_dd = end.dist(start);
+	  double close_dd = end.dist(startpt);
+	  if (close_dd <= next_dd+eps && close_dd <= tol)
 	    {
-	      // Check for a closed loop
-	      if (end.dist(startpt) <= tol)
-		{
-		  vector<shared_ptr<CurveOnSurface> > curr_cvs(trim_cvs.begin()+first_ix,
-							       (kb!=0) ? trim_cvs.begin()+kb :
-							       trim_cvs.end());
-		  trim_loops.push_back(curr_cvs);
-		  startpt = start;
-		  first_ix = (kb!=0) ? kb : (int)trim_cvs.size();
-		}
-	      else
-		{
-		  MESSAGE("RevEngRegion::trimSurface(): Obsolete code. Why do we end here?");
-		  
-		}
+	      vector<shared_ptr<CurveOnSurface> > curr_cvs(trim_cvs.begin()+first_ix,
+							   (kb!=0) ? trim_cvs.begin()+kb :
+							   trim_cvs.end());
+	      trim_loops.push_back(curr_cvs);
+	      startpt = start;
+	      first_ix = (kb!=0) ? kb : (int)trim_cvs.size();
 	    }
+	  else if (next_dd > tol)
+	    {
+	      // Open segment. Dismiss
+	      startpt = start;
+	      first_ix = (kb!=0) ? kb : (int)trim_cvs.size();
+	    }
+	      
+	  // if (end.dist(start) > tol)
+	  //   {
+	  //     // Check for a closed loop
+	  //     if (end.dist(startpt) <= tol)
+	  // 	{
+	  // 	  vector<shared_ptr<CurveOnSurface> > curr_cvs(trim_cvs.begin()+first_ix,
+	  // 						       (kb!=0) ? trim_cvs.begin()+kb :
+	  // 						       trim_cvs.end());
+	  // 	  trim_loops.push_back(curr_cvs);
+	  // 	  startpt = start;
+	  // 	  first_ix = (kb!=0) ? kb : (int)trim_cvs.size();
+	  // 	}
+	  //     else
+	  // 	{
+	  // 	  MESSAGE("RevEngRegion::trimSurface(): Obsolete code. Why do we end here?");
+		  
+	  // 	}
+	  //   }
 	  pcv1 = pcv2;
 	}
 
@@ -8470,6 +8505,7 @@ bool RevEngRegion::trimSurface(double tol)
       
 #ifdef DEBUG_TRIM
       std::ofstream of3("par_edgs3.g2");
+      std::ofstream of4("space_edgs3.g2");
       for (size_t ki=0; ki<trim_edgs_.size(); ++ki)
 	{
 	  shared_ptr<CurveOnSurface> sfcv =
@@ -8481,7 +8517,6 @@ bool RevEngRegion::trimSurface(double tol)
 	    continue;
 	  SplineDebugUtils::writeSpaceParamCurve(pcurve, of3, 0.0);
 	}
-      std::ofstream of4("space_edgs3.g2");
       for (size_t ki=0; ki<trim_edgs_.size(); ++ki)
 	{
 	  shared_ptr<CurveOnSurface> sfcv =
@@ -8492,6 +8527,20 @@ bool RevEngRegion::trimSurface(double tol)
 	  scurve->writeStandardHeader(of4);
 	  scurve->write(of4);
 	}
+      std::ofstream of3_2("par_edgs3_2.g2");
+      std::ofstream of4_2("space_edgs3_2.g2");
+      for (size_t ki=0; ki<trim_loops.size(); ++ki)
+	for (size_t kj=0; kj<trim_loops[ki].size(); ++kj)
+	  {
+	    shared_ptr<CurveOnSurface> sfcv = trim_loops[ki][kj];
+	    shared_ptr<ParamCurve> pcurve = sfcv->parameterCurve();
+	    if (pcurve.get())
+	      SplineDebugUtils::writeSpaceParamCurve(pcurve, of3_2, 0.0);
+	    shared_ptr<ParamCurve> scurve = sfcv->spaceCurve();
+	    scurve->writeStandardHeader(of4_2);
+	    scurve->write(of4_2);
+	  }
+	
 #endif
       // Check orientation
       vector<CurveLoop> loops;
@@ -8579,7 +8628,6 @@ bool RevEngRegion::trimSurface(double tol)
       // associated_sf_[0]->addOuterBoundaryLoop(edge_loop);
       associated_sf_[0]->clearInitialEdges();
       (void)associated_sf_[0]->createInitialEdges();
-      
 #ifdef DEBUG_TRIM
       for (size_t ki=0; ki<trim_edgs_.size(); ++ki)
 	{
@@ -8627,8 +8675,8 @@ struct CloseCvInfo
   }
 };
 
-CloseCvInfo getCloseInfo(double tol, shared_ptr<ParamCurve>& pcurve1,
-			 shared_ptr<ParamCurve>& pcurve2)
+CloseCvInfo getCloseInfo(double tol, shared_ptr<ParamCurve>& pcurve1, int adjusted1,
+			 shared_ptr<ParamCurve>& pcurve2, int adjusted2)
 {
   Point close1, close2;
   int status = 0;
@@ -8642,26 +8690,94 @@ CloseCvInfo getCloseInfo(double tol, shared_ptr<ParamCurve>& pcurve1,
   double seed2 = 0.5*(tmin2 + tmax2);
   Point pos3 = pcurve2->point(tmin2);
   Point pos4 = pcurve2->point(tmax2);
-  double par1[5], par2[5];
+  double par1[9], par2[9];
   par1[0] = par1[1] = tmin1;
   par1[2] = par1[3] = tmax1;
+  par1[5] = tmin1;
+  par1[6] = tmax1;
+  par2[7] = tmin2;
+  par2[8] = tmax2;
   par2[0] = par2[2] = tmin2;
   par2[1] = par2[3] = tmax2;
-  double dist[5];
+  double dist[9];
   dist[0] = pos1.dist(pos3);
   dist[1] = pos1.dist(pos4);
   dist[2] = pos2.dist(pos3);
   dist[3] = pos2.dist(pos4);
-  ClosestPoint::closestPtCurves2D(pcurve1.get(), pcurve2.get(), tol,
-				  tmin1, tmax1, tmin2, tmax2, seed1,
-				  seed2, 1, false, par1[4], par2[4],
-				  dist[4], close1, close2, status);
+  dist[4] = dist[5] = dist[6] = dist[7] = dist[8] = std::numeric_limits<double>::max();
+  if (adjusted1 < 3 && adjusted2 < 3)
+    ClosestPoint::closestPtCurves2D(pcurve1.get(), pcurve2.get(), tol,
+				    tmin1, tmax1, tmin2, tmax2, seed1,
+				    seed2, 1, false, par1[4], par2[4],
+				    dist[4], close1, close2, status);
+  if ((adjusted1 == 1 || adjusted1 == 3) && adjusted2 < 3)
+    pcurve2->closestPoint(pos1, tmin2, tmax2, par2[5], close2, dist[5]);
+  if ((adjusted2 == 1 || adjusted1 == 3) && adjusted2 < 3)
+    pcurve2->closestPoint(pos2, tmin2, tmax2, par2[6], close2, dist[6]);
+  if ((adjusted2 == 1 || adjusted2 == 3) && adjusted1 < 3)
+    pcurve1->closestPoint(pos3, tmin1, tmax1, par1[7], close1, dist[7]);
+  if ((adjusted2 == 2 || adjusted2 == 3) && adjusted1 < 3)
+    pcurve1->closestPoint(pos4, tmin1, tmax1, par1[8], close1, dist[8]);
+
+  double eps = std::min(0.1*tol, 1.0e-4);
+  double eps2 = 1.0e-9;
+  for (int ka=4; ka<9; ++ka)
+    {
+      if (par1[ka]-tmin1 < eps2)
+	par1[ka] = tmin1;
+      if (tmax1-par1[ka] < eps2)
+	par1[ka] = tmax1;
+      if (par2[ka]-tmin2 < eps2)
+	par2[ka] = tmin2;
+      if (tmax2-par2[ka] < eps2)
+	par2[ka] = tmax2;
+    }
+  
+  if (adjusted2 == 1 || adjusted2 == 3)
+    {
+      if (par1[4] - tmin1 > eps2 && par1[4] - tmin1 < eps)
+	dist[4] = std::numeric_limits<double>::max();
+      if (par1[7] - tmin1 > eps2 && par1[7] - tmin1 < eps)
+	dist[7] = std::numeric_limits<double>::max();
+      if (par1[8] - tmin1 > eps2 && par1[8] - tmin1 < eps)
+	dist[8] = std::numeric_limits<double>::max();
+    }
+  if (adjusted2 == 2 || adjusted2 == 3)
+    {
+      if (tmax1 - par1[4] > eps2 && tmax1 - par1[4] < eps)
+	dist[4] = std::numeric_limits<double>::max();
+      if (tmax1 - par1[7] > eps2 && tmax1 - par1[7] < eps)
+	dist[7] = std::numeric_limits<double>::max();
+      if (tmax1 - par1[8] > eps2 && tmax1 - par1[8] < eps)
+	dist[8] = std::numeric_limits<double>::max();
+    }
+
+  if (adjusted1 == 1 || adjusted1 == 3)
+    {
+      if (par2[4] - tmin2 > eps2 && par2[4] - tmin2 < eps)
+	dist[4] = std::numeric_limits<double>::max();
+      if (par2[5] - tmin2 > eps2 && par2[5] - tmin2 < eps)
+	dist[5] = std::numeric_limits<double>::max();
+      if (par2[6] - tmin2 > eps2 && par2[6] - tmin2 < eps)
+	dist[6] = std::numeric_limits<double>::max();
+    }
+  if (adjusted1 == 2 || adjusted1 == 3)
+    {
+      if (tmax2 - par2[4] > eps2 && tmax2 - par2[4] < eps)
+	dist[4] = std::numeric_limits<double>::max();
+      if (tmax2 - par2[5] > eps2 && tmax2 - par2[5] < eps)
+	dist[5] = std::numeric_limits<double>::max();
+      if (tmax2 - par2[6] > eps2 && tmax2 - par2[6] < eps)
+	dist[6] = std::numeric_limits<double>::max();
+    }
+
 
   int ka, kb;
-  for (ka=0; ka<5; ++ka)
-    for (kb=ka+1; kb<5; ++kb)
+  for (ka=0; ka<9; ++ka)
+    for (kb=ka+1; kb<9; ++kb)
       {
-	if ((kb < 4 && dist[kb] < dist[ka]) || (kb == 4 && dist[kb] < dist[ka]-tol))
+	// if ((kb < 4 && dist[kb] < dist[ka]) || (kb == 4 && dist[kb] < dist[ka]-tol))
+	if (dist[kb] < dist[ka])
 	  {
 	    std::swap(dist[ka], dist[kb]);
 	    std::swap(par1[ka], par1[kb]);
@@ -8669,8 +8785,7 @@ CloseCvInfo getCloseInfo(double tol, shared_ptr<ParamCurve>& pcurve1,
 	  }
       }
 
-  double eps = std::min(0.1*tol, 1.0e-4);
-  if (fabs(par1[1] - par1[0]) < eps)
+  if (fabs(par1[1] - par1[0]) < eps || fabs(par2[1]-par2[0]) < eps)
     {
       par1[1] = par1[2];
       par2[1] = par2[2];
@@ -8683,7 +8798,7 @@ CloseCvInfo getCloseInfo(double tol, shared_ptr<ParamCurve>& pcurve1,
 
 
 //===========================================================================
-bool RevEngRegion::arrangeEdgeLoop(double tol)
+bool RevEngRegion::arrangeEdgeLoop(double tol, vector<int>& adjusted)
 //===========================================================================
 {
   vector<vector<CloseCvInfo> > info(trim_edgs_.size());
@@ -8719,7 +8834,8 @@ bool RevEngRegion::arrangeEdgeLoop(double tol)
 	  if (!pcurve2.get())
 	    return false;
 
-	  CloseCvInfo curr_info = getCloseInfo(tol, pcurve1, pcurve2);
+	  CloseCvInfo curr_info = getCloseInfo(tol, pcurve1, adjusted[ki],
+					       pcurve2, adjusted[kj]);
 	  info[ki][kj] = info[kj][ki] = curr_info;
  	}
     }
@@ -8905,6 +9021,7 @@ bool RevEngRegion::arrangeEdgeLoop(double tol)
 						 gap_sfcv->endparam()));
 	  sfcv.push_back(gap_sfcv);
 	  trim_edgs_.push_back(gap_edge);
+	  adjusted.push_back(true);
 	}
 
       if (sfcv.size() > num)
@@ -8938,8 +9055,9 @@ bool RevEngRegion::arrangeEdgeLoop(double tol)
 		  if (!pcurve2.get())
 		    continue;
 
-		  CloseCvInfo curr_info = (ki > kj) ? getCloseInfo(tol, pcurve2, pcurve1) :
-		    getCloseInfo(tol, pcurve1, pcurve2);;
+		  CloseCvInfo curr_info = (ki > kj) ?
+		    getCloseInfo(tol, pcurve2, adjusted[kj], pcurve1, adjusted[ki]) :
+		    getCloseInfo(tol, pcurve1, adjusted[ki], pcurve2, adjusted[kj]);;
 		  info[ki][kj] = info[kj][ki] = curr_info;
 		}
 	    }
@@ -9329,6 +9447,7 @@ bool RevEngRegion::arrangeEdgeLoop(double tol)
   HedgeSurface *hedge = getSurface(0);
   shared_ptr<ParamSurface> surf = hedge->surface();
   double lenfac = 0.6;
+  double tol4 = 4.0*tol;
   for (size_t ki=1; ki<start_ix.size(); ++ki)
     {
       size_t kj, kr;
@@ -9351,10 +9470,10 @@ bool RevEngRegion::arrangeEdgeLoop(double tol)
 	      if ((!sfcv1.get()) || (!sfcv2.get()))
 		continue;
 
+	      double clen = sfcv1->estimatedCurveLength();
 	      if (kj == kr && (!trim_edgs_[kj]->twin()))
 		{
 		  // Single curve
-		  double clen = sfcv1->estimatedCurveLength();
 		  if (glen > lenfac*clen)
 		    {
 		      // Remove trimming curve
@@ -9367,6 +9486,9 @@ bool RevEngRegion::arrangeEdgeLoop(double tol)
 		    }
 		  
 		}
+
+	      if (clen - glen < tol4)
+		continue;   // Don't duplicate an almost straight curve
 	      
 	      shared_ptr<ParamCurve> pcv1 = sfcv1->parameterCurve();
 	      shared_ptr<ParamCurve> pcv2 = sfcv2->parameterCurve();
@@ -11011,7 +11133,12 @@ shared_ptr<ParamSurface> RevEngRegion::surfaceWithAxis(vector<RevEngPoint*>& poi
       surf = init_surf;  // For the time being
     }
   else if (elem->instanceType() == Class_Plane)
-    surf = RevEngUtils::planeWithAxis(points, axis, loc, mainaxis);
+    {
+      Point init_norm = elem->direction();
+      surf = RevEngUtils::planeWithAxis(points, axis, loc, mainaxis);
+      if (axis*init_norm < 0.0)
+	surf->swapParameterDirection();
+    }
   else if (elem->instanceType() == Class_Cylinder)
     surf = RevEngUtils::cylinderWithAxis(points, axis, low, high,
 					 mainaxis);
@@ -15802,6 +15929,9 @@ void RevEngRegion::extendBoundaries(double mean_edge_len, int min_point_reg,
 
       if (commonTrimEdge(*it))
 	continue;
+
+      if ((*it)->hasBlendEdge())
+	continue;   // Trimming curves should exist already
       // if ((*it)->numPoints() < min_nmb)
       // 	continue;
       (*it)->writeRegionPoints(of5);
@@ -15819,6 +15949,9 @@ void RevEngRegion::extendBoundaries(double mean_edge_len, int min_point_reg,
       if (commonTrimEdge(*it))
 	continue;
 
+      if ((*it)->hasBlendEdge())
+	continue;   // Trimming curves should exist already
+      
       // The boundary towards adjacent regions with a surface should preferably be
       // handled by other tools, but are currently included
       // if ((*it)->hasSurface())
@@ -15859,7 +15992,11 @@ void RevEngRegion::extendBoundaries(double mean_edge_len, int min_point_reg,
 	{
 	  RevEngPoint *end1, *end2;
 	  RevEngPoint *dummy = 0;
-	  bd_pts1.push_back(adj_pts1);
+	  vector<RevEngPoint*> tmp_pts;
+	  for (size_t kj=0; kj<adj_pts1.size(); ++kj)
+	    if (adj_pts1[kj]->getSurfaceDist() <= tol)
+	      tmp_pts.push_back(adj_pts1[kj]);
+	  bd_pts1.push_back(tmp_pts); //adj_pts1);
 	  adj_bd.push_back(*it);
 	  if (adj_pts1.size() > 0)
 	    {
@@ -16069,9 +16206,12 @@ void RevEngRegion::extendBoundaries(double mean_edge_len, int min_point_reg,
       all_adj_num.push_back(num_adj);
     }
 
+  int num_lim = 10;
   vector<shared_ptr<ElementaryCurve> > elemcv(2*all_points.size());
   for (size_t ki=0; ki<all_points.size(); ++ki)
   {
+    if (all_points[ki].size() < num_lim)
+      continue;
     
     // Compute circle
     Point pos0, axis, Cx, Cy;
@@ -16098,8 +16238,11 @@ void RevEngRegion::extendBoundaries(double mean_edge_len, int min_point_reg,
   std::ofstream of8("circle_line.g2");
   for (size_t ki=0; ki<elemcv.size(); ++ki)
     {
-      elemcv[ki]->writeStandardHeader(of8);
-      elemcv[ki]->write(of8);
+      if (elemcv[ki].get())
+	{
+	  elemcv[ki]->writeStandardHeader(of8);
+	  elemcv[ki]->write(of8);
+	}
     }
 #endif
   
@@ -16114,8 +16257,12 @@ void RevEngRegion::extendBoundaries(double mean_edge_len, int min_point_reg,
   double fac1 = 0.9;
   for (size_t ki=0; ki<all_points.size(); ++ki)
   {
+    if (all_points[ki].size() < num_lim)
+      continue;
     for (size_t kj=0; kj<elemcv.size(); ++kj)
       {
+	if (!elemcv[kj].get())
+	  continue;
 	double maxd, avd;
 	int in;
 	vector<double> parvals, dist;
@@ -16151,6 +16298,9 @@ void RevEngRegion::extendBoundaries(double mean_edge_len, int min_point_reg,
 #endif
   for (size_t kj=0; kj<elemcv.size(); ++kj)
     {
+      if (!elemcv[kj].get())
+	continue;
+      
       // Collect points associated to this curve
       vector<int> pt_ix;
       for (size_t ki=0; ki<match.size(); ++ki)

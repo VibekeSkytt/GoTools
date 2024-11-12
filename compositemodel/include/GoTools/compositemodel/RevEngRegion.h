@@ -1353,7 +1353,7 @@ namespace Go
 
     void adaptOneEdge(shared_ptr<ftEdge>& edge, double dom[4]);
 
-    bool arrangeEdgeLoop(double tol);
+    bool arrangeEdgeLoop(double tol, std::vector<int>& adjusted);
     
     shared_ptr<CurveOnSurface>
     constParSfCv(shared_ptr<ParamSurface> surf, int dir,

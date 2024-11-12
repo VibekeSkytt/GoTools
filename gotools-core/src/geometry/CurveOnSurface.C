@@ -154,19 +154,19 @@ CurveOnSurface::CurveOnSurface(shared_ptr<ParamSurface> surf,
       Point pnt8 = surf->point(pt4[0], pt4[1]);
       if (constdir_ && (pt4-pt3)*(pt2-pt1) < 0.0)
 	{
-	  same_orientation_ = false;
+	  //same_orientation_ = false;
 	  std::swap(pt1,pt2);
 	}
       else if (pnt5.dist(pnt7) + pnt6.dist(pnt8) > 
 	  pnt5.dist(pnt8) + pnt6.dist(pnt7))
 	{
-	  same_orientation_ = false;
+	  //same_orientation_ = false;
 	  std::swap(pt1,pt2);
 	}
     }
   else if (d1 > d2)
     {
-      same_orientation_ = false;
+      //same_orientation_ = false;
       std::swap(pt1, pt2);
     }
 

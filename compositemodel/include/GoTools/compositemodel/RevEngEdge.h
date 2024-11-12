@@ -287,10 +287,14 @@ namespace Go
     void setTrimCurves(double tol, double angtol,
 		       std::vector<RevEngRegion*>& out_regs,
 		       std::vector<HedgeSurface*>& out_sfs);
+
+    bool contains(RevEngEdge *other, double tol);
+
+    bool integrate(RevEngEdge *other);
     
   private:
     int Id_;
-    RevEngRegion* adjacent1_;
+     RevEngRegion* adjacent1_;
     RevEngRegion* adjacent2_;
     RevEngRegion* defined_blend_;
     std::vector<shared_ptr<CurveOnSurface> > cvs1_;

@@ -490,7 +490,7 @@ namespace Go
 		  shared_ptr<CurveOnSurface>& int_cv1,
 		  shared_ptr<CurveOnSurface>& int_cv2,
 		  double width, std::vector<RevEngRegion*>& common_reg,
-		  bool only_curve);
+		  bool only_curve, bool check_common);
     
     RevEngPoint* getDistantPoint(shared_ptr<CurveOnSurface>& cv,
 				 double tmin, double tmax, double dd,
@@ -534,7 +534,8 @@ namespace Go
     getTorusParameters(shared_ptr<ElementarySurface> elem1,
 		       shared_ptr<ElementarySurface> elem2, Point pos,
 		       double radius, double d2, bool out1, bool out2, int sgn,
-		       double& Rrad, Point& centre, Point& normal, Point& Cx);
+		       double& Rrad, Point& centre, Point& normal, Point& Cx,
+		       bool check_common = true);
 
   shared_ptr<Torus>
     torusBlend(std::vector<std::vector<RevEngPoint*> >& blend_pts,

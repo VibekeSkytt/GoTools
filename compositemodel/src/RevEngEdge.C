@@ -46,6 +46,7 @@
 #include "GoTools/geometry/SurfaceTools.h"
 #include "GoTools/geometry/ClosestPoint.h"
 #include "GoTools/geometry/BoundedUtils.h"
+#include "GoTools/intersections/Identity.h"
 #include <fstream>
 
 #define DEBUG
@@ -1578,4 +1579,43 @@ RevEngEdge::setTrimCurves(double tol, double angtol,
     }
 
   int stop_break = 1;
+}
+
+
+//===========================================================================
+bool
+RevEngEdge::contains(RevEngEdge *other, double tol)
+//===========================================================================
+{
+  if (!((adjacent1_ == other->adjacent1_ && adjacent2_ == other->adjacent2_) ||
+	(adjacent1_ == other->adjacent2_ && adjacent2_ == other->adjacent1_)))
+    return false;  // Not the same adjacent surfaces (groups)
+
+  // Assumes only one curve associated to the edge
+  Identity ident;
+  int stat = ident.identicalCvs(cvs1_[0], other->cvs1_[0], tol);
+  if (stat == 1 || stat == 3)
+    return true;
+  else
+    return false;
+}
+
+//===========================================================================
+bool
+RevEngEdge::integrate(RevEngEdge *other)
+//===========================================================================
+{
+  if (!((adjacent1_ == other->adjacent1_ && adjacent2_ == other->adjacent2_) ||
+	(adjacent1_ == other->adjacent2_ && adjacent2_ == other->adjacent1_)))
+    return false;  // Not the same adjacent surfaces (groups)
+
+  if (defined_blend_ && defined_blend_ != other->defined_blend_)
+    return false;
+
+  for (size_t ki=0; ki<other->blend_regs_.size(); ++ki)
+    other->blend_regs_[ki]->setAssociatedBlend(this);
+
+  other->clearBlendRegions();
+  
+  return true;
 }

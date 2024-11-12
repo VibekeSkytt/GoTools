@@ -2865,7 +2865,8 @@ RevEng::defineEdgesBetween(size_t ix1, shared_ptr<ElementarySurface>& surf1,
       shared_ptr<RevEngEdge> edg = defineOneEdge(ix1, surf1, dir1, ix2,
 						 surf2, dir2, cvs1[kj],
 						 cvs2[kj], width2[kj],
-						 common_reg, only_curve);
+						 common_reg, only_curve,
+						 check_common);
       if (edg.get())
 	edges.push_back(edg);
     }
@@ -2882,7 +2883,7 @@ RevEng::defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
 		      shared_ptr<CurveOnSurface>& int_cv1,
 		      shared_ptr<CurveOnSurface>& int_cv2,
 		      double width, vector<RevEngRegion*>& common_reg,
-		      bool only_curve)
+		      bool only_curve, bool check_common)
 //===========================================================================
 {
   shared_ptr<RevEngEdge> dummy_edg;
@@ -3168,7 +3169,8 @@ RevEng::defineOneEdge(size_t ix1, shared_ptr<ElementarySurface>& surf1,
 	  Point centre, normal, Cx;
 	  double Rrad;
 	  bool OK = getTorusParameters(surf1, surf2, der[0], radius, d2, outer1, 
-				       outer2, sgn, Rrad, centre, normal, Cx);
+				       outer2, sgn, Rrad, centre, normal, Cx,
+				       check_common);
 	  if (!OK)
 	    return dummy_edg;
 	  double xlen = der[0].dist(centre);
@@ -4658,6 +4660,13 @@ void RevEng::manageBlends2()
 	      shared_ptr<ParamCurve> tmp = trim_edgs[kr]->geomCurve();
 	      shared_ptr<CurveOnSurface> tmp2 =
 		dynamic_pointer_cast<CurveOnSurface,ParamCurve>(tmp);
+#ifdef DEBUG_BLEND
+	      bool same_orient = tmp2->sameOrientation();
+	      bool same_trace = tmp2->sameTrace(approx_tol_);
+	      bool same_cv = tmp2->sameCurve(approx_tol_);
+	      if ((!same_orient) || (!same_trace) || (!same_cv))
+		std::cout << "Surface curve mismatch " << kr << " " << same_orient << " " << same_trace << " " << same_cv << std::endl;
+#endif
 	      shared_ptr<ParamCurve> tmp3 = tmp2->spaceCurve();
 	      tmp3->writeStandardHeader(oft);
 	      tmp3->write(oft);
@@ -4724,6 +4733,13 @@ void RevEng::manageBlends2()
 	      shared_ptr<ParamCurve> tmp = trim_edgs[kr]->geomCurve();
 	      shared_ptr<CurveOnSurface> tmp2 =
 		dynamic_pointer_cast<CurveOnSurface,ParamCurve>(tmp);
+#ifdef DEBUG_BLEND
+	      bool same_orient = tmp2->sameOrientation();
+	      bool same_trace = tmp2->sameTrace(approx_tol_);
+	      bool same_cv = tmp2->sameCurve(approx_tol_);
+	      if ((!same_orient) || (!same_trace) || (!same_cv))
+		std::cout << "Surface curve mismatch " << kr << " " << same_orient << " " << same_trace << " " << same_cv << std::endl;
+#endif
 	      shared_ptr<ParamCurve> tmp3 = tmp2->spaceCurve();
 	      tmp3->writeStandardHeader(oft);
 	      tmp3->write(oft);
@@ -4806,6 +4822,13 @@ void RevEng::manageBlends2()
 	      shared_ptr<ParamCurve> tmp = trim_edgs[kr]->geomCurve();
 	      shared_ptr<CurveOnSurface> tmp2 =
 		dynamic_pointer_cast<CurveOnSurface,ParamCurve>(tmp);
+#ifdef DEBUG_BLEND
+	      bool same_orient = tmp2->sameOrientation();
+	      bool same_trace = tmp2->sameTrace(approx_tol_);
+	      bool same_cv = tmp2->sameCurve(approx_tol_);
+	      if ((!same_orient) || (!same_trace) || (!same_cv))
+		std::cout << "Surface curve mismatch " << kr << " " << same_orient << " " << same_trace << " " << same_cv << std::endl;
+#endif
 	      shared_ptr<ParamCurve> tmp3 = tmp2->spaceCurve();
 	      tmp3->writeStandardHeader(oft);
 	      tmp3->write(oft);
@@ -4944,6 +4967,13 @@ void RevEng::manageBlends2()
 	      shared_ptr<ParamCurve> tmp = trim_edgs[kr]->geomCurve();
 	      shared_ptr<CurveOnSurface> tmp2 =
 		dynamic_pointer_cast<CurveOnSurface,ParamCurve>(tmp);
+#ifdef DEBUG_BLEND
+	      bool same_orient = tmp2->sameOrientation();
+	      bool same_trace = tmp2->sameTrace(approx_tol_);
+	      bool same_cv = tmp2->sameCurve(approx_tol_);
+	      if ((!same_orient) || (!same_trace) || (!same_cv))
+		std::cout << "Surface curve mismatch " << kr << " " << same_orient << " " << same_trace << " " << same_cv << std::endl;
+#endif
 	      shared_ptr<ParamCurve> tmp3 = tmp2->spaceCurve();
 	      tmp3->writeStandardHeader(oft);
 	      tmp3->write(oft);
@@ -4972,7 +5002,7 @@ void RevEng::manageBlends2()
       if (num_edg < 4)
 	cand_corner_adj.push_back(regions_[ki].get());
     }
-  
+
 #ifdef DEBUG_BLEND
   std::ofstream ofmb0("adj_candidate_blend_corner.g2");
   for (size_t ki=0; ki<cand_corner_adj.size(); ++ki)
@@ -5001,7 +5031,7 @@ void RevEng::manageBlends2()
       int dummy_ix = 0;
       updateRegionsAndSurfaces(dummy_ix, removereg, removehedge);
      }
-   
+
 #ifdef DEBUG
     std::cout << "Finished missing corners, regions: " << regions_.size() << ", surfaces: " << surfaces_.size() << std::endl;
    if (regions_.size() > 0)
@@ -5037,6 +5067,13 @@ void RevEng::manageBlends2()
 	      shared_ptr<ParamCurve> tmp = trim_edgs[kr]->geomCurve();
 	      shared_ptr<CurveOnSurface> tmp2 =
 		dynamic_pointer_cast<CurveOnSurface,ParamCurve>(tmp);
+#ifdef DEBUG_BLEND
+	      bool same_orient = tmp2->sameOrientation();
+	      bool same_trace = tmp2->sameTrace(approx_tol_);
+	      bool same_cv = tmp2->sameCurve(approx_tol_);
+	      if ((!same_orient) || (!same_trace) || (!same_cv))
+		std::cout << "Surface curve mismatch " << kr << " " << same_orient << " " << same_trace << " " << same_cv << std::endl;
+#endif
 	      shared_ptr<ParamCurve> tmp3 = tmp2->spaceCurve();
 	      tmp3->writeStandardHeader(oft);
 	      tmp3->write(oft);
@@ -6014,14 +6051,14 @@ bool RevEng::createTorusBlend(size_t ix)
   RevEngEdge *revedg1, *revedg2;
   bool OK = getAdjacentToTorus(edges_[ix].get(), rev_edgs, tol5, 
 			       revedg1, revedg2, rad1, rad2);
-#ifdef DEBUG_BLEND
-  if (!OK)
-    std::cout << "getAdjacentToTorus not OK" << std::endl;
-  if (!revedg1)
-    std::cout << "getAdjacentToTorus, revedg1 missing" << std::endl;
-  if (!revedg2)
-    std::cout << "getAdjacentToTorus, revedg2 missing" << std::endl;
-#endif
+// #ifdef DEBUG_BLEND
+//   if (!OK)
+//     std::cout << "getAdjacentToTorus not OK" << std::endl;
+//   if (!revedg1)
+//     std::cout << "getAdjacentToTorus, revedg1 missing" << std::endl;
+//   if (!revedg2)
+//     std::cout << "getAdjacentToTorus, revedg2 missing" << std::endl;
+// #endif
   if (!OK)
     return false;
   if ((!revedg1) || (!revedg2))
@@ -6881,10 +6918,24 @@ void RevEng::setBlendBoundaries(RevEngRegion *reg)
   shared_ptr<CurveOnSurface> sfcv1(new CurveOnSurface(elem, par1, space[0], false, 3,
 						      constdir+1, tpar1, 2*constdir, true));
   bdedg[0] = shared_ptr<ftEdge>(new ftEdge(reg->getSurface(0), sfcv1, t1, t2));
+#ifdef DEBUG_BLEND
+  bool same_orient = sfcv1->sameOrientation();
+  bool same_trace = sfcv1->sameTrace(approx_tol_);
+  bool same_cv = sfcv1->sameCurve(approx_tol_);
+  if ((!same_orient) || (!same_trace) || (!same_cv))
+    std::cout << "Surface curve 1 mismatch " << same_orient << " " << same_trace << " " << same_cv << std::endl;
+#endif
   shared_ptr<CurveOnSurface> sfcv2(new CurveOnSurface(elem, par2, space[1], false, 3,
 						      constdir+1, tpar2, 2*constdir+1, true));
   //sfcv2->reverseParameterDirection();
   bdedg[1] = shared_ptr<ftEdge>(new ftEdge(reg->getSurface(0), sfcv2, t1, t2));
+#ifdef DEBUG_BLEND
+  same_orient = sfcv2->sameOrientation();
+  same_trace = sfcv2->sameTrace(approx_tol_);
+  same_cv = sfcv2->sameCurve(approx_tol_);
+  if ((!same_orient) || (!same_trace) || (!same_cv))
+    std::cout << "Surface curve 2 mismatch " << same_orient << " " << same_trace << " " << same_cv << std::endl;
+#endif
   reg->addTrimEdge(bdedg[0]);
   reg->addTrimEdge(bdedg[1]);
 
@@ -7876,8 +7927,8 @@ bool RevEng::createBlendSurface(int ix)
       vector<shared_ptr<RevEngRegion> > added_regions;
       vector<vector<RevEngPoint*> > extract_groups;
       vector<HedgeSurface*> out_sfs;
-      edges_[ix]->extendCurve(int_tol_, approx_tol_, anglim_, diag, lenlim,
-			      blendlim, added_regions, extract_groups, out_sfs);
+      updated_edge = edges_[ix]->extendCurve(int_tol_, approx_tol_, anglim_, diag, lenlim,
+					    blendlim, added_regions, extract_groups, out_sfs);
       if (extract_groups.size() > 0 || out_sfs.size() > 0)
 	surfaceExtractOutput(-1, extract_groups, out_sfs);
       for (size_t kj=0; kj<added_regions.size(); ++kj)
@@ -7885,7 +7936,21 @@ bool RevEng::createBlendSurface(int ix)
 	  added_regions[kj]->setRegionAdjacency();
 	  regions_.push_back(added_regions[kj]);
 	}
-	
+
+      if (updated_edge)
+	{
+	  for (int ka=ix+1; ka<(int)edges_.size(); ++ka)
+	    {
+	      // Check for overlap (simplified version)
+	      bool embedded = edges_[ix]->contains(edges_[ka].get(), approx_tol_);
+	      if (embedded)
+		{
+		  bool done = edges_[ix]->integrate(edges_[ka].get());
+		  if (done)
+		    edges_.erase(edges_.begin()+ka);
+		}
+	    }
+	}
     }
 
   if (updated_edge == false && edges_[ix]->getSurfChangeCount() > 0)
@@ -8613,7 +8678,8 @@ bool
 RevEng::getTorusParameters(shared_ptr<ElementarySurface> elem1,
 			   shared_ptr<ElementarySurface> elem2, Point pos,
 			   double radius, double d2, bool out1, bool out2, int sgn,
-			   double& Rrad, Point& centre, Point& normal, Point& Cx)
+			   double& Rrad, Point& centre, Point& normal, Point& Cx,
+			   bool check_common)
 //===========================================================================
 {
   double alpha1 = 0.0, alpha2 = 0.0;
@@ -8667,17 +8733,17 @@ RevEng::getTorusParameters(shared_ptr<ElementarySurface> elem1,
   double sd = (state == 1) ? radius/sin(phi) : (radius + d2)*cos(phi2);
   Cx = rotational->direction2();
   Rrad += (sgn2*sd);
-  if (radius > Rrad)
+  if (radius > Rrad && check_common)
     return false;
   
 #ifdef DEBUG_BLEND
   shared_ptr<Torus> torus(new Torus(Rrad, radius, centre, normal, Cx));
-  if (sgn2 < 0)
-    {
-      RectDomain dom = torus->getParameterBounds();
-      torus->setParameterBounds(dom.umin(), dom.vmin()-M_PI,
-				dom.umax(), dom.vmax()-M_PI);
-    }
+  // if (sgn2 < 0)
+  //   {
+  //     RectDomain dom = torus->getParameterBounds();
+  //     torus->setParameterBounds(dom.umin(), dom.vmin()-M_PI,
+  // 				dom.umax(), dom.vmax()-M_PI);
+  //   }
   std::ofstream of2("tor_blend.g2");
   torus->writeStandardHeader(of2);
   torus->write(of2);
@@ -13690,8 +13756,8 @@ void RevEng::trimSurfaces()
       vector<shared_ptr<ftEdge> > trim_edgs1;
       for (size_t kr=0; kr<regions_.size(); ++kr)
 	{
-	  if (regions_[kr]->numPoints() == 0)
-	    std::cout << "Finished set blend boundaries, empty region, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
+	  // if (regions_[kr]->numPoints() == 0)
+	  //   std::cout << "Finished set blend boundaries, empty region, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
 	  int num = regions_[kr]->numTrimEdges();
 	  if (num > 0)
 	    {
@@ -13735,8 +13801,8 @@ void RevEng::trimSurfaces()
       vector<shared_ptr<ftEdge> > trim_edgs2;
       for (size_t kr=0; kr<regions_.size(); ++kr)
 	{
-	  if (regions_[kr]->numPoints() == 0)
-	    std::cout << "Finished set blend boundaries, empty region, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
+	  // if (regions_[kr]->numPoints() == 0)
+	  //   std::cout << "Finished set blend boundaries, empty region, ki=" << kr << ", region: " << regions_[kr].get() << std::endl;
 	  int num = regions_[kr]->numTrimEdges();
 	  if (num > 0)
 	    {
@@ -13781,10 +13847,16 @@ void RevEng::trimSurfaces()
 	  catch (...)
 	    {
 	      trimmed = regions_[ki]->getSurface(0)->trimWithPoints(approx_tol_);
+#ifdef DEBUG_TRIM
+	      std::cout << ki << " trim with points " << std::endl;
+#endif
 	    }
 	  if (!trimmed)
 	    {
 	      trimmed = regions_[ki]->getSurface(0)->trimWithPoints(approx_tol_);
+#ifdef DEBUG_TRIM
+	      std::cout << ki << " trim with points " << std::endl;
+#endif
 	    }
 	}
       
@@ -13792,6 +13864,13 @@ void RevEng::trimSurfaces()
       if (trimmed)
 	{
 	  shared_ptr<ParamSurface> tsurf = regions_[ki]->getSurface(0)->surface();
+	  shared_ptr<BoundedSurface> bdsurf = dynamic_pointer_cast<BoundedSurface,ParamSurface>(tsurf);
+	  if (bdsurf.get())
+	    {
+	      int valid_state;
+	      bool valid = bdsurf->isValid(valid_state);
+	      std::cout << "BoundedSurf " << ki << " is valid? " << valid << " " << valid_state << std::endl;
+	    }
 	  tsurf->writeStandardHeader(of2);
 	  tsurf->write(of2);
 	}
