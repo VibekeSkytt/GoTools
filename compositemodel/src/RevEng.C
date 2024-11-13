@@ -12168,6 +12168,7 @@ bool RevEng::identifySmallRotational(vector<RevEngPoint*>& points,
   bool found = false;
   double num_fac = 0.5;
   double anglim2 = 5*anglim_; //10*anglim_;
+  int num_pt_lim = min_point_region_/20;
   vector<pair<vector<RevEngPoint*>::iterator,
 	      vector<RevEngPoint*>::iterator> > group_points;
   group_points.push_back(std::make_pair(points.begin(), points.end()));
@@ -12444,6 +12445,9 @@ bool RevEng::identifySmallRotational(vector<RevEngPoint*>& points,
 	  param3 = param2;
 	}
 
+      if ((int)rotated3.size() < num_pt_lim)
+	continue;
+      
       shared_ptr<SplineCurve> approx_line;
       RevEngUtils::curveApprox(rotated3, param3, 2, 2, approx_line);
       
@@ -12573,7 +12577,6 @@ bool RevEng::identifySmallRotational(vector<RevEngPoint*>& points,
 #endif
 
       // Define surface
-      int num_pt_lim = min_point_region_/20;
       if ((double)(std::max(num_in0, std::max(num_in, num_in2))) <
 	  num_fac*(double)rotated2.size())
 	continue;
@@ -13419,6 +13422,8 @@ Point RevEng::planarFit(vector<int>& sf_ix, Point axis)
       Point loc2 = plane->location();
       loc2 -= ((loc2-centre)*axis)*axis;
       shared_ptr<Plane> plane3(new Plane(loc2, axis, Cx));
+      if (plane->direction()*axis < 0.0)
+	plane3->swapParameterDirection();
 
       vector<RevEngRegion*> reg = surf->getRegions();
       double maxdist = 0.0, avdist = 0.0;

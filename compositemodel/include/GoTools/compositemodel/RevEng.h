@@ -169,23 +169,38 @@ namespace Go
     /// neighbouring surfaces provided that these surfaces
     void firstEdges();
 
-    /// 
+    /// Second attempt to create surfaces. Some regions might have grown to a
+    /// size that allows surface creation. Context information from adjacent surfaces
+    /// are used to guide the surface recognition. In addition to planes, cylinders and
+    /// cones are spheres and torii created. Context information is used to split
+    /// large composite regions. Additional edges may be created.
     void surfaceCreation(int pass=1);
 
-    
+    /// Identify common surface axes/normals and define a local coordinate system.
+    /// Update surfaces accordingly
     void updateRegionsAndSurfaces(int& ix, std::vector<RevEngRegion*>& grown_regions,
 				  std::vector<HedgeSurface*>& adj_surfs);
 
-   void smallRegionSurfaces();
-
-    void growSmallRegionSurface(int& ix);
-
+    /// Second round in identifying main axes in the model. In addition to axis
+    /// direction is location registered. Surfaces are updated accordingly.
     void adaptToMainAxis();
 
+    /// Third attempt to create surfaces. Small regions with similar characteristica
+    /// are merged and subject to surface recognition. The required region size is
+    /// reduced. Possible surfaces: planes, cylinders and cones. Additional edges
+    /// may be created.
+    void smallRegionSurfaces();
+
+    /// Create edge blends of type cylinder and torus associated with identified
+    /// edges. Blend surfaces with almost similar radius are made consistent.
     void manageBlends1();
 
+    /// Bound blend surface along the edge. Identify corner blends of type
+    /// torus and 4-sided free form surface. Identify and extract trimming edges
+    /// from blend surface and define associated trimming edges for adjacent surfaces
     void manageBlends2();
 
+    ///
     void trimSurfaces();
 
     shared_ptr<SurfaceModel> createModel();
@@ -419,6 +434,8 @@ namespace Go
 
     void defineSmallRegionSurfaces();
     
+    void growSmallRegionSurface(int& ix);
+
     bool identifySmallRotational(std::vector<RevEngPoint*>& points,
 				 Point midp, Point loc, Point axis, Point Cx,
 				 double ppar1, double ppar2,
