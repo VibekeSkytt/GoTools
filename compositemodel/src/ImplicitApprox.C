@@ -210,7 +210,7 @@ double ImplicitApprox::estimateDist(RevEngPoint* pt)
   double len = grad.length();
   double dist = (len > eps_) ? dist0/len : dist0;
 
-  Point norm = pt->getMongeNormal();
+  Point norm = pt->getLocFuncNormal();
   Vector3D norm2(norm[0], norm[1], norm[2]);
   norm2 *= 100;
   Vector3D xyz2 = xyz + norm2;
@@ -354,7 +354,7 @@ void ImplicitApprox::visualize(vector<RevEngPoint*> points, std::ostream& os)
 //===========================================================================
 {
   // View direction
-  Point dir = points[0]->getMongeNormal();
+  Point dir = points[0]->getLocFuncNormal();
   dir.normalize();
 
   BoundingBox bb(3);

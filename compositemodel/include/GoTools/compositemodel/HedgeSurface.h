@@ -48,28 +48,38 @@ namespace Go {
 
 class RevEngRegion;
   class CurveOnSurface;
-
+  
+  /// Additional information to the ClassType of a ParamSurface to distinguish
+  /// between different rotational surfaces.  LINEARSWEPT_SURF is currently not
+  /// active while ROTATIONALSWEPT_SURF is not implemented
   enum
     {
      SURF_TYPE_UNDEF, LINEARSWEPT_SURF, ROTATIONALSWEPT_SURF
     };
   
+  /**  HedgeSurface - A topological surface associated with a RevEngRegion. 
+       The class provides extra information and functionality compared to ftSurface, 
+       mainly related to information about the RevEngRegion.
+   *
+   */
+
 class HedgeSurface : public ftSurface
 {
 public:
   
-  // Constructor
-  // HedgeSurface();
-
+  /// Constructor
   HedgeSurface();
 
+  /// Constructor given geometry surface and associated region
   HedgeSurface(shared_ptr<ParamSurface> sf, RevEngRegion *region);
 
+  /// Constructor given geometry surface and a number of associated regions. Not active
   HedgeSurface(shared_ptr<ParamSurface> sf, std::vector<RevEngRegion*>& region);
 
-  // Destructor
+  /// Destructor
   ~HedgeSurface();
 
+  /// Add information required to define a linear swept spline surface
   void setLinearSweepInfo(shared_ptr<SplineCurve> profile,
 			  Point startpt, Point endpt)
   {
@@ -79,6 +89,7 @@ public:
     sweep2_ = endpt;
   }
   
+  /// Add information required to define a rotational swept spline surface. Not implemented
   void setRotationalSweepInfo(shared_ptr<SplineCurve> profile,
 			      Point location, Point axis)
   {
@@ -87,62 +98,74 @@ public:
     sweep1_ = location;
     sweep2_ = axis;
   }
-  
+
+  /// Dimension of geometry space (should be 3)
   int dimension()
   {
     return surface()->dimension();
   }
-  
+
+  /// Number of points in associated region(s)
   int numPoints();
 
+  /// Class type of geometry surface and possible swept surface code
   ClassType instanceType(int& code);
 
+  /// Enquire if the surfae is a plane
   bool isPlane()
   {
     int code;
     return (instanceType(code) == Class_Plane);
   }
 
+  /// Enquire if the surfae is a cylinder
   bool isCylinder()
   {
     int code;
     return (instanceType(code) == Class_Cylinder);
   }
 
+  /// Enquire if the surfae is a sphere
   bool isSphere()
   {
     int code;
     return (instanceType(code) == Class_Sphere);
   }
 
+  /// Enquire if the surfae is a torus
   bool isTorus()
   {
     int code;
     return (instanceType(code) == Class_Torus);
   }
 
+  /// Enquire if the surfae is a cone
   bool isCone()
   {
     int code;
     return (instanceType(code) == Class_Cone);
   }
 
+  /// Enquire if the surfae is a freeform surface
   bool isSpline()
   {
     int code;
     return (instanceType(code) == Class_SplineSurface);
   }
 
+  /// Fetch associated region(s)
   std::vector<RevEngRegion*> getRegions()
   {
     return regions_;
   }
 
+  /// Number of associated regions. Expected to be one
   int numRegions()
   {
     return (int)regions_.size();
   }
 
+  /// Fetch specified region
   RevEngRegion* getRegion(int ix)
   {
     if (ix < 0 || ix >= (int)regions_.size())
@@ -151,14 +174,55 @@ public:
       return regions_[ix];
   }
 
+  /// Add region to collection of associated regions
   void addRegion(RevEngRegion* reg);
   
+  /// Remove region from collection of associated regions
   bool removeRegion(RevEngRegion* reg);
-  
+
+  /// Bounding box containing associated regions points
   BoundingBox regionsBox()
   {
     return bbox_;
   }
+
+  /// Check if the geometry surfaces if entity and other is of the same type and has
+  /// roughly the same characteristica. Is it a potential to merge surfaces?
+  bool isCompatible(HedgeSurface* other, double angtol, double approx_tol,
+		    ClassType& type, double& score);
+
+  /// Ensure that the associated geometry surface is bounded (e.g. not an unlimited plane)
+  void ensureSurfaceBounded();
+
+  /// Bound unbounded primary surfaces 
+  void limitSurf(double diag = -1.0);
+
+  /// Make bounded surface when trimming edges are missing. Bound the associated region points
+  /// in the parameter domain of the surface and transfer this information to this surface
+  bool trimWithPoints(double aeps);
+
+  /// Store current stage of hedge surface to file
+  void store(std::ostream& os) const;
+
+  /// Read hedge surface stage from file
+  void read(std::istream& is);
+    
+private:
+  /// Region(s) to which this surface is associated (only one)
+  std::vector<RevEngRegion*> regions_;
+
+  /// Bounding box of the associated region
+  BoundingBox bbox_;
+
+  /// Additional class type information to specify swept spline surfaces
+  int surf_code_;
+
+  /// The profile curve in a swept surface
+  shared_ptr<SplineCurve> profile_;
+
+  /// Sweep direction
+  Point sweep1_;
+  Point sweep2_;
 
   bool updateSurfaceWithAxis(Point axis[3], int ix, double tol, double angtol);
     
@@ -169,32 +233,17 @@ public:
   bool checkAccuracyAndUpdate(shared_ptr<ParamSurface> surf, double tol,
 			      double angtol);
 
-  bool isCompatible(HedgeSurface* other, double angtol, double approx_tol,
-		    ClassType& type, double& score);
-
   bool hasBaseSf();
 
-  void ensureSurfaceBounded();
-
+  // Enquire if it is safe to intersect this surface and surf. Tangential intersections are
+  // unstable and can produce infinite loops
   bool isTangential(HedgeSurface* surf);
 
   void doTrim(std::vector<shared_ptr<CurveOnSurface> >& int_cvs,
 	      shared_ptr<BoundedSurface>& bdsf,
 	      double tol,
 	      std::vector<shared_ptr<HedgeSurface> >& added_sfs);
-  void limitSurf(double diag = -1.0);
-  bool trimWithPoints(double aeps);
 
-  void store(std::ostream& os) const;
-  void read(std::istream& is);
-    
-private:
-  std::vector<RevEngRegion*> regions_;
-  BoundingBox bbox_;
-  int surf_code_;
-  shared_ptr<SplineCurve> profile_;
-  Point sweep1_;
-  Point sweep2_;
 };
 }
 

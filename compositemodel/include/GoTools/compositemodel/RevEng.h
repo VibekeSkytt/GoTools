@@ -59,11 +59,6 @@ namespace Go
    PLANE, CYLINDER, SPHERE, CONE, TORUS
   };
 
-  /** RevEng -  Reverse engineering engine. Workflow funcationality and 
-      storage of data.
-   * 
-   */
-  
   /// Characterization of model surface. Note that the default choice is ROUGH,
   /// and that other choices are currently not supported
   enum
@@ -122,6 +117,11 @@ namespace Go
     }
   };
     
+  /** RevEng -  Reverse engineering engine. Workflow funcationality and 
+      storage of data.
+   * 
+   */
+  
   class RevEng
   {
   public:
@@ -169,7 +169,7 @@ namespace Go
     /// neighbouring surfaces provided that these surfaces
     void firstEdges();
 
-    /// Second attempt to create surfaces. Some regions might have grown to a
+    /// Second attempt to create surfaces. Some more regions might have grown to a
     /// size that allows surface creation. Context information from adjacent surfaces
     /// are used to guide the surface recognition. In addition to planes, cylinders and
     /// cones are spheres and torii created. Context information is used to split
@@ -200,105 +200,103 @@ namespace Go
     /// from blend surface and define associated trimming edges for adjacent surfaces
     void manageBlends2();
 
-    ///
+    /// Compute missing trimming edges, between surfaces and towards regions without
+    /// surfaces. Extract relevant part of trimming edges, add missing edges as appropriate
+    /// and combine edges into trimming loops. Define bounded surfaces and associated faces.
     void trimSurfaces();
 
+    /// Perform topology analysis and create surface model that can be exported in a g22 file
     shared_ptr<SurfaceModel> createModel();
 
-    void storeClassified(std::ostream& os) const;
-    void readClassified(std::istream& is);
-    void storeGrownRegions(std::ostream& os);
-    void readGrownRegions(std::istream& is);
-
-    double getInitApproxTol();
+    /// Compute approximation tolerance based on model properties
     void setApproxTolerance();
+
+    /// Set approximation tolerance from application
     void setApproxTol(double eps)
     {
       approx_tol_= eps;
     }
     
+    /// Enquire defined approximation tolerance
     double getApproxTol()
     {
       return approx_tol_;
     }
 
+    /// Enquire edge classification type. Current: always curvature
     int getEdgeClassificationType()
     {
       return edge_class_type_;
     }
-    
-    void setEdgeClassificationType(int edge_class_type)
-    {
-      edge_class_type_ = edge_class_type;
-    }
-    
+
+    /// Enquire parameter for edge classification. Relates to estimated curvature
+    /// radius in point and average length of triangle edges
     double getCfac()
     {
       return cfac_;
     }
+
+    /// Set parameter for edge classification
     void setCfac(double cfac)
     {
       cfac_ = cfac;
     }
 
+    /// Enquire point classification type. Current: always curvature
     int getClassificationType()
     {
       return classification_type_;
     }
-    void setClassificationType(int classification_type)
-    {
-      classification_type_ = classification_type;
-    }
 
+    /// Enquire limit for when mean curvature is considered to be zero
     double getMeanCurvatureZero()
     {
       return zero_H_;
     }
 
+    /// Set limit for when mean curvature is considered to be zero
     void setMeanCurvatureZero(double zero_H)
     {
       zero_H_ = zero_H;
     }
 
     
+    /// Enquire limit for when Gauss curvature is considered to be zero
     double getGaussCurvatureZero()
     {
       return zero_K_;
     }
 
+    /// Set limit for when Gauss curvature is considered to be zero
     void setGaussCurvatureZero(double zero_K)
     {
       zero_K_ = zero_K;
     }
 
+    /// Enquire preference for primary surfaces relative to free form surfaces. Always
+    /// primary, free form is currently disabled exept for some corner blends
     int getElementaryPreferLevel()
     {
       return prefer_elementary_;
     }
 
-    void setElementaryPreferLevel(int preferlevel)
-    {
-      prefer_elementary_ = preferlevel;
-    }
-    
+    /// Enquire model characterization involved in the definition of the approximation tolerance.
+    /// Currently: always ROUGH
     int getModelCharacterization()
     {
       return model_character_;
     }
 
-    void setModelCharacterization(int character)
-    {
-      //model_character_ = std::min(ROUGH, std::max(SMOOTH, character));
-      model_character_ = std::min(2, std::max(0, character));
-    }
-
-    void setMainAxis(Point mainaxis[3])
+    /// The main axes of the model is computed by updateAxesAndSurfaces(). Prelimenary axes
+    /// my be set prior to this function, but they should not be altered afterwards
+   void setMainAxis(Point mainaxis[3])
     {
       mainaxis_[0] = mainaxis[0];
       mainaxis_[1] = mainaxis[1];
       mainaxis_[2] = mainaxis[2];
     }
 
+    /// Enquire local coordinate axes
     void getMainAxis(Point mainaxis[3])
     {
       mainaxis[0] = mainaxis_[0];
@@ -306,77 +304,145 @@ namespace Go
       mainaxis[2] = mainaxis_[2];
     }
 
-    // Prelimenary results
+    /// Enquire current number of regions
     int numRegions()
     {
       return (int)regions_.size();
     }
 
+    /// Access specified region
     shared_ptr<RevEngRegion> getRegion(int ix)
     {
       return regions_[ix];
     }
 
+    /// Enquire number of identified surfaces
     int numSurfaces()
     {
       return (int)surfaces_.size();
     }
 
+    /// Access specified surface
     shared_ptr<HedgeSurface> getSurface(int ix)
     {
       return surfaces_[ix];
     }
 
-    // Could be used to elect if a group of points should be visualized
+    /// Enquire minimum number of points in a region for being considered for surface
+    /// recognition
     double getMinPointRegion()
     {
       return min_point_region_;
     }
 
-     void writeRegionStage(std::ostream& of, std::ostream& ofm, std::ostream& ofs) const;
+    /// Store current stage for later to restart the computation from this stage (not
+    /// accessible from manageBlends2 and later)
+    void storeGrownRegions(std::ostream& os);
+
+    /// Read stored stage
+    void readGrownRegions(std::istream& is);
+
+    /// Debug functionality
+    /// Write point groups and associated surfaces to files depending on the
+    /// the number of points in the groups (uses min_point_region_ to distinguish with
+    /// respect to size)
+    void writeRegionStage(std::ostream& of, std::ostream& ofm, std::ostream& ofs) const;
+
+    /// Write point regions with an assoicated surface and the surface to file
     void writeRegionWithSurf(std::ostream& of) const;
-    
+
+    /// Write edges and point regions appropriated to an associated blend surface to file
     void writeEdgeStage(std::ostream& of) const;
     
   private:
+    /// Characterizes the surface of the current model. Currently always set to ROUGH
     int model_character_;
+
+    /// Triangulated surface
     shared_ptr<ftPointSet> tri_sf_;
+
+    /// Average length of triangle edges
     double mean_edge_len_;
+
+    /// Group points assumed to be associated one surface
     std::vector<shared_ptr<RevEngRegion> > regions_;
+
+    /// Points with different properties than their neighbouring points.
+    /// Regions with one point can also occur
     std::vector<RevEngPoint*> single_points_;
-    std::vector<shared_ptr<HedgeSurface> > surfaces_;  // I think the 
-    // surfaces must be collected here to have a stable storage
-    // The surfaces can be freeform as well as primary. The collection
-    // will be build gradually. The number of surfaces will increase and
-    // decrease based on recognition, merging and splitting by trimming
-    std::vector<shared_ptr<RevEngEdge> > edges_;  // Intersection curves
-    // between surfaces with additional information
+
+    /// Recognized surfaces
+    std::vector<shared_ptr<HedgeSurface> > surfaces_;
+
+    /// Recognized edges. Intersection curves between surfaces with additional information
+    std::vector<shared_ptr<RevEngEdge> > edges_;
+
+    /// Final surface model including topology
     shared_ptr<SurfaceModel> sfmodel_;
+
+    /// Bounds the point cloud (triangulated surface)
     BoundingBox bbox_;
-    int min_next_;  // Minimum number of neighbouring points
-    int max_next_;  // Estimate for maximum number of neighbouring points
-    double rfac_;   // Factor for radius in which to search for neighbouring points
+    
+    /// Minimum number of neighbouring connected points for estimating point properties
+    /// (surface normal and curvature)
+    int min_next_;
+    
+    // Stop searching for neighbouring points to estimate point properties when this number
+    // is reached
+    int max_next_;
+    
+    /// Factor for radius in which to search for neighbouring points
+    double rfac_;
+
     int edge_class_type_ = CURVATURE_EDGE;
     int classification_type_ = CLASSIFICATION_CURVATURE;
-    double cfac_;   // Edge points from curvature is given by
-    // cfac_ times the average length of triangulation edges in a vertex
-    double norm_ang_lim_; // Limit for when the cone angle corresponding
-    // to triangle normals indicate an edge
-    double norm_plane_lim_;  // Limit for when the cone angle corresponding
-    // to triangle normals indicate a plane
-    double zero_H_;  // When mean curvature is considered zero
-    double zero_K_;  // When Gauss curvature is considered zero
+    
+    /// A vertex is considered an edge points if the estimated curvature radius is 
+    /// less than cfac_ times the average length of triangulation edges in the vertex
+    double cfac_;
+    
+    /// Limit for when the cone angle corresponding to triangle normals indicate an edge
+    /// Not active
+    double norm_ang_lim_;
+
+    /// Limit for when the cone angle correspondingto triangle normals indicate a plane
+    /// Not active
+    double norm_plane_lim_;  
+
+    /// When mean curvature is considered zero
+    double zero_H_;  
+
+    /// When Gauss curvature is considered zero
+    double zero_K_;
+
+    /// Minimum number of points in a region to be considered for surface recognition
     int min_point_region_;
-    double approx_tol_;  // Approximation tolerance in region growing
-    double int_tol_;  // Intersection tolerance
+
+    /// Approximation tolerance
+    double approx_tol_; 
+
+    /// Intersection tolerance
+    double int_tol_;
+
+    /// Angular tolerance used in topology build. 5.0*anglim_ is used to check whether
+    /// the estimated normal in a point corresponds to the normal of a recognized surface
+    /// in the point
     double anglim_;
+
+    /// Used to decide if a point is an outlier
     int max_nmb_outlier_;
 
-    int prefer_elementary_; // 0 = always, 1 = preferred, 2 = best accuracy
+    /// Preferance in selecting the surface associated to a point cloud, primary surface or
+    /// best fit surface. Default is 0. 0 = always, 1 = preferred, 2 = best accuracy
+    int prefer_elementary_; 
 
+    /// Coordinated axes associated to the model
     Point mainaxis_[3];
+
+    /// Identified model axes including position
     std::vector<AxisInfo> model_axis_;
-    
+
+    /// Collection of information related to smallRegionSurfaces()
     struct SmallSurface
     {
       int axis_ix_, pos_ix_, lev_ix_;
@@ -402,6 +468,30 @@ namespace Go
       }
     };
     
+    /// Set edge classification type. 
+    void setEdgeClassificationType(int edge_class_type)
+    {
+      edge_class_type_ = edge_class_type;
+    }
+    
+    /// Set point classification type
+    void setClassificationType(int classification_type)
+    {
+      classification_type_ = classification_type;
+    }
+
+    void setElementaryPreferLevel(int preferlevel)
+    {
+      prefer_elementary_ = preferlevel;
+    }
+    
+    void setModelCharacterization(int character)
+    {
+      //model_character_ = std::min(ROUGH, std::max(SMOOTH, character));
+      model_character_ = std::min(2, std::max(0, character));
+    }
+
+     double getInitApproxTol();
     void edgeClassification();
     void curvatureFilter();
 
@@ -483,8 +573,8 @@ namespace Go
 
     void collectAxis(std::vector<SurfaceProperties>& sfprop);
 
-    void computeMonge(RevEngPoint* pt, std::vector<RevEngPoint*>& points,
-		      Point& vec1, Point& vec2, double radius);
+    void computeLocFunc(RevEngPoint* pt, std::vector<RevEngPoint*>& points,
+			Point& vec1, Point& vec2, double radius);
 
     int setSmallRegionNumber();
     
@@ -590,6 +680,10 @@ namespace Go
 			  double tol, double angtol,
 			  std::vector<std::vector<RevEngPoint*> >& move2adj,
 			  std::vector<RevEngPoint*>& remain);
+
+    void storeClassified(std::ostream& os) const;
+    void readClassified(std::istream& is);
+
   };
 
 } // namespace Go

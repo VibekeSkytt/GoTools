@@ -49,8 +49,8 @@
 #include "GoTools/intersections/Identity.h"
 #include <fstream>
 
-#define DEBUG
-#define DEBUG_BLEND
+//#define DEBUG
+//#define DEBUG_BLEND
 
 using namespace Go;
 using std::vector;
@@ -163,8 +163,10 @@ void RevEngEdge::replaceSurf(RevEngRegion* reg,
 	  cvs1_[ki]->setUnderlyingSurface(new_surf);
 	  cvs1_[ki]->unsetParameterCurve();
 	  cvs1_[ki]->ensureParCrvExistence(tol);
+#ifdef DEBUG
 	  if (!cvs1_[ki]->hasParameterCurve())
 	    std::cout << "RevEngEdge::replaceSurf: No parameter curve" << std::endl;
+#endif
 	}
     }
   else if (reg == adjacent2_)
@@ -174,8 +176,10 @@ void RevEngEdge::replaceSurf(RevEngRegion* reg,
 	  cvs2_[ki]->setUnderlyingSurface(new_surf);
 	  cvs2_[ki]->unsetParameterCurve();
 	  cvs2_[ki]->ensureParCrvExistence(tol);
+#ifdef DEBUG
 	  if (!cvs2_[ki]->hasParameterCurve())
 	    std::cout << "RevEngEdge::replaceSurf: No parameter curve" << std::endl;
+#endif
 	}
      }
       

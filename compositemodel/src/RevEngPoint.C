@@ -55,13 +55,13 @@ RevEngPoint::RevEngPoint()
   eigen1_ = Point(dim);
   eigen2_ = Point(dim);
   eigen3_ = Point(dim);
-  Mongenormal_ = Point(dim);
+  LocFuncnormal_ = Point(dim);
   kvecmin_ = Point(dim);
   kvecmax_ = Point(dim);
   lambda1_ = lambda2_ = lambda3_ = -1.0;
   kmin_ = kmax_ = 0.0;
   ptdist_ = avdist_ = 0.0;
-  nmb_eigen_ = nmb_monge_ = 0;
+  nmb_eigen_ = nmb_locfunc_ = 0;
   Point dummy(0.0, 0.0, 0.0);
   // normalcone_.setFromArray(dummy.begin(), dummy.end(), 3);
   normalcone_ = DirectionCone(dummy);
@@ -92,13 +92,13 @@ RevEngPoint::RevEngPoint(Vector3D xyz, int bnd)
   eigen1_ = Point(dim);
   eigen2_ = Point(dim);
   eigen3_ = Point(dim);
-  Mongenormal_ = Point(dim);
+  LocFuncnormal_ = Point(dim);
   kvecmin_ = Point(dim);
   kvecmax_ = Point(dim);
   lambda1_ = lambda2_ = lambda3_ = -1.0;
   kmin_ = kmax_ = 0.0;
   ptdist_ = avdist_ = 0.0;
-  nmb_eigen_ = nmb_monge_ = 0;
+  nmb_eigen_ = nmb_locfunc_ = 0;
   Point dummy(0.0, 0.0, 0.0);
   // normalcone_.setFromArray(dummy.begin(), dummy.end(), 3);
   normalcone_ = DirectionCone(dummy);
@@ -452,13 +452,13 @@ RevEngPoint::addCovarianceEigen(Point& eigen1, double lambda1, Point& eigen2,
 }
 
 //===========================================================================
-void RevEngPoint::addMongeInfo(Point& norm, Point& mincvec, double minc, Point& maxcvec,
+void RevEngPoint::addLocFuncInfo(Point& norm, Point& mincvec, double minc, Point& maxcvec,
 			       double maxc, double currdist, double avdist)
 //===========================================================================
 {
-  if (nmb_monge_ == 0)
+  if (nmb_locfunc_ == 0)
     {
-      Mongenormal_ = norm;
+      LocFuncnormal_ = norm;
       kvecmin_ = mincvec;
       kvecmax_ = maxcvec;
       kmin_ = minc;
@@ -468,22 +468,22 @@ void RevEngPoint::addMongeInfo(Point& norm, Point& mincvec, double minc, Point& 
     }
   else
     {
-      Mongenormal_ = nmb_monge_*Mongenormal_ + norm;
-      kvecmin_ = nmb_monge_*kvecmin_ + mincvec;
-      kvecmax_ = nmb_monge_*kvecmax_ + maxcvec;
-      kmin_ = nmb_monge_*kmin_ + minc;
-      kmax_ = nmb_monge_*kmax_ + maxc;
-      ptdist_ = nmb_monge_*ptdist_ + currdist;
-      avdist_ = nmb_monge_*avdist_ + avdist;
-      Mongenormal_ /= (double)(nmb_monge_+1);
-      kvecmin_ /= (double)(nmb_monge_+1);
-      kvecmax_ /= (double)(nmb_monge_+1);
-      kmin_ /= (double)(nmb_monge_+1);
-      kmax_ /= (double)(nmb_monge_+1);
-      ptdist_ /= (double)(nmb_monge_+1);
-      avdist_ /= (double)(nmb_monge_+1);
+      LocFuncnormal_ = nmb_locfunc_*LocFuncnormal_ + norm;
+      kvecmin_ = nmb_locfunc_*kvecmin_ + mincvec;
+      kvecmax_ = nmb_locfunc_*kvecmax_ + maxcvec;
+      kmin_ = nmb_locfunc_*kmin_ + minc;
+      kmax_ = nmb_locfunc_*kmax_ + maxc;
+      ptdist_ = nmb_locfunc_*ptdist_ + currdist;
+      avdist_ = nmb_locfunc_*avdist_ + avdist;
+      LocFuncnormal_ /= (double)(nmb_locfunc_+1);
+      kvecmin_ /= (double)(nmb_locfunc_+1);
+      kvecmax_ /= (double)(nmb_locfunc_+1);
+      kmin_ /= (double)(nmb_locfunc_+1);
+      kmax_ /= (double)(nmb_locfunc_+1);
+      ptdist_ /= (double)(nmb_locfunc_+1);
+      avdist_ /= (double)(nmb_locfunc_+1);
     }
-  nmb_monge_++;
+  nmb_locfunc_++;
 
   meancurv0_ = meancurv_ = 0.5*(kmin_ + kmax_);
   gausscurv0_ = gausscurv_ = kmin_*kmax_;
@@ -708,8 +708,8 @@ bool RevEngPoint::mergeWithAdjacent(double mean_edge_len)
       double len = pntDist(adj_pt[ki]);
       if (len > lentol)
 	continue;
-      Point monge = adj_pt[ki]->getMongeNormal();
-      if (Mongenormal_*monge < 0.0 || Mongenormal_.angle(monge) > angtol)
+      Point monge = adj_pt[ki]->getLocFuncNormal();
+      if (LocFuncnormal_*monge < 0.0 || LocFuncnormal_.angle(monge) > angtol)
 	continue;
       int ka;
       for (ka=1; ka<4; ++ka)
@@ -745,7 +745,7 @@ void RevEngPoint::store(std::ostream& os) const
   os << std::endl;
   os << avedglen_ << " " << eigen1_ << " " << lambda1_ << " " << eigen2_;
   os << " " << lambda2_ << " " << eigen3_ << " " << lambda3_ << std::endl;
-  os << Mongenormal_ << " " << kvecmin_ << " " << kmin_ << " " << kvecmax_;
+  os << LocFuncnormal_ << " " << kvecmin_ << " " << kmin_ << " " << kvecmax_;
   os << " " << kmax_ << std::endl;
   os << ptdist_ << " " << avdist_ << std::endl;
   normalcone_.write(os);
@@ -769,7 +769,7 @@ void RevEngPoint::read(std::istream& is, vector<int>& next_ix)
   for (int ki=0; ki<nmb_next; ++ki)
     is >> next_ix[ki];
   is >> avedglen_ >> eigen1_ >> lambda1_ >> eigen2_ >> lambda2_;
-  is >> eigen3_ >> lambda3_ >> Mongenormal_ >> kvecmin_ >> kmin_;
+  is >> eigen3_ >> lambda3_ >> LocFuncnormal_ >> kvecmin_ >> kmin_;
   is >> kvecmax_ >> kmax_ >> ptdist_ >> avdist_;
   Point dummy(3);
   //normalcone_ = DirectionCone(dummy);

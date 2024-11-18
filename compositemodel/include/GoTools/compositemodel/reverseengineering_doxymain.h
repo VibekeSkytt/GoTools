@@ -372,9 +372,11 @@ the computation proceedes. Computed surfaces are stored in
 surface is connected to one region, while a region may have a surface connected.
 HedgeSurface is inherited from \link Go::ftSurface ftSurface\endlink, which is
 input to the adjacency analysis, see \ref topology. A
-\link GoRevEngEdge RevEngEdge\endlink is computed from two surfaces but linked
+\link Go::RevEngEdge RevEngEdge\endlink is computed from two surfaces but linked
 to the associated regions. The instance itself is stored in RevEng. RevEngEdge also
 contains pointers to regions associated to the foreseen blend surface and to the 
 blend region collecting these associated regions when the blend surface is created.
+\link Go::RevEngUtils RevEngUtils\endlink provides some utility functionality to the 
+reverse engineering process.
 */
 #endif // _REVERSEENGINEERING_DOXYMAIN_H

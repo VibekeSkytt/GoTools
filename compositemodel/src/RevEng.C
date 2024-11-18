@@ -91,24 +91,24 @@ int colors[MAX_COLORS][3] = {
   {0, 255, 128},
 };
 
-#define DEBUG_DIV
-#define DEBUG_EDGE
-#define DEBUG_BLEND
+//#define DEBUG_DIV
+//#define DEBUG_EDGE
+//#define DEBUG_BLEND
 //#define DEBUG_MONGE
 //#define DEBUG_ENHANCE
-#define DEBUG_SEG
-#define DEBUG
-#define DEBUGONE
-#define DEBUG_CHECK
-#define DEBUG_PLANAR
-#define DEBUG_AXIS
-#define DEBUG_GROW
-#define DEBUG_VALIDATE
-#define DEBUG_EDGE
+//#define DEBUG_SEG
+//#define DEBUG
+//#define DEBUGONE
+//#define DEBUG_CHECK
+//#define DEBUG_PLANAR
+//#define DEBUG_AXIS
+//#define DEBUG_GROW
+//#define DEBUG_VALIDATE
+//#define DEBUG_EDGE
 //#define DEBUG_TRIANG
-#define DEBUG_TRIM
-#define DEBUG_MODEL
-#define DEBUG_SMALL
+//#define DEBUG_TRIM
+//#define DEBUG_MODEL
+//#define DEBUG_SMALL
 
 //===========================================================================
 RevEng::RevEng(shared_ptr<ftPointSet> tri_sf)
@@ -287,7 +287,7 @@ void RevEng::enhancePoints()
   for (int ki=0; ki<nmbpt; ++ki)
     {
       RevEngPoint *pt = dynamic_cast<RevEngPoint*>((*tri_sf_)[ki]);
-      if (pt->nmbMonge() > 0)
+      if (pt->nmbLocFunc() > 0)
 	continue;  // Already enhanced
 
       // Compute surface normal from triangulation
@@ -375,13 +375,13 @@ void RevEng::enhancePoints()
 		}
 	    }
 #endif
-	  // Compute normal and curvature using Monge patch
+	  // Compute normal and curvature using LocFunc patch
 	  // Point normal;//, mincvec, maxcvec;
 	  // double minc, maxc;
 	  // double currdist, avdist;
-	  // RevEngUtils::computeMonge(curr, nearpts, eigen1, eigen3, normal, mincvec, minc,
+	  // RevEngUtils::computeLocFunc(curr, nearpts, eigen1, eigen3, normal, mincvec, minc,
 	  // 				maxcvec, maxc, currdist, avdist);
-	  computeMonge(pt, nearpts, eigen1, eigen3, radius2);
+	  computeLocFunc(pt, nearpts, eigen1, eigen3, radius2);
 	  // Orient vectors with respect to triangulation normal
 	  // The normal vectors should be OK. Curvature vectors are not necessarily
 	  // consistent with regard to orientation
@@ -459,9 +459,9 @@ void RevEng::enhancePoints()
 	      Point PCAnorm = pt->getPCANormal();
 	      if (tnorm*PCAnorm < 0.0)
 		pt->turnPCA();
-	      Point Mongenorm = pt->getMongeNormal();
-	      if (tnorm*Mongenorm < 0.0)
-		pt->turnMongeNorm();
+	      Point LocFuncnorm = pt->getLocFuncNormal();
+	      if (tnorm*LocFuncnorm < 0.0)
+		pt->turnLocFuncNorm();
 	    }
 	  
 	}
@@ -481,7 +481,7 @@ void RevEng::enhancePoints()
 }
 
 //===========================================================================
-void RevEng::computeMonge(RevEngPoint* pt, std::vector<RevEngPoint*>& points,
+void RevEng::computeLocFunc(RevEngPoint* pt, std::vector<RevEngPoint*>& points,
 			  Point& vec1, Point& vec2, double radius)
 //===========================================================================
 {
@@ -566,8 +566,8 @@ void RevEng::computeMonge(RevEngPoint* pt, std::vector<RevEngPoint*>& points,
   avdist /= (double)nmbpts;
 
 #ifdef DEBUG_MONGE
-  std::ofstream of2("Monge_curvature.g2");
-  std::ofstream of3("Monge_curvature2.g2");
+  std::ofstream of2("LocFunc_curvature.g2");
+  std::ofstream of3("LocFunc_curvature2.g2");
 #endif
   vector<Point> monge1, monge2, monge3, monge4;
    for (size_t kr=0; kr<points.size(); ++kr)
@@ -629,7 +629,7 @@ void RevEng::computeMonge(RevEngPoint* pt, std::vector<RevEngPoint*>& points,
       Point mincvec = Point(cvec3[0], cvec3[1], cvec3[2]); 
       Vector3D cvec4 = rotmat2*cvec2;
       Point maxcvec = Point(cvec4[0], cvec4[1], cvec4[2]);
-      points[kr]->addMongeInfo(normal, mincvec, minc, maxcvec, maxc, currdist, avdist);
+      points[kr]->addLocFuncInfo(normal, mincvec, minc, maxcvec, maxc, currdist, avdist);
 
       // Vector3D xyz = points[kr]->getPoint();
       // Point xyz2 = Point(xyz[0], xyz[1], xyz[2]);
@@ -646,9 +646,9 @@ void RevEng::computeMonge(RevEngPoint* pt, std::vector<RevEngPoint*>& points,
       // monge4.push_back(der4+maxcvec);
     }
 
-   // int writeMonge = 0;
+   // int writeLocFunc = 0;
 
-   // if (writeMonge)
+   // if (writeLocFunc)
    //   {
    //     of2 << "410 1 0 4 255 0 0 255" << std::endl;
    //     of2 << monge1.size()/2 << std::endl;
@@ -2305,18 +2305,7 @@ void RevEng::firstEdges()
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges6.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
   
 #endif
@@ -2390,18 +2379,7 @@ void RevEng::firstEdges()
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges6_2.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
   
 #endif
@@ -4286,19 +4264,7 @@ void RevEng::surfaceCreation(int pass)
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges9.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
-     }
+       writeEdgeStage(ofe);
      }
 
    std::cout << "Merge adjacent regions, regions: " << regions_.size() << ", surfaces: " << surfaces_.size() << std::endl;
@@ -4357,18 +4323,7 @@ void RevEng::surfaceCreation(int pass)
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges10.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
 #endif
   // Update adjacency between regions
@@ -4464,18 +4419,7 @@ void RevEng::surfaceCreation(int pass)
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges11.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
 #endif
 }
@@ -4511,18 +4455,7 @@ void RevEng::manageBlends1()
   if (edges_.size() > 0)
     {
       std::ofstream ofe("edges10.g2");
-      for (size_t kr=0; kr<edges_.size(); ++kr)
-	{
-	  vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	  for (size_t kh=0; kh<cvs.size(); ++kh)
-	    {
-	      cvs[kh]->writeStandardHeader(ofe);
-	      cvs[kh]->write(ofe);
-	    }
-	  int num_blend = edges_[kr]->numBlendRegs();
-	  for (int ka=0; ka<num_blend; ++ka)
-	    edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	}
+      writeEdgeStage(ofe);
     }
 #endif
   
@@ -4572,18 +4505,7 @@ void RevEng::manageBlends1()
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges11_2.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
 #endif
 
@@ -4677,18 +4599,7 @@ void RevEng::manageBlends2()
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges11_3.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
 #endif
 
@@ -4750,18 +4661,7 @@ void RevEng::manageBlends2()
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges11_3_2.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
 #endif
 
@@ -4839,18 +4739,7 @@ void RevEng::manageBlends2()
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges11_3_3.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
 #endif
 
@@ -6325,9 +6214,30 @@ bool RevEng::createTorusBlend(size_t ix)
       if (udir)
 	bd = (upper2[ka]) ? 3 : 2;
       else
-	bd = (upper2[ka]) ? 1 : 0;	
+	bd = (upper2[ka]) ? 1 : 0;
+      shared_ptr<ParamCurve> par2;
+      if (!par.get())
+	{
+	  Point pt1(2), pt2(2);
+	  if (udir)
+	    {
+	      pt1[1] = pt2[1] = lim[ka];
+	      pt1[0] = parbound[4*ka];
+	      pt2[0] = parbound[4*ka+2];
+	    }
+	  else
+	    {
+	      pt1[0] = pt2[0] = lim[ka];
+	      pt1[1] = parbound[4*ka+1];
+	      pt2[1] = parbound[4*ka+3];
+	    }
+	  par2 = shared_ptr<ParamCurve>(new SplineCurve(pt1, space->startparam(),
+							pt2, space->endparam()));
+	}
       cylbound[ka] =
-	shared_ptr<CurveOnSurface>(new CurveOnSurface(adj_surf[ka], par, space,
+	shared_ptr<CurveOnSurface>(new CurveOnSurface(adj_surf[ka],
+						      par.get() ? par : par2,
+						      space,
 						      false, 3, udir ? 1 : 2,
 						      lim[ka],
 						      bd, true));
@@ -9296,7 +9206,7 @@ void RevEng::growSurface(int& ix, int pass)
   double angtol = 5.0*anglim_;
   vector<HedgeSurface*> adj_surfs;
   vector<RevEngEdge*> adj_edgs;
-  regions_[ix]->growWithSurf(mainaxis_, min_nmb, min_point_region_,
+  regions_[ix]->growWithSurf(mainaxis_, min_point_region_,
 			     approx_tol_, angtol, grown_regions,
 			     adj_surfs, adj_edgs, (pass>1));
   updateRegionsAndSurfaces(ix, grown_regions, adj_surfs);
@@ -9529,18 +9439,7 @@ void RevEng::smallRegionSurfaces()
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges10_1.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
 
    if (surfaces_.size() > 0)
@@ -9619,18 +9518,7 @@ void RevEng::smallRegionSurfaces()
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges10_1_2.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
 #endif
   
@@ -9638,23 +9526,48 @@ void RevEng::smallRegionSurfaces()
    for (int ka=nmb_sfs; ka<(int)surfaces_.size(); ++ka)
      {
        growSmallRegionSurface(ka);
-       // vector<RevEngRegion*> grown_regions;
-       // vector<HedgeSurface*> adj_surfs;
-       // vector<RevEngEdge*> adj_edgs;
-       // surfaces_[ka]->getRegion(0)->growWithSurf(mainaxis_, min_point_region_, min_point_region_,
-       // 						 approx_tol_, angtol, grown_regions,
-       // 						 adj_surfs, adj_edgs, false);
-       // int dummy_ix = -1;
-       // updateRegionsAndSurfaces(dummy_ix, grown_regions, adj_surfs);
-       // for (size_t kr=0; kr<adj_edgs.size(); ++kr)
-       // 	 {
-       // 	   size_t kj;
-       // 	   for (kj=0; kj<edges_.size(); ++kj)
-       // 	     if (edges_[kj].get() == adj_edgs[kr])
-       // 	       break;
-       // 	   if (kj < edges_.size())
-       // 	     edges_.erase(edges_.begin()+kj);
-       // 	 }
+     }
+
+   // Dismiss too small surfaces. First check connectivity
+   int min_sf_pts = min_point_region_/5;
+   for (int ka=0; ka<(int)regions_.size(); ++ka)
+     {
+       if ((!regions_[ka]->hasSurface()) || regions_[ka]->hasBlendEdge())
+	 continue;
+       vector<vector<RevEngPoint*> > separate_groups;
+       vector<HedgeSurface*> out_sfs;
+       vector<RevEngEdge*> out_edgs;
+       regions_[ka]->splitRegion(separate_groups);
+       if (separate_groups.size() > 0)
+	 regions_[ka]->updateInfo(approx_tol_, angtol);
+       if (regions_[ka]->numPoints() < min_sf_pts)
+	 {
+	   out_sfs.push_back(regions_[ka]->getSurface(0));
+	   vector<RevEngEdge*> rev_edgs = regions_[ka]->getAllRevEdges();
+	   for (size_t kr=0; kr<rev_edgs.size(); ++kr)
+	     {
+	       RevEngRegion *adj1, *adj2;
+	       rev_edgs[kr]->getAdjacent(adj1, adj2);
+	       RevEngRegion *other = (adj1 == regions_[ka].get()) ? adj2 : adj1;
+	       other->removeRevEngEdge(rev_edgs[kr]);
+	     }
+	   out_edgs.insert(out_edgs.end(), rev_edgs.begin(), rev_edgs.end());
+	   regions_[ka]->clearSurface();
+	 }
+
+       if (separate_groups.size() > 0)
+	   surfaceExtractOutput(ka, separate_groups, out_sfs);
+       
+       for (size_t ki=0; ki<out_edgs.size(); ++ki)
+	 {
+	   size_t kj;
+	   for (kj=0; kj<edges_.size(); ++kj)
+	     if (edges_[kj].get() == out_edgs[ki])
+	       break;
+	   if (kj < edges_.size())
+	     edges_.erase(edges_.begin()+kj);
+	 }
+ 
      }
    
    recognizeEdges();
@@ -9681,18 +9594,7 @@ void RevEng::smallRegionSurfaces()
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges10_2.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
    if (surfaces_.size() > 0)
      {
@@ -11558,17 +11460,13 @@ void RevEng::planarAtPlane(shared_ptr<Plane> axis_plane,
 		  Point pnt(xyz[0], xyz[1], xyz[2]);
 		  surf->closestPoint(pnt, upar, vpar, close, dist, eps);
 		  surf->normal(norm1, upar, vpar);
-		  norm2 = currpt->getMongeNormal();
+		  norm2 = currpt->getLocFuncNormal();
 		  norm3 = currpt->getTriangNormal();
 		  ang = norm1.angle(norm2);
 		  ang2 = norm1.angle(norm3);
 		  ang = std::min(std::min(M_PI-ang, ang), std::min(M_PI-ang2,ang2));
 		  currpt->setPar(Vector2D(upar, vpar));
 		  currpt->setSurfaceDist(dist, ang);
-		  
-		  // vector<RevEngEdge*> rev_edgs = curreg->getAllRevEdges();
-		  // for (size_t kj=0; kj<rev_edgs.size(); ++kj)
-		  //   rev_edgs[kj]->updateParCurve(curreg, int_tol);
 		}
 	    }
 	}
@@ -12186,6 +12084,8 @@ bool RevEng::identifySmallRotational(vector<RevEngPoint*>& points,
 
   vector<Point> rotated;
   RevEngUtils::rotateToPlane(group_points, Cx, axis, loc, rotated);
+  Point loc1 = loc + ppar1*axis;
+  Point loc2  = loc + ppar2*axis;
 #ifdef DEBUG_SMALL
   std::ofstream of4("axis_rotate.g2");
   of4 << "400 1 0 4 255 0 0 255" << std::endl;
@@ -12193,8 +12093,6 @@ bool RevEng::identifySmallRotational(vector<RevEngPoint*>& points,
   for (size_t kr=0; kr<rotated.size(); ++kr)
     of4 << rotated[kr] << std::endl;
 
-  Point loc1 = loc + ppar1*axis;
-  Point loc2  = loc + ppar2*axis;
   of4 << "410 1 0 0" << std::endl;
   of4 << "1" << std::endl;
   of4 << loc1 << " " << loc2 << std::endl;
@@ -13911,18 +13809,7 @@ void RevEng::trimSurfaces()
    if (edges_.size() > 0)
      {
        std::ofstream ofe("edges13.g2");
-       for (size_t kr=0; kr<edges_.size(); ++kr)
-	 {
-	   vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
-	   for (size_t kh=0; kh<cvs.size(); ++kh)
-	     {
-	       cvs[kh]->writeStandardHeader(ofe);
-	       cvs[kh]->write(ofe);
-	     }
-	   int num_blend = edges_[kr]->numBlendRegs();
-	   for (int ka=0; ka<num_blend; ++ka)
-	     edges_[kr]->getBlendReg(ka)->writeRegionPoints(ofe);
-	 }
+       writeEdgeStage(ofe);
      }
 #endif
   
@@ -13952,67 +13839,6 @@ void RevEng::trimSurfaces()
       surfaces_[ki]->surface()->write(of3);
 #endif
       int stop1 = 1;
-    }
-#endif
-#if 0
-  vector<shared_ptr<ParamSurface> > sub_sfs;
-  for (size_t ki=0; ki<surfaces_.size(); ++ki)
-    {
-      shared_ptr<ParamSurface> surf = surfaces_[ki]->surface();
-      vector<shared_ptr<ParamSurface> > splitsfs =
-	SurfaceModelUtils::checkClosedFaces(surf, 10.0*int_tol_);
-      sub_sfs.insert(sub_sfs.end(), splitsfs.begin(), splitsfs.end());
-    }
-  
-  vector<vector<shared_ptr<CurveOnSurface> > > all_int_cvs(surfaces_.size());
-  vector<shared_ptr<BoundedSurface> > bd_sfs(surfaces_.size());
-  for (size_t ki=0; ki<surfaces_.size(); ++ki)
-    {
-      shared_ptr<ParamSurface> sf1 = surfaces_[ki]->surface();
-      for (size_t kj=ki+1; kj<surfaces_.size(); ++kj)
-  	{
-	  if (surfaces_[ki]->isTangential(surfaces_[kj].get()))
-	    continue;
-	  shared_ptr<ParamSurface> sf2 = surfaces_[kj]->surface();
-
-  	  // Intersect sf1 and sf2
-  	  // Remember intersection curves
-	  shared_ptr<BoundedSurface> bd1, bd2;
-	  vector<shared_ptr<CurveOnSurface> > int_cvs1, int_cvs2;
-	  BoundedUtils::getSurfaceIntersections(sf1, sf2, int_tol_,
-						int_cvs1, bd1, int_cvs2, bd2);
-	  bd_sfs[ki] = bd1;
-	  bd_sfs[kj] = bd2;
-	  if (int_cvs1.size() > 0)
-	    all_int_cvs[ki].insert(all_int_cvs[ki].end(), int_cvs1.begin(), int_cvs1.end());
-	  if (int_cvs2.size() > 0)
-	    all_int_cvs[kj].insert(all_int_cvs[kj].end(), int_cvs2.begin(), int_cvs2.end());
-  	}
-    }
-  
-  std::ofstream of2("intcvs.g2");
-  for (size_t ki=0; ki<all_int_cvs.size(); ++ki)
-    for (size_t kj=0; kj<all_int_cvs[ki].size(); ++kj)
-      {
-	shared_ptr<ParamCurve> cv = all_int_cvs[ki][kj]->spaceCurve();
-	cv->writeStandardHeader(of2);
-	cv->write(of2);
-      }
-
-  size_t nmb_sfs = surfaces_.size();
-  for (size_t ki=0; ki<nmb_sfs; ++ki)
-    {
-      vector<shared_ptr<HedgeSurface> > added_sfs;
-      surfaces_[ki]->doTrim(all_int_cvs[ki], bd_sfs[ki], int_tol_, added_sfs);
-      if (added_sfs.size() > 0)
-	surfaces_.insert(surfaces_.end(), added_sfs.begin(), added_sfs.end());
-    }
-  
-  std::ofstream of3("trimsurfs.g2");
-  for (size_t ki=0; ki<surfaces_.size(); ++ki)
-    {
-      surfaces_[ki]->surface()->writeStandardHeader(of3);
-      surfaces_[ki]->surface()->write(of3);
     }
 #endif
   int stop_break = 1;
@@ -14479,7 +14305,7 @@ void RevEng::readParams(istream& is)
   is >> mainaxis_[0] >> mainaxis_[1] >> mainaxis_[2];
 }
 
- //===========================================================================
+//===========================================================================
 void RevEng::writeRegionWithSurf(ostream& of) const
 //===========================================================================
 {
@@ -14547,4 +14373,22 @@ void RevEng::writeRegionStage(ostream& of, ostream& ofm, ostream& ofs) const
   ofs << small.size() << std::endl;
   for (size_t kr=0; kr<small.size(); ++kr)
     ofs << small[kr] << std::endl;
+}
+
+//===========================================================================
+void RevEng::writeEdgeStage(ostream& of) const
+//===========================================================================
+{
+  for (size_t kr=0; kr<edges_.size(); ++kr)
+    {
+      vector<shared_ptr<ParamCurve> > cvs = edges_[kr]->getSpaceCurves();
+      for (size_t kh=0; kh<cvs.size(); ++kh)
+	{
+	  cvs[kh]->writeStandardHeader(of);
+	  cvs[kh]->write(of);
+	}
+      int num_blend = edges_[kr]->numBlendRegs();
+      for (int ka=0; ka<num_blend; ++ka)
+	edges_[kr]->getBlendReg(ka)->writeRegionPoints(of);
+    }
 }

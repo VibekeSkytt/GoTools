@@ -48,28 +48,63 @@ namespace Go
 {
   class RevEngPoint;
 
+  /**
+     ImlicitApprox - Interface class to Go::implicitization for reverse engineering
+     purposes. Used only to approximate a point cloud with a plane (degree one). Higher
+     degree approximations are unstable for noisy point clouds
+   *
+   */
   class ImplicitApprox
   {
   public:
+    /// Constructor
     ImplicitApprox();
 
+    /// Destructor
     ~ImplicitApprox();
 
+    /// Approximate a group of RevEngPoints with a surface of degree degree.
+    /// Recommended only for degree one
     void approx(std::vector<RevEngPoint*> points, int degree);
 
-    void approx(std::vector<std::pair<std::vector<RevEngPoint*>::iterator,
+     /// Approximate several groups of RevEngPoints with a surface of degree degree.
+    /// Recommended only for degree one
+   void approx(std::vector<std::pair<std::vector<RevEngPoint*>::iterator,
 			     std::vector<RevEngPoint*>::iterator> >& points,
 		int degree);
 
+    /// Approximate a group of points with a surface of degree degree.
+    /// Recommended only for degree one
     void approxPoints(std::vector<Point> points, int degree);
 
-    double estimateDist(RevEngPoint* pt);
-
+    /// Project initial point and direction onto implicit surface to get a point
+    /// in the surface and corresponding surface normal
     void projectPoint(Point point, Point dir,
 		      Point& projpos, Point& normal);
 
+    /// \param pt Input point
+    /// \param val Implicit distance between the point pt and the surface
+    /// \param grad Gradient at point pt
     void evaluate(Point& pt, double& val, Point& grad);
     
+    
+  private:
+    /// Degree of implicit surface
+    int degree_;
+
+    /// Bernstein polynomials on a tetrahedron
+    BernsteinTetrahedralPoly implicit_;
+
+    /// implicit_ differentiated
+    BernsteinTetrahedralPoly deriv1_, deriv2_, deriv3_, deriv4_;
+
+    // Encapsulates a barycentric coordinate system.
+    BaryCoordSystem3D bc_;
+    double sigma_min_;
+    double eps_;
+    
+    double estimateDist(RevEngPoint* pt);
+
     void visualize(std::vector<RevEngPoint*> points, std::ostream& os);
 
     void visualize(std::vector<Point> points, Point& dir, std::ostream& os);
@@ -83,14 +118,6 @@ namespace Go
 				double& maxdist, double& avdist,
 				int& ndiv, double& maxang,
 				double& avang);
-    
-  private:
-    int degree_;
-    BernsteinTetrahedralPoly implicit_;
-    BernsteinTetrahedralPoly deriv1_, deriv2_, deriv3_, deriv4_;
-    BaryCoordSystem3D bc_;
-    double sigma_min_;
-    double eps_;
   };
 }
 

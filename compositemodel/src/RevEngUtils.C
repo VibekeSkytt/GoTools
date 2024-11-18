@@ -68,9 +68,9 @@ using std::vector;
 using std::pair;
 
 //#define DEBUG
-#define DEBUG_BLEND
-#define DEBUG_CONE
-#define DEBUG_APPROX
+//#define DEBUG_BLEND
+//#define DEBUG_CONE
+//#define DEBUG_APPROX
 
 typedef MatrixXD<double, 3> Matrix3D;
 
@@ -154,120 +154,9 @@ void RevEngUtils::principalAnalysis(Point& curr, vector<Point>& points,
     }
 }
 
-//===========================================================================
-void RevEngUtils::TaubinCurvature(Point curr, std::vector<Point>& points,
-				  Point& tvec, Point& normal, Point& mincvec,
-				  double& minc, Point& maxcvec, double& maxc)
-//===========================================================================
-{
-  // Define matrix
-  double mat[3][3];
-  for (int ka=0; ka<3; ++ka)
-    for (int kb=0; kb<3; ++kb)
-      mat[ka][kb] = 0.0;
-
-  double wijsum = 0.0;
-  for (size_t ki=0; ki<points.size(); ++ki)
-    {
-      Point vec = points[ki] - curr;
-      double len = vec.length();
-      wijsum += (1.0/len);
-    }
-  
-  for (size_t ki=0; ki<points.size(); ++ki)
-    {
-      Point vec = points[ki] - curr;
-      double len2 = vec.length2();
-      double kij = 2.0*(normal*vec)/len2;
-      double wij = 1.0/sqrt(len2);
-      wij /= wijsum;
-
-      vec -= (vec*normal)*normal;
-      double fac = wij*kij;
-      for (int ka=0; ka<3; ++ka)
-	for (int kb=0; kb<3; ++kb)
-	  mat[ka][kb] += fac*vec[ka]*vec[kb];
-
-      // double phi = tvec.angle(vec);
-      // double phicos2 = cos(phi);
-      // phicos2 = phicos2*phicos2;
-      // double phisin2 = sin(phi);
-      // phisin2 = phisin2*phisin2;
-      // A += wij*phicos2*phicos2;
-      // B += wij*phisin2*phicos2;
-      // C += wij*phisin2*phisin2;
-    }
-  
-  // Compute singular values
-  NEWMAT::Matrix nmat;
-  nmat.ReSize(3, 3);
-  for (int ka = 0; ka < 3; ++ka) {
-    for (int kb = 0; kb < 3; ++kb) {
-      nmat.element(ka, kb) = mat[ka][kb];
-    }
-  }
-      
-  static NEWMAT::DiagonalMatrix diag;
-  static NEWMAT::Matrix V;
-  try {
-    NEWMAT::SVD(nmat, diag, nmat, V);
-  } catch(...) {
-    //std::cout << "Exception in SVD" << std::endl;
-    return;
-  }
-  
-  // Singular values
-  double lambda1 = diag.element(0, 0);
-  double lambda2 = diag.element(1, 1);
-  Point cvec1 = Point(V.element(0, 0), V.element(0, 1), V.element(0, 2));
-  Point cvec2 = Point(V.element(1, 0), V.element(1, 1), V.element(1, 2));
-
-  double A=0.0, B=0.0, C=0.0;
-  for (size_t ki=0; ki<points.size(); ++ki)
-    {
-      Point vec = points[ki] - curr;
-      double len2 = vec.length2();
-      double wij = 1.0/sqrt(len2);
-      wij /= wijsum;
-      vec -= (vec*normal)*normal;
-      double phi = cvec1.angle(vec);
-      double phicos2 = cos(phi);
-      phicos2 = phicos2*phicos2;
-      double phisin2 = sin(phi);
-      phisin2 = phisin2*phisin2;
-      A += wij*phicos2*phicos2;
-      B += wij*phisin2*phicos2;
-      C += wij*phisin2*phisin2;
-    }
-  
-  double div = B*B - A*C;
-  if (fabs(div) < 1.0e-10)
-    {
-      minc = maxc = 0.0;
-      mincvec = maxcvec = Point(0.0, 0.0, 0.0);
-      return;
-    }
-  
-  double k1 = (B*lambda2 - C*lambda1)/div;
-  double k2 = (B*lambda1 - A*lambda2)/div;
-  if (fabs(k1) < fabs(k2))
-    {
-      minc = k1;
-      mincvec = cvec1;
-      maxc = k2;
-      maxcvec = cvec2;
-    }
-  else
-    {
-      minc = k2;
-      mincvec = cvec2;
-      maxc = k1;
-      maxcvec = cvec1;
-    }
-}
 
 //===========================================================================
-void RevEngUtils::computeMonge(Point& curr, std::vector<Point>& points,
+void RevEngUtils::computeLocFunc(Point& curr, std::vector<Point>& points,
 			       Point& vec1, Point& vec2, Point& normal, Point& mincvec,
 			       double& minc, Point& maxcvec, double& maxc,
 			       double& currdist, double& avdist)
@@ -307,25 +196,26 @@ void RevEngUtils::computeMonge(Point& curr, std::vector<Point>& points,
 
   // Approximate z-component by biquadratic Bezier function in x and y
   int order = 3;
-  shared_ptr<SplineSurface> mongesf = RevEngUtils::surfApprox(zval, 1, par, order,
+  shared_ptr<SplineSurface> locsf = RevEngUtils::surfApprox(zval, 1, par, order,
 							      order, order, order);
 
   vector<double> coefs2(3*order*order);
-  std::vector<double>::iterator cf = mongesf->coefs_begin();
+  std::vector<double>::iterator cf = locsf->coefs_begin();
   for (int ka=0; ka<order; ++ka)
     {
-      double vpar = mongesf->basis_v().grevilleParameter(ka);
+      double vpar = locsf->basis_v().grevilleParameter(ka);
       for (int kb=0; kb<order; ++kb, ++cf)
 	{
-	  double upar = mongesf->basis_u().grevilleParameter(kb);
+	  double upar = locsf->basis_u().grevilleParameter(kb);
 	  coefs2[(ka*order+kb)*3] = upar;
 	  coefs2[(ka*order+kb)*3+1] = vpar;
 	  coefs2[(ka*order+kb)*3+2] = *cf;
 	}
     }
   shared_ptr<SplineSurface> tmp(new SplineSurface(order, order, order, order, 
-						  mongesf->basis_u().begin(),
-						  mongesf->basis_v().begin(), &coefs2[0], 3));
+						  locsf->basis_u().begin(),
+						  locsf->basis_v().begin(), &coefs2[0], 3));
+#ifdef DEBUG
   int writesurface = 0;
   if (writesurface)
     {
@@ -343,10 +233,11 @@ void RevEngUtils::computeMonge(Point& curr, std::vector<Point>& points,
 	  of << tmppt << std::endl;
 	}
     }
-  
+#endif
+						  
   // Compute surface normal in curr
   vector<Point> der(3);
-  mongesf->point(der, par[0], par[1], 1);
+  locsf->point(der, par[0], par[1], 1);
   Vector3D norm(-der[1][0], -der[2][0], 1.0);
   norm.normalize();
 
@@ -356,13 +247,13 @@ void RevEngUtils::computeMonge(Point& curr, std::vector<Point>& points,
   for (int ki=1; ki<nmbpts; ++ki)
     {
       Point pos;
-      mongesf->point(pos, par[2*ki], par[2*ki+1]);
+      locsf->point(pos, par[2*ki], par[2*ki+1]);
       avdist += fabs(zval[ki] - pos[0]);
     }
   avdist /= (double)nmbpts;
   
   // Compute principal curvatures in curr
-  shared_ptr<SISLSurf> sislsf(GoSurf2SISL(*mongesf, false));
+  shared_ptr<SISLSurf> sislsf(GoSurf2SISL(*locsf, false));
   int left1 = 0, left2 = 0;
   int stat = 0;
   double k1, k2;
@@ -893,7 +784,7 @@ void RevEngUtils::computeAxis(vector<pair<vector<RevEngPoint*>::iterator,
 	    for (auto it=start; it!=end; ++it)
 	      {
 		RevEngPoint *pt = *it;
-		Point norm1 = pt->getMongeNormal();
+		Point norm1 = pt->getLocFuncNormal();
 		Point norm2 = pt->getTriangNormal();
 		Point norm = norm1; //0.5*(norm1 + norm2);
 		Cmat[ka][kb] += norm[ka]*norm[kb];
@@ -987,7 +878,7 @@ void RevEngUtils::coneAxis(vector<pair<vector<RevEngPoint*>::iterator,
       for (auto it=start; it!=end; ++it)
 	{
 	  RevEngPoint *pt = *it;
-	  Point norm = pt->getMongeNormal();
+	  Point norm = pt->getLocFuncNormal();
 	  mid += wgt*norm;
 	}
     }
@@ -1004,7 +895,7 @@ void RevEngUtils::coneAxis(vector<pair<vector<RevEngPoint*>::iterator,
 	    for (auto it=start; it!=end; ++it)
 	      {
 		RevEngPoint *pt = *it;
-		Point norm = pt->getMongeNormal();
+		Point norm = pt->getLocFuncNormal();
 		Point vec = norm - mid;
 		Cmat[ka][kb] += vec[ka]*vec[kb];
 	      }
@@ -1065,7 +956,7 @@ void RevEngUtils::coneApex(vector<pair<vector<RevEngPoint*>::iterator,
       for (auto it=start; it!=end; ++it)
 	{
 	  RevEngPoint *pt = *it;
-	  Point norm = pt->getMongeNormal();
+	  Point norm = pt->getLocFuncNormal();
 	  Point tmp = norm.cross(axis);
 	  Point di = tmp.cross(norm);
 	  di.normalize_checked();
@@ -1562,114 +1453,6 @@ void RevEngUtils::computeRadius(vector<Point>& points, Point& axis,
 
 
 //===========================================================================
-void RevEngUtils::computePlane(vector<pair<vector<RevEngPoint*>::iterator,
-			       vector<RevEngPoint*>::iterator> >& points,
-			       Point& pos, Point& norm)
-//===========================================================================
-{
-  double Cmat[4][4];
-  for (size_t ki=0; ki<points.size(); ++ki)
-    {
-      vector<RevEngPoint*>::iterator start = points[ki].first;
-      vector<RevEngPoint*>::iterator end = points[ki].second;
-      for (int ka=0; ka<4; ++ka)
-	for (int kb=0; kb<4; ++kb)
-	  {
-	    Cmat[ka][kb] = 0.0;
-	    for (auto it=start; it!=end; ++it)
-	      {
-		RevEngPoint *pt = *it;
-		Vector3D xyz = pt->getPoint();
-		double tmp[4] = {xyz[0], xyz[1], xyz[2], 1};
-		Cmat[ka][kb] += tmp[ka]*tmp[kb];
-	      }
-	  }
-    }
-  // Compute singular values
-  NEWMAT::Matrix nmat;
-  nmat.ReSize(4, 4);
-  for (int ka = 0; ka < 4; ++ka) {
-    for (int kb = 0; kb < 4; ++kb) {
-      nmat.element(ka, kb) = Cmat[ka][kb];
-    }
-  }
-      
-  static NEWMAT::DiagonalMatrix diag;
-  static NEWMAT::Matrix V;
-  try {
-    NEWMAT::SVD(nmat, diag, nmat, V);
-  } catch(...) {
-    //std::cout << "Exception in SVD" << std::endl;
-    exit(-1);
-  }
-
-  double sigma[4];
-  double coefs[4];
-  int ixv = 3;
-  for (int ka=0; ka<4; ++ka)
-    {
-      sigma[ka] = diag.element(ka,ka);
-      coefs[ka] = V.element(ka, ixv);
-    }
-
-
-  int num = 0;
-  double maxd =0.0, avd = 0.0;
-  for (size_t ki=0; ki<points.size(); ++ki)
-    {
-      vector<RevEngPoint*>::iterator start = points[ki].first;
-      vector<RevEngPoint*>::iterator end = points[ki].second;
-      for (auto it=start; it!=end; ++it)
-	{
-	  Vector3D xyz = (*it)->getPoint();
-	  double dist = coefs[0]*xyz[0] + coefs[1]*xyz[1] +
-	    coefs[2]*xyz[2] + coefs[3];
-	  maxd = std::max(maxd, fabs(dist));
-	  avd += dist;
-	  int stop_break = 1;
-	}
-    }
-  avd /= (double)num;
-
-  int ix = -1;
-  double mm = 0.0;
-  for (int ka=0; ka<3; ++ka)
-    if (fabs(coefs[ka]) > mm)
-      {
-	mm = fabs(coefs[ka]);
-	ix = ka;
-      }
-
-  double t1 = 0.0, t2 = 0.0, t3 = 0.0;
-  Vector3D pt1 = (*points[0].first)->getPoint();
-  vector<RevEngPoint*>::iterator it = points[0].second;
-  it--;
-  Vector3D pt2 = (*it)->getPoint();
-  for (int ka=0; ka<3; ++ka)
-    {
-      if (ka == ix)
-	continue;
-      t1 += coefs[ka]*pos[ka];
-      t2 += coefs[ka]*pt1[ka];
-      t3 += coefs[ka]*pt2[ka];
-    }
-  pos[ix] = -(t1 + coefs[3])/coefs[ix];
-  pt1[ix] = -(t2 + coefs[3])/coefs[ix];
-  pt2[ix] = -(t3 + coefs[3])/coefs[ix];
-  norm = Point(coefs[0], coefs[1], coefs[2]);
-  norm.normalize();
-
-  Point pt1_2(pt1[0], pt1[1], pt1[2]);
-  Point pt2_2(pt2[0], pt2[1], pt2[2]);
-  Point vec1 = pt1_2 - pos;
-  Point vec2 = pt2_2 - pos;
-  Point norm2 = vec1.cross(vec2);
-  norm2.normalize();
-
-  int stop_break = 1;
-}
-
-//===========================================================================
 void RevEngUtils::computePlane(vector<Point>& points, Point normal,
 			       Point mainaxis[3],
 			       Point& pos, Point& norm, Point& Cx, Point& Cy)
@@ -1680,9 +1463,9 @@ void RevEngUtils::computePlane(vector<Point>& points, Point normal,
   for (size_t ki=0; ki<points.size(); ++ki)
     pos0 += wgt*points[ki];
   
-  shared_ptr<ImplicitApprox> impl(new ImplicitApprox());
-  impl->approxPoints(points, 1);
-  impl->projectPoint(pos0, normal, pos, norm);
+  ImplicitApprox impl;
+  impl.approxPoints(points, 1);
+  impl.projectPoint(pos0, normal, pos, norm);
   if (normal*norm < 0.0)
     norm *= -1.0;
 
@@ -1877,7 +1660,7 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>::iterator start,
       parvals[2*ki] = upar;
       parvals[2*ki+1] = vpar;
       surf->normal(norm1, upar, vpar);
-      norm2 = (*it)->getMongeNormal();
+      norm2 = (*it)->getLocFuncNormal();
       norm3 = (*it)->getTriangNormal();
       maxdist = std::max(maxdist, dist);
       avdist += dfac*dist;
@@ -1942,7 +1725,7 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>::iterator start,
       parvals[2*ki] = upar;
       parvals[2*ki+1] = vpar;
       surf->normal(norm1, upar, vpar);
-      norm2 = (*it)->getMongeNormal();
+      norm2 = (*it)->getLocFuncNormal();
       norm3 = (*it)->getTriangNormal();
       maxdist = std::max(maxdist, dist);
       avdist += dfac*dist;
@@ -1993,7 +1776,7 @@ void RevEngUtils::distToSurf(vector<RevEngPoint*>& points,
       
       surf->closestPoint(pnt, upar, vpar, close, dist, eps, 0, seed);
       surf->normal(norm1, upar, vpar);
-      norm2 = points[ki]->getMongeNormal();
+      norm2 = points[ki]->getLocFuncNormal();
       norm3 = points[ki]->getTriangNormal();
       maxdist = std::max(maxdist, dist);
       avdist += dfac*dist;
@@ -2520,7 +2303,7 @@ shared_ptr<ParamSurface> RevEngUtils::doMergePlanes(vector<pair<vector<RevEngPoi
 
       for (auto it=points[ki].first; it!=points[ki].second; ++it)
 	{
-	  Point curr = (*it)->getMongeNormal();
+	  Point curr = (*it)->getLocFuncNormal();
 	  Vector3D xyz = (*it)->getPoint();
 	  pos +=  wgt*Point(xyz[0], xyz[1], xyz[2]);
 	  norm += wgt*curr;
@@ -2529,10 +2312,10 @@ shared_ptr<ParamSurface> RevEngUtils::doMergePlanes(vector<pair<vector<RevEngPoi
     }
   
   // Perform approximation with combined point set
-  shared_ptr<ImplicitApprox> impl(new ImplicitApprox());
-  impl->approx(points, 1);
+  ImplicitApprox impl;
+  impl.approx(points, 1);
   Point pos2, normal2;
-  impl->projectPoint(pos, norm, pos2, normal2);
+  impl.projectPoint(pos, norm, pos2, normal2);
   // std::ofstream outviz("implsf_merge.g2");
   // impl->visualize(all_pts, outviz);
  
@@ -2652,7 +2435,7 @@ shared_ptr<ParamSurface> RevEngUtils::doMergeTorus(vector<pair<vector<RevEngPoin
     {
       for (auto it=points[ki].first; it!=points[ki].second; ++it, ++kr)
 	{
-	  Point norm = (*it)->getMongeNormal();
+	  Point norm = (*it)->getLocFuncNormal();
 	  Vector3D xyz = (*it)->getPoint();
 	  Point xyz2(xyz[0], xyz[1], xyz[2]);
 	  centr[kr] = xyz2 + rd*norm;
@@ -2660,15 +2443,15 @@ shared_ptr<ParamSurface> RevEngUtils::doMergeTorus(vector<pair<vector<RevEngPoin
 	}
     }
   
-  shared_ptr<ImplicitApprox> impl(new ImplicitApprox());
-  impl->approxPoints(centr, 1);
+  ImplicitApprox impl;
+  impl.approxPoints(centr, 1);
 
   double val;
   Point grad;
-  impl->evaluate(mid, val, grad);
+  impl.evaluate(mid, val, grad);
   grad.normalize_checked();
   Point pos, normal;
-  impl->projectPoint(mid, grad, pos, normal);
+  impl.projectPoint(mid, grad, pos, normal);
   double eps1 = 1.0e-8;
   if (normal.length() < eps1)
     return dummy;
@@ -2911,7 +2694,7 @@ void RevEngUtils::extractLinearPoints(vector<RevEngPoint*>& points,
   double dfac = 0.5;
   for (ka=ix1; ka!=ix2; ka=kb)
     {
-      Point norm = points[perm[ka]]->getMongeNormal();
+      Point norm = points[perm[ka]]->getLocFuncNormal();
       Point norm2 = points[perm[ka]]->getTriangNormal();
       double ang = norm.angle(axis2);
       double ang2 = norm2.angle(axis2);
@@ -2931,7 +2714,7 @@ void RevEngUtils::extractLinearPoints(vector<RevEngPoint*>& points,
 	  num_out++;
 	  for (kb=ka+sgn; kb!=ix2; kb+=sgn)
 	    {
-	      norm = points[perm[kb]]->getMongeNormal();
+	      norm = points[perm[kb]]->getLocFuncNormal();
 	      norm2 = points[perm[kb]]->getTriangNormal();
 	      ang = norm.angle(axis2);
 	       ang2 = norm2.angle(axis2);
@@ -3255,49 +3038,6 @@ bool RevEngUtils::extractLinearPoints(vector<Point>& points,
   return true;
 }
 
-//===========================================================================
-void RevEngUtils::distributePointsToRegions(vector<RevEngPoint*>& points,
-					    vector<shared_ptr<ElementarySurface> >& sfs,
-					    shared_ptr<ElementarySurface> curr_sf,
-					    double tol, double angtol,
-					    vector<vector<RevEngPoint*> >& sfs_pts,
-					    vector<RevEngPoint*>& curr_pts,
-					    vector<RevEngPoint*>& remaining)
-//===========================================================================
-{
-  double eps = 1.0e-9;
-  for (size_t ki=0; ki<points.size(); ++ki)
-    {
-      Vector3D xyz = points[ki]->getPoint();
-      Point ptpos(xyz[0], xyz[1], xyz[2]);
-      Point ptnorm = points[ki]->getMongeNormal();
-      Point ptnorm2 = points[ki]->getTriangNormal();
-
-      vector<double> sfdist(sfs.size()+1);
-      vector<double> sfang(sfs.size()+1);
-      double upar, vpar, tdist, ang, ang2;
-      Point close, surfnorm;
-      for (size_t kj=0; kj<sfs.size(); ++kj)
-	{
-	  sfs[kj]->closestPoint(ptpos, upar, vpar, close, tdist, eps);
-	  sfs[kj]->normal(surfnorm, upar, vpar);
-	  ang = surfnorm.angle(ptnorm);
-	  ang2 = surfnorm.angle(ptnorm2);
-	  ang = std::min(std::min(ang,M_PI-ang), std::min(ang2,M_PI-ang2));
-	  sfdist[kj] = tdist;
-	  sfang[kj] = ang;
-	}
-      curr_sf->closestPoint(ptpos, upar, vpar, close, tdist, eps);
-      curr_sf->normal(surfnorm, upar, vpar);
-      ang = surfnorm.angle(ptnorm);
-      ang2 = surfnorm.angle(ptnorm2);
-      ang = std::min(std::min(ang,M_PI-ang), std::min(ang2,M_PI-ang2));
-      sfdist[sfs.size()] = tdist;
-      sfang[sfs.size()] = ang;
-      int stop_break0 = 1;
-    }
-  int stop_break = 1;
-}
 
 //===========================================================================
 void RevEngUtils::identifyEndPoints(vector<RevEngPoint*> edge_pts, shared_ptr<CurveOnSurface>& sfcv,
