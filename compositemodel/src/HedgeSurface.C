@@ -612,6 +612,8 @@ bool HedgeSurface::trimWithPoints(double aeps)
   // Extract data points
   int del = 5;
   int num_pts = numPoints();
+  if (num_pts < 10)
+    return false;
   vector<double> data(del*num_pts);
   int num_reg = numRegions();
   vector<double> extent(2*del);   // Limits for points in all coordinates

@@ -92,8 +92,8 @@ int colors[MAX_COLORS][3] = {
 };
 
 //#define DEBUG_DIV
-//#define DEBUG_EDGE
-//#define DEBUG_BLEND
+//#define DEBUG_EDGE0
+#define DEBUG_BLEND
 //#define DEBUG_MONGE
 //#define DEBUG_ENHANCE
 //#define DEBUG_SEG
@@ -260,19 +260,25 @@ void RevEng::enhancePoints()
     }
 #endif
   
+#ifdef DEBUG_DIV
   int writepoints = 0;
   vector<double> tri_ang(nmbpt);
+#endif
   for (int ki=0; ki<nmbpt; ++ki)
     {
       RevEngPoint *pt = dynamic_cast<RevEngPoint*>((*tri_sf_)[ki]);
 
       // Compute surface normal from triangulation
       pt->computeTriangNormal(100.0*mean_edge_len_);
+      if (pt->getNmbNeighbour() == 0)
+	pt->setOutlier();
       //double avlen = pt->getMeanEdgLen();
+#ifdef DEBUG_DIV
       tri_ang[ki] = pt->getTriangAngle();
+#endif
     }
-  std::sort(tri_ang.begin(), tri_ang.end());
 #ifdef DEBUG_ENHANCE  
+  std::sort(tri_ang.begin(), tri_ang.end());
   std::cout << "Triangle angles: " << tri_ang[0] << " " << tri_ang[nmbpt/4];
   std::cout << " " << tri_ang[nmbpt/2] << " " << tri_ang[3*nmbpt/4];
   std::cout << " " << tri_ang[nmbpt-1] << std::endl;
@@ -290,16 +296,16 @@ void RevEng::enhancePoints()
       if (pt->nmbLocFunc() > 0)
 	continue;  // Already enhanced
 
-      // Compute surface normal from triangulation
-      pt->computeTriangNormal(100.0*mean_edge_len_);
+      // // Compute surface normal from triangulation
+      // pt->computeTriangNormal(100.0*mean_edge_len_);
       if (pt->isOutlier())
 	continue;
 
-      if (pt->getNmbNeighbour() == 0)
-	{
-	  pt->setOutlier();
-	  continue;
-	}
+      // if (pt->getNmbNeighbour() == 0)
+      // 	{
+      // 	  pt->setOutlier();
+      // 	  continue;
+      // 	}
 
       //double avlen = pt->getMeanEdgLen();
 
@@ -818,7 +824,7 @@ void RevEng::edgeClassification()
     of3 << curvaturecorners[kj] << std::endl;
 #endif
 
-#ifdef DEBUG_EDGE
+#ifdef DEBUG_EDGE0
    if (edgepts.size() > 0)
     {
       std::ofstream ofedg("edgepts.g2");
@@ -1070,7 +1076,7 @@ void RevEng::segmentIntoRegions()
     }
 
   std::sort(regions_.begin(), regions_.end(), sort_region);
-#ifdef DEBUG
+  //#ifdef DEBUG
   if (regions_.size() > 0)
     {
       std::cout << "Regions 1" << std::endl;
@@ -1079,7 +1085,7 @@ void RevEng::segmentIntoRegions()
       std::ofstream ofs("small_regions1.g2");
       writeRegionStage(of, ofm, ofs);
     }
-#endif
+  //#endif
 
   // Sort regions according to number of points
   std::sort(regions_.begin(), regions_.end(), sort_region);
@@ -1167,7 +1173,7 @@ void RevEng::segmentIntoRegions()
   
   std::sort(regions_.begin(), regions_.end(), sort_region);
   
-#ifdef DEBUG
+  //#ifdef DEBUG
   checkConsistence("Regions1_2");
 
   if (regions_.size() > 0)
@@ -1178,7 +1184,7 @@ void RevEng::segmentIntoRegions()
       std::ofstream ofs("small_regions1_2.g2");
       writeRegionStage(of, ofm, ofs);
      }
-#endif
+  //#endif
   
   // Update adjacency between regions
   for (size_t ki=0; ki<regions_.size(); ++ki)
@@ -1217,7 +1223,7 @@ void RevEng::segmentIntoRegions()
 #endif  
   std::sort(regions_.begin(), regions_.end(), sort_region);
   
-#ifdef DEBUG
+  //#ifdef DEBUG
   checkConsistence("Regions2");
 
   if (regions_.size() > 0)
@@ -1228,7 +1234,7 @@ void RevEng::segmentIntoRegions()
       std::ofstream ofs("small_regions2.g2");
       writeRegionStage(of, ofm, ofs);
      }
-#endif
+  //#endif
   
   // Update adjacency between regions
   for (size_t ki=0; ki<regions_.size(); ++ki)
@@ -2430,7 +2436,7 @@ void RevEng::extendBlendAssociation(size_t ix)
       for (size_t kj=0; kj<new_blends.size(); ++kj)
 	{
 	  size_t kr;
-	  for (kr=num_blend_regs; kr<blend_regs.size(); ++kr)
+	  for (kr=0; kr<blend_regs.size(); ++kr)
 	    if (blend_regs[kr] == new_blends[kj])
 	      break;
 	  if (kr == blend_regs.size())
@@ -5014,7 +5020,11 @@ void RevEng::equalizeBlendRadii()
 	      regions_[ki]->writeRegionPoints(of);
 	      regions_[kj]->writeRegionPoints(of);
 #endif
-	      equalizeAdjacent(ki, kj);
+	      double par1, par2;
+	      bool is_adjacent = edge1->isAdjacent(edge2, approx_tol_, par1,
+						   par2);
+	      if (is_adjacent)
+		equalizeAdjacent(ki, kj);
 	    }
 	}
   
@@ -6145,6 +6155,9 @@ bool RevEng::createTorusBlend(size_t ix)
     }
   else if (possible_suitcase)
     return false;  // Not an expected configuration
+
+  if (kx[0] == kx[1])
+    return false;   // Not an expected configuration
 
   for (int ka=0; ka<2; ++ka)
     {
@@ -9527,7 +9540,7 @@ void RevEng::smallRegionSurfaces()
      {
        growSmallRegionSurface(ka);
      }
-
+   //#if 0
    // Dismiss too small surfaces. First check connectivity
    int min_sf_pts = min_point_region_/5;
    for (int ka=0; ka<(int)regions_.size(); ++ka)
@@ -9555,7 +9568,7 @@ void RevEng::smallRegionSurfaces()
 	   regions_[ka]->clearSurface();
 	 }
 
-       if (separate_groups.size() > 0)
+       if (separate_groups.size() > 0 || out_sfs.size() > 0)
 	   surfaceExtractOutput(ka, separate_groups, out_sfs);
        
        for (size_t ki=0; ki<out_edgs.size(); ++ki)
@@ -9569,7 +9582,7 @@ void RevEng::smallRegionSurfaces()
 	 }
  
      }
-   
+   //#endif 
    recognizeEdges();
  
    
@@ -10623,6 +10636,11 @@ void RevEng::defineSmallRegionSurfaces()
 
       vector<RevEngRegion*> include_reg;
       integrateInSmallSurfs(small_sf_reg, nosf_reg, include_reg);
+      for (size_t kj=0; kj<include_reg.size(); ++kj)
+	{
+	  include_reg[kj]->removeFromAdjacent();
+	  include_reg[kj]->clearRegionAdjacency();
+	}
       for (int ka=(int)include_reg.size()-1; ka>=0; --ka)
 	{
 	  auto it = std::find(nosf_reg.begin(), nosf_reg.end(), include_reg[ka]);
@@ -10631,8 +10649,8 @@ void RevEng::defineSmallRegionSurfaces()
 	  int ix = it - nosf_reg.begin();
 	  if (ix >= (int)nmb_nosf)
 	    {
-	      nosf_add[ix-(int)nmb_nosf]->removeFromAdjacent();
-	      nosf_add[ix-(int)nmb_nosf]->clearRegionAdjacency();
+	      // nosf_add[ix-(int)nmb_nosf]->removeFromAdjacent();
+	      // nosf_add[ix-(int)nmb_nosf]->clearRegionAdjacency();
 	      nosf_add.erase(nosf_add.begin()+ix-(int)nmb_nosf);
 	    }
 	  else
@@ -10640,8 +10658,8 @@ void RevEng::defineSmallRegionSurfaces()
 	      for (int kb=(int)regions_.size()-1; kb>=0; --kb)
 		if (regions_[kb].get() == include_reg[ka])
 		  {
-		    regions_[kb]->removeFromAdjacent();
-		    regions_[kb]->clearRegionAdjacency();
+		    // regions_[kb]->removeFromAdjacent();
+		    // regions_[kb]->clearRegionAdjacency();
 		    regions_.erase(regions_.begin()+kb);
 		    break;
 		  }
@@ -10820,6 +10838,9 @@ RevEng::defineElemSurf(vector<RevEngPoint*>& points,
   Point init_norm = points[0]->getTriangNormal();
   Point pos1, norm1, Cx1, Cy1;
   RevEngUtils::computePlane(pts, init_norm, mainaxis_, pos1, norm1, Cx1, Cy1);
+  if (norm1.length() < 0.1)
+    return dummy_sf;   // The length should be one, but could be zero if the
+  // approximation fails
   shared_ptr<Plane> plane1(new Plane(pos1, norm1, Cx1));
 
 #ifdef DEBUG_SMALL
@@ -13682,7 +13703,7 @@ void RevEng::trimSurfaces()
 	    }
 	}
 #endif
-
+      //#if 0
    for (size_t ki=0; ki<regions_.size(); ++ki)
     {
       if (!regions_[ki]->hasSurface())
@@ -13699,7 +13720,7 @@ void RevEng::trimSurfaces()
       regions_[ki]->extendBoundaries(mean_edge_len_, min_point_region_,
 				     approx_tol_, angtol, mainaxis_);
     }
-      
+   //#endif      
 #ifdef DEBUG_TRIM
       vector<shared_ptr<ftEdge> > trim_edgs2;
       for (size_t kr=0; kr<regions_.size(); ++kr)
@@ -13733,10 +13754,10 @@ void RevEng::trimSurfaces()
       bool trimmed;
       if (!regions_[ki]->hasSurface())
 	continue;
-#ifdef DEBUG_TRIM
+      //#ifdef DEBUG_TRIM
       std::ofstream of2("trimreg2.g2");
       regions_[ki]->writeRegionPoints(of2);
-#endif
+      //#endif
       if (regions_[ki]->numTrimEdges() == 0)
 	{
 	  trimmed = true;
@@ -13868,10 +13889,11 @@ shared_ptr<SurfaceModel> RevEng::createModel()
 	    cone->setParamBoundsV(dom[2], dom[3]);
  	}
     }
-  
+
+  double gap_tol = std::max(10.0*int_tol_, 0.01*approx_tol_);
   vector<shared_ptr<ftSurface> > tmpsfs(surfaces_.begin(), surfaces_.end());
-  sfmodel_ = shared_ptr<SurfaceModel>(new SurfaceModel(approx_tol_, 10.0*int_tol_,
-						       100*int_tol_, anglim_, 10*anglim_,
+  sfmodel_ = shared_ptr<SurfaceModel>(new SurfaceModel(approx_tol_, gap_tol,
+						       10*gap_tol, anglim_, 10*anglim_,
 						       tmpsfs));
 #ifdef DEBUG_MODEL
   int num_bd = sfmodel_->nmbBoundaries();
@@ -14311,9 +14333,20 @@ void RevEng::writeRegionWithSurf(ostream& of) const
 {
   for (size_t kr=0; kr<surfaces_.size(); ++kr)
     {
-      RevEngRegion *reg = surfaces_[kr]->getRegion(0);
-      reg->writeRegionPoints(of);
-      reg->writeSurface(of);
+      int numreg = surfaces_[kr]->numRegions();
+      if (numreg > 0)
+	{
+	  RevEngRegion *reg = surfaces_[kr]->getRegion(0);
+	  reg->writeRegionPoints(of);
+	  reg->writeSurface(of);
+	}
+      else
+	{
+	  double diag = bbox_.low().dist(bbox_.high());
+	  surfaces_[kr]->limitSurf(diag);
+	  surfaces_[kr]->surface()->writeStandardHeader(of);
+	  surfaces_[kr]->surface()->write(of);
+	}
     }
 }
   

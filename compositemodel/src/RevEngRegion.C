@@ -101,7 +101,8 @@
 //#define DEBUG_COLLECT
 //#define DEBUG_AXIS
 //#define DEBUG_GROWNEIGHBOUR
-//#define DEBUG_TRIM
+#define DEBUG_TRIM
+//#define DEBUG_BLEND
 
 using namespace Go;
 using std::vector;
@@ -213,6 +214,12 @@ RevEngRegion::~RevEngRegion()
   if (associated_blend_ != 0)
     associated_blend_->removeBlendReg(this);
   removeFromAdjacent();
+  for (size_t ki=0; ki<rev_edges_.size(); ++ki)
+    {
+      rev_edges_[ki]->eraseAdjacent(this);
+    }
+  for (size_t ki=0; ki<associated_sf_.size(); ++ki)
+    associated_sf_[ki]->removeRegion(this);
   int stop_break = 1;
 }
 
@@ -2147,7 +2154,13 @@ shared_ptr<Plane> RevEngRegion::computePlane(vector<RevEngPoint*>& points,
   ImplicitApprox impl;
   impl.approx(points, 1);
   Point pos3, normal3;
-  impl.projectPoint(pos, normal, pos3, normal3);
+  bool found = impl.projectPoint(pos, normal, pos3, normal3);
+  if (!found)
+    {
+      pos3 = pos;
+      normal3 = normal;
+      normal3.normalize();
+    }
   if (normal3*norm_dir < 0.0)
     normal3 *= -1.0;
 
@@ -2635,10 +2648,13 @@ void RevEngRegion::analyseNormals(double tol, Point& normal, Point& centre,
   RevEngUtils::computeAxis(group, axis, Cx, Cy);
 
   Point pnt(0.0, 0.0, 0.0);
+  Point pos(0.0, 0.0, 0.0);
   vector<Point> vec(group_points_.size());
   double wgt = 1.0/(double)(group_points_.size());
   for (size_t ki=0; ki<group_points_.size(); ++ki)
     {
+      Vector3D xyz = group_points_[ki]->getPoint();
+      pos += wgt*Point(xyz[0], xyz[1], xyz[2]);
       vec[ki] = group_points_[ki]->getLocFuncNormal();
       pnt += wgt*vec[ki];
     }
@@ -2662,7 +2678,12 @@ void RevEngRegion::analyseNormals(double tol, Point& normal, Point& centre,
   impl.approxPoints(vec, 1);
 
   //Point pos; //, normal;
-  impl.projectPoint(vec[0], tmpnorm, pnt, normal);
+  bool found = impl.projectPoint(pos, tmpnorm, pnt, normal);
+  if (!found)
+    {
+      pnt = pos;
+      normal = tmpnorm;
+    }
   shared_ptr<Plane> surf(new Plane(pnt, axis));
 
 #ifdef DEBUG0
@@ -7341,14 +7362,14 @@ if (tor_in1.get())
   impl.evaluate(mid, val, grad);
   grad.normalize_checked();
   
+  shared_ptr<Torus> dummy;
   Point pos, normal;
-  impl.projectPoint(mid, grad, pos, normal);
+  bool found = impl.projectPoint(mid, grad, pos, normal);
+  if (!found)
+    return dummy;
   double eps1 = 1.0e-8;
   if (normal.length() < eps1)
-    {
-      shared_ptr<Torus> dummy;
       return dummy;
-    }
 
   for (size_t kr=0; kr<adj_axis.size(); ++kr)
     {
@@ -8257,7 +8278,7 @@ bool RevEngRegion::trimSurface(double tol)
 	}
     }
 
-  double diag = bbox_.low().dist(bbox_.high());
+  //double diag = bbox_.low().dist(bbox_.high());
   if (closed_u)
     {
       // Add seem along v-direction to the edge collection
@@ -8301,57 +8322,57 @@ bool RevEngRegion::trimSurface(double tol)
 	dynamic_pointer_cast<CurveOnSurface,ParamCurve>(trim_edgs_[ki]->geomCurve());
       if (!sfcv.get())
 	continue;
-        if (sfcv->isConstantCurve())
-	  {
-	    adaptOneEdge(trim_edgs_[ki], dom2);
-	    bool same;
-	    int bd = sfcv->whichBoundary(tol, same);
+      if (sfcv->isConstantCurve())
+	{
+	  adaptOneEdge(trim_edgs_[ki], dom2);
+	  bool same;
+	  int bd = sfcv->whichBoundary(tol, same);
 #ifdef DEBUG_TRIM
-	    bool same_orient = sfcv->sameOrientation();
-	    bool same_trace = sfcv->sameTrace(tol);
-	    bool same_cv = sfcv->sameCurve(tol);
-	    if ((!same_orient) || (!same_trace) || (!same_cv))
-	      std::cout << "Surface curve mismatch " << ki << " " << sfcv << " " << same_orient << " " << same_trace << " " << same_cv << std::endl;
+	  bool same_orient = sfcv->sameOrientation();
+	  bool same_trace = sfcv->sameTrace(tol);
+	  bool same_cv = sfcv->sameCurve(tol);
+	  if ((!same_orient) || (!same_trace) || (!same_cv))
+	    std::cout << "Surface curve mismatch " << ki << " " << sfcv << " " << same_orient << " " << same_trace << " " << same_cv << std::endl;
 	    
 #endif
-	    if (bd < 0)
-	      do_bound = true;
-	  }
-	else
-	  {
+	  if (bd < 0)
 	    do_bound = true;
+	}
+      else
+	{
+	  do_bound = true;
 	    
-	    double t1 = sfcv->startparam();
-	    double t2 = sfcv->endparam();
+	  double t1 = sfcv->startparam();
+	  double t2 = sfcv->endparam();
 
-	    ftEdgeBase *twin0 = trim_edgs_[ki]->twin();
-	    if (twin0)
-	      {
-		ftEdge *twin = twin0->geomEdge();
-		shared_ptr<CurveOnSurface> sfcv2 =
-		  dynamic_pointer_cast<CurveOnSurface,ParamCurve>(twin->geomCurve());
-		double t3 = sfcv2->startparam();
-		double t4 = sfcv2->endparam();
-		if (sfcv2->isConstantCurve() && (t3 > t1 || t4 < t2))
-		  {
-		    int mod = 0;
-		    if (t3 > t1)
-		      mod += 1;
-		    if (t4 < t2)
-		      mod += 2;
-		    double tmin = std::max(t1, t3);
-		    double tmax = std::min(t2, t4);
-		    shared_ptr<CurveOnSurface> sub(sfcv->subCurve(tmin, tmax));
-		    shared_ptr<ftEdge> subedge(new ftEdge(sub, tmin, tmax));
-		    ftEdgeBase *twin = trim_edgs_[ki]->twin();
-		    trim_edgs_[ki]->disconnectTwin();
-		    subedge->connectTwin(twin, status);
-		    trim_edgs_[ki] = subedge;
-		    adjusted[ki] = mod;
-		  }
-		int stop_break1 = 1;
-	      }
-	  }
+	  ftEdgeBase *twin0 = trim_edgs_[ki]->twin();
+	  if (twin0)
+	    {
+	      ftEdge *twin = twin0->geomEdge();
+	      shared_ptr<CurveOnSurface> sfcv2 =
+		dynamic_pointer_cast<CurveOnSurface,ParamCurve>(twin->geomCurve());
+	      double t3 = sfcv2->startparam();
+	      double t4 = sfcv2->endparam();
+	      if (sfcv2->isConstantCurve() && (t3 > t1 || t4 < t2))
+		{
+		  int mod = 0;
+		  if (t3 > t1)
+		    mod += 1;
+		  if (t4 < t2)
+		    mod += 2;
+		  double tmin = std::max(t1, t3);
+		  double tmax = std::min(t2, t4);
+		  shared_ptr<CurveOnSurface> sub(sfcv->subCurve(tmin, tmax));
+		  shared_ptr<ftEdge> subedge(new ftEdge(sub, tmin, tmax));
+		  ftEdgeBase *twin = trim_edgs_[ki]->twin();
+		  trim_edgs_[ki]->disconnectTwin();
+		  subedge->connectTwin(twin, status);
+		  trim_edgs_[ki] = subedge;
+		  adjusted[ki] = mod;
+		}
+	      int stop_break1 = 1;
+	    }
+	}
     }
   
   if (do_bound == false && trim_edgs_.size() != 4)
@@ -9068,7 +9089,7 @@ bool RevEngRegion::arrangeEdgeLoop(double tol, vector<int>& adjusted)
 	  double dd2 = info[ki][kj].dist2_;
 	  double tp1 = (ki < kj) ? info[ki][kj].par1_ : info[ki][kj].par2_;
 	  double tp2 = (ki < kj) ? info[ki][kj].par3_ : info[ki][kj].par4_;
-	  double td12 = std::max(td1, td2);
+	  //double td12 = std::max(td1, td2);
 	  if (ix2 < 0 || dd < td2)
 	    {
 	      if (fabs(tp1 - t1) > delta)
@@ -10714,7 +10735,7 @@ void RevEngRegion::removeLowAccuracyPoints(int min_pt_reg, double tol, double an
 
   double maxdist, avdist;
   int num_in, num2_in;
-  int surf_flag2 = NOT_SET;
+  //int surf_flag2 = NOT_SET;
   if (remain.size() < group_points_.size())
     {
       maxdist = avdist = 0.0;
@@ -10733,7 +10754,7 @@ void RevEngRegion::removeLowAccuracyPoints(int min_pt_reg, double tol, double an
 		num_in++;
 	    }
 	}
-      int surf_flag = defineSfFlag(remain.size(), 0, tol,
+      int surf_flag = defineSfFlag((int)remain.size(), 0, tol,
 				   num_in, num2_in, avdist, cyllike);
       if (surf_flag <= surfflag_ && avdist < avdist_)
 	{
@@ -10838,7 +10859,7 @@ bool RevEngRegion::updateSurfaceWithAxis(int min_pt_reg, Point adj_axis,
   int code;
   ClassType classtype = getSurface(0)->instanceType(code);
   bool cyllike = (classtype == Class_Cylinder || classtype == Class_Cone);
-  double angtol2 = (surfflag_ == PROBABLE_HELIX) ? 0.5*M_PI : 0.25*M_PI;
+  //double angtol2 = (surfflag_ == PROBABLE_HELIX) ? 0.5*M_PI : 0.25*M_PI;
 
   // Ensure updated information
   double maxdist1 = 0.0, avdist1 = 0.0;
@@ -10901,8 +10922,8 @@ bool RevEngRegion::updateSurfaceWithAxis(int min_pt_reg, Point adj_axis,
 	 alt_ix = 0;
      }
 
-   double num_frac = (double)(num_in1+num2_in1)/(double)numpt;
-   double num_frac_alt = (double)(num_in[alt_ix]+num2_in[alt_ix])/(double)numpt;
+   //double num_frac = (double)(num_in1+num2_in1)/(double)numpt;
+   //double num_frac_alt = (double)(num_in[alt_ix]+num2_in[alt_ix])/(double)numpt;
    // if ((avfrac*avdist[alt_ix] <= avdist1 || avdist[alt_ix] <= tol2) &&
    //     num_frac_alt >= fracfrac*num_frac)
    if (sf_flag[alt_ix] < ACCURACY_POOR || sf_flag[alt_ix] <= sf_flag1)
@@ -11405,7 +11426,7 @@ RevEngRegion::initPlaneCyl(int min_point, int min_pt_reg, double tol,
   
   // Count fraction of normals closer to the centre than the tolerance
   double angtol2 = 2.0*angtol;
-  double dfrac = 0.75;
+  //double dfrac = 0.75;
   double in_frac, in_frac2;
   int nmb_axis[3];
   computeFracNorm(angtol2, mainaxis, nmb_axis, in_frac, in_frac2);
@@ -11550,8 +11571,8 @@ RevEngRegion::initPlaneCyl(int min_point, int min_pt_reg, double tol,
 #endif
 
        double rfac = 0.5;
-       size_t remain2_size = remain2.size();
-       if (remain2.size() < rfac*group_points_.size())
+       //size_t remain2_size = remain2.size();
+       if ((double)remain2.size() < rfac*(double)group_points_.size())
        {
 	 vector<RevEngPoint*> ang_pts;
 	 vector<RevEngPoint*> remain_ang;
@@ -11700,7 +11721,8 @@ RevEngRegion::initPlaneCyl(int min_point, int min_pt_reg, double tol,
 	       surfflag[perm[ka]] == PROBABLE_HELIX))
 	    {
 	      //int curr_num = std::max(num_pts_in[perm[ix]], num_pts_in[perm[ka]]);
-	      int curr_num = (num_pts_in[perm[ix]] + num_pts_in[perm[ka]])/2;
+	      int curr_num = ((int)num_pts_in[perm[ix]] +
+			      (int)num_pts_in[perm[ka]])/2;
 	      double frac1 = (double)(num_in[perm[ix]] + num2_in[perm[ix]])/
 		(double)curr_num;
 	      double frac2 = (double)(num_in[perm[ka]] + num2_in[perm[ka]])/
@@ -12148,7 +12170,7 @@ bool RevEngRegion::planarComponent(Point vec, int min_point, int min_pt_reg,
     return false;   // No large planar component is found
 
   // Extract identified points
-  if (group_points_.size() > max_group)
+  if ((int)group_points_.size() > max_group)
     {
       for (size_t ki=0; ki<conn_groups[ix].size(); ++ki)
 	removePoint(conn_groups[ix][ki]);
@@ -13008,7 +13030,7 @@ void RevEngRegion::sortBlendPoints(vector<RevEngPoint*>& points,
       Point close;
       Vector3D xyz = points[ki]->getPoint();
       Point pt(xyz[0], xyz[1], xyz[2]);
-      int ix = -1;
+      //int ix = -1;
       for (size_t kj=0; kj<cvs.size(); ++kj)
 	{
 	  cvs[kj]->closestPoint(pt, cvs[kj]->startparam(), cvs[kj]->endparam(),
@@ -14207,7 +14229,7 @@ void RevEngRegion::growWithSurf(Point mainaxis[3], int min_pt_reg, double tol,
     }
 
   double fac = 1.5;
-  if ((int)group_points_.size() > (int)(fac*num_group_points) ||
+  if ((int)group_points_.size() > (int)(fac*(double)num_group_points) ||
       adj_surfs.size() > 0)
     {
       for (size_t kj=0; kj<rev_edges_.size(); ++kj)
@@ -14378,7 +14400,7 @@ void RevEngRegion::growBlendSurf(vector<RevEngRegion*>& next_blend, double tol,
     {
       if (adj_reg[ki]->hasSurface())
 	continue;
-#ifdef DEBUG_GROW
+#ifdef DEBUG_BLEND
       std::ofstream of("curr_blend_adj.g2");
       adj_reg[ki]->writeRegionPoints(of);
 #endif
@@ -14634,7 +14656,7 @@ void RevEngRegion::growBlendSurf(vector<RevEngRegion*>& next_blend, double tol,
 		  if (kh == adj_reg.size())
 		    adj_reg.push_back(remain_adj[kj]);
 		}
-#ifdef DEBUG_GROW
+#ifdef DEBUG_BLEND
 	      std::ofstream of2("updated_blend_grow.g2");
 	      adj_reg[ki]->writeRegionPoints(of2);
 	      for (size_t kr=0; kr<adj_grow.size(); ++kr)
@@ -14644,7 +14666,7 @@ void RevEngRegion::growBlendSurf(vector<RevEngRegion*>& next_blend, double tol,
 	  int stop_break = 1;
 	}
     }
-#ifdef DEBUG_GROW
+#ifdef DEBUG_BLEND
   std::ofstream of3("updated_blend_grow2.g2");
   writeRegionPoints(of3);
   for (size_t ki=0; ki<adj_reg.size(); ++ki)
@@ -15707,7 +15729,7 @@ void splitAtSeam(shared_ptr<ParamSurface>& surf, shared_ptr<ParamCurve>& cv,
 	  Point pt = cv->point(intpar[kr]);
 	  Point dir = axis[ki];
 	  double rad = radius;
-	  if (type[kr] == 2)
+	  if (type[ki] == 2)
 	    {
 	      shared_ptr<Cone> cone = dynamic_pointer_cast<Cone, ParamSurface>(surf);
 	      double upar, vpar, dist;
@@ -16140,8 +16162,14 @@ void RevEngRegion::extendBoundaries(double mean_edge_len, int min_point_reg,
 
     Point centre;
     double radius;
-    RevEngUtils::computeCircPosRadius(all_points[ki], axis, Cx, Cy,
-				      centre, radius);
+    try {
+      RevEngUtils::computeCircPosRadius(all_points[ki], axis, Cx, Cy,
+					centre, radius);
+    }
+    catch (...)
+      {
+	continue;
+      }
 
     shared_ptr<Circle> circ(new Circle(radius, centre, axis, Cx));
     elemcv[2*ki] = circ;

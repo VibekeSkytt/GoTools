@@ -1465,7 +1465,37 @@ void RevEngUtils::computePlane(vector<Point>& points, Point normal,
   
   ImplicitApprox impl;
   impl.approxPoints(points, 1);
-  impl.projectPoint(pos0, normal, pos, norm);
+  bool found = impl.projectPoint(pos0, normal, pos, norm);
+  if (!found)
+    {
+      double eps = 1.0e-4;
+      double ang_min = 0.25*M_PI;
+      pos = pos0;
+      Point vec = points[0] - pos;
+      norm = Point(0.0, 0.0, 0.0);
+      size_t ki, kj;
+      for (ki=1; ki<points.size(); ++ki)
+	{
+	  if (vec.length() > eps)
+	    break;
+	  vec = points[ki] - pos;
+	  for (kj=ki+1; kj<points.size(); ++kj)
+	    {
+	      Point vec2 = points[kj] - pos;
+	      double ang = vec.angle(vec2);
+	      if (ang >= ang_min)
+		{
+		  Point norm2 = vec.cross(vec2);
+		  if (normal*norm2 < 0.0)
+		    norm2 *= -1;
+		  norm2.normalize();
+		  norm += norm2;
+		  break;
+		}
+	    }
+	}
+      norm.normalize();
+    }
   if (normal*norm < 0.0)
     norm *= -1.0;
 
@@ -2315,8 +2345,14 @@ shared_ptr<ParamSurface> RevEngUtils::doMergePlanes(vector<pair<vector<RevEngPoi
   ImplicitApprox impl;
   impl.approx(points, 1);
   Point pos2, normal2;
-  impl.projectPoint(pos, norm, pos2, normal2);
-  // std::ofstream outviz("implsf_merge.g2");
+  bool found = impl.projectPoint(pos, norm, pos2, normal2);
+  if (!found)
+    {
+      pos2 = pos;
+      normal2 = norm;
+      normal2.normalize();
+    }
+   // std::ofstream outviz("implsf_merge.g2");
   // impl->visualize(all_pts, outviz);
  
   shared_ptr<Plane> surf(new Plane(pos2, normal2));
@@ -2451,7 +2487,9 @@ shared_ptr<ParamSurface> RevEngUtils::doMergeTorus(vector<pair<vector<RevEngPoin
   impl.evaluate(mid, val, grad);
   grad.normalize_checked();
   Point pos, normal;
-  impl.projectPoint(mid, grad, pos, normal);
+  bool found = impl.projectPoint(mid, grad, pos, normal);
+  if (!found)
+    return dummy;
   double eps1 = 1.0e-8;
   if (normal.length() < eps1)
     return dummy;

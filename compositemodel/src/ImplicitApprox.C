@@ -256,7 +256,7 @@ double ImplicitApprox::estimateDist(RevEngPoint* pt)
 }
 
 //===========================================================================
-void ImplicitApprox::projectPoint(Point point, Point dir,
+bool ImplicitApprox::projectPoint(Point point, Point dir,
 				  Point& projpos, Point& normal)
 //===========================================================================
 {
@@ -286,7 +286,8 @@ void ImplicitApprox::projectPoint(Point point, Point dir,
   points[2] = point + dir3;
 
   Vector3D proj[3];
-  for (int ka=0; ka<3; ++ka)
+  int ka;
+  for (ka=0; ka<3; ++ka)
     {
       Vector3D xyz(points[ka].begin());
       Point p1 = points[ka] - len*dir;
@@ -320,6 +321,8 @@ void ImplicitApprox::projectPoint(Point point, Point dir,
 	s1871(qc, &zero, 1, eps, &kpt, &epar, &kcrv, &intcv, &kstat);
       if (qc)
 	freeCurve(qc);
+      if (kpt == 0)
+	return false;
 
       // Compute cartesian points and curves associated with intersections
       double mindist = std::numeric_limits<double>::max();
@@ -339,14 +342,16 @@ void ImplicitApprox::projectPoint(Point point, Point dir,
       if (intcv) freeIntcrvlist(intcv, kcrv);
       
     }
+
   projpos = Point(proj[0][0], proj[0][1], proj[0][2]);
   Point pt2(proj[1][0], proj[1][1], proj[1][2]);
   Point pt3(proj[2][0], proj[2][1], proj[2][2]);
-
+  
   Point vec1 = pt2 - projpos;
   Point vec2 = pt3 - projpos;
   normal = vec1.cross(vec2);
   normal.normalize_checked();
+  return true;
 }
 
 //===========================================================================

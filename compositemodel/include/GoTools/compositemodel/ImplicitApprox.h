@@ -79,7 +79,7 @@ namespace Go
 
     /// Project initial point and direction onto implicit surface to get a point
     /// in the surface and corresponding surface normal
-    void projectPoint(Point point, Point dir,
+    bool projectPoint(Point point, Point dir,
 		      Point& projpos, Point& normal);
 
     /// \param pt Input point

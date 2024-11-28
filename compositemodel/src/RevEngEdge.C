@@ -685,6 +685,7 @@ bool RevEngEdge::append(RevEngEdge* other, double tol)
     other->blend_regs_[kj]->setAssociatedBlend(this);
   blend_regs_.insert(blend_regs_.end(), other->blend_regs_.begin(),
 		     other->blend_regs_.end());
+  other->clearBlendRegions();
 
   distance_ = 0.5*(distance_ + other->distance_);
   radius_ = 0.5*(radius_ + other->radius_);

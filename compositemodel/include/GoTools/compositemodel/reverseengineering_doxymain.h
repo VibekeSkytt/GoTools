@@ -51,7 +51,8 @@ surfaces are used mostly for blends and small details. The extent of sharp edges
 the  objects is small. Edges are in general blended. Relevant objects are often
 made of casted iron or created by adaptive manufacturing giving rough surfaces. 
 Only the part of the surface that are critical for assembly is plastered, leaving
-most of the part with small unimportant pits.
+most of the part with small irregularities. Simple models and the main surfaces 
+of more complex models is expected to be reconstructed.
 
 \section re_sec1 Interface
 The reverse engineering engine is the class
@@ -128,9 +129,8 @@ pros and cons, and both are used in the computations.
 Classification is performed in RevEng::classifyPoints. It is based on the size and
 sign of estimated Gauss and mean curvature in the points. Very small curvature values are
 deciphered as zero. A small curvature radius compared to the average distance between
-triangle vertices indicates that the point is a part of an edge. As the expected typical 
-measured objects has rounded edges is
-further edge detection not a priority topic in the current version of the reverse engineering
+triangle vertices indicates that the point is a part of an edge. The expected typical 
+measured objects has rounded edges. Thus, edge detection not a prioritized topic in the current version of the 
 functionality. As the initial triangulation may lack smoothness, the curvature
 information is somewhat unstable, but still appropriate for recognizing significant 
 regions suitable for being represented by one surface. In the image below, pink colour 
@@ -145,8 +145,7 @@ RevEng::setApproximationTolerance based on information from the preceeding compu
 Alternatively, the application can use the
 function RevEng::setApproxTol(double tol) if more control is preferred. As the given
 point cloud is expected to be noisy, it is only required that a majority points associated 
-to a surface will be fit by the surface within this tolerance in addition to requirements
-on the average approximation error and normal direction.
+to a surface will be fit by the surface within this tolerance. There are also requirements on the average approximation error and surface normal direction.
 
 RevEng::segmentIntoRegions collects connected groups of points with the same classification.
 Identified edge points are excluded. This is a two-stage process. First connected points
@@ -160,7 +159,7 @@ The first surface creation is performed in RevEng::initialSurfaces. Regions with
 significant number of points are selected and tentatively fitted by a plane, 
 a cylinder or a cone. As the point classification can be misleading several
 attempts are made and the best fit is selected if it satisfies the accuracy
-requirements. Simultanously points that are found to belong to other surfaces are
+requirements. Simultanously, points that are found to belong to other surfaces are
 dismissed from the region. For our test example, only regions with more than 1357
 points are considered for surface creation. This number is estimated from the 
 current region sizes. The surfaces are represented as 
@@ -173,7 +172,7 @@ The result of the first surface creation for our test case is shown in the image
 \image html Tarn_initsurf.gif "The first surfaces, associationed points and main regions" width=800px
 
 The model is still incomplete. Some, even major, surfaces are missing. Transition zones
-are missing and the surfaces are independently orientated. Another region growing is
+are missing and the surfaces don't have any matching directions. Another region growing is
 performed in RevEng::growSurfaces, this time with the existence of some surfaces where
 the distance between the points of a region and the surface of the adjacent region
 can be measured. Next an identification of similar plane normals and rotational surface
@@ -196,7 +195,7 @@ cylinder.
 The first sequence of point 4 to 6 in the process overview is completed. Now 
 RevEng::surfaceCreation is applied to continue the surface recognition. At this stage,
 it is also possible to recognize spheres and torii. As in the first surface
-recognition pass, the more than one primary surface can be fitted to the points, and
+recognition pass, more than one primary surface can be fitted to the points, and
 the best fit is choosen if accurate enough. Some regions may be composed by several sub
 groups of points that can be associated one surface. The identified model
 coordinate system provides a tool to split these regions into consistent parts.
@@ -268,7 +267,10 @@ is similar to the cylinder case, but in this case we have an internal trimming c
 This curve is computed as a boundary towards point regions without an associated
 surface. The initial triangular surface lacks information in this area, thus the
 expected cylindrical surface inside the model is not found. The shape of this
-trimming curve is inferior to the ones found by the intersect and blend procedure.
+trimming curve is inferior to the ones found by the intersect and blend 
+procedure and in newer versions it is dismissed during the trimming operation.
+
+
 
 \image html Tarn_surface_collection.gif "All trimmed surfaces" width=600px
 
@@ -300,7 +302,7 @@ must be executed.
 
 The workflow is automatic, the only possible current interaction by the application is
 to set the tolerance. However, more user interaction is expected to be preferable.
-User interaction can be used to quality control the type of surfaces recognized and
+Then user interaction can be used to perform quality control the type of surfaces recognized and
 to enable regularization of the model with respect to for instance parallelity, 
 orthogonality and symmetry. This type of interference can in future versions of the
 work flow be included between the calls to RevEng functions.
