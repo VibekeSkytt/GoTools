@@ -353,6 +353,11 @@ namespace Go
 
     /// Write edges and point regions appropriated to an associated blend surface to file
     void writeEdgeStage(std::ostream& of) const;
+
+    const BoundingBox& boundingBox() const
+    {
+      return bbox_;
+    }
     
   private:
     /// Characterizes the surface of the current model. Currently always set to ROUGH
