@@ -924,14 +924,6 @@ public:
    /// \return          a vector of the coefficients of the control points p_ij in order p_00[0], p_00[1], ..., p_10[0], ..., p_01[0], ...
    std::vector<double> unitSquareBernsteinBasis() const;
 
-   /// Get the Bezier curve (as a spline curve) given as the image of a line segment in the parameter space of the spline
-   /// surface. The parameter domain of the curve will be [0, 1].
-   /// \param start_u The u-value of the start point of the line segment
-   /// \param start_v The v-value of the start point of the line segment
-   /// \param end_u   The u-value of the start point of the line segment
-   /// \param end_v   The v-value of the start point of the line segment
-   /// \return    The spline curve
-   SplineCurve* curveOnElement(double start_u, double start_v, double end_u, double end_v) const;
 
    // DEBUG
    double sumOfScaledBsplines(double upar, double vpar);

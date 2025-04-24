@@ -731,50 +731,6 @@ double Element2D::sumOfScaledBsplines(double upar, double vpar)
     return result;
   }
 
-  SplineCurve* Element2D::curveOnElement(double start_u, double start_v, double end_u, double end_v) const
-  {
-    if (support_.size() == 0)
-      return NULL;   // This should not happen, some B-splines must have support in this element
-
-    int dim = support_[0]->dimension();
-    int deg_u = support_[0]->degree(XFIXED);
-    int deg_v = support_[0]->degree(YFIXED);
-
-    vector<vector<double> > bernstein_u;
-    vector<vector<double> > bernstein_v;
-    univariateBernsteinEvaluationInLine(deg_u, start_u, end_u, bernstein_u);
-    univariateBernsteinEvaluationInLine(deg_v, start_v, end_v, bernstein_v);
-
-    int degree = deg_u + deg_v;
-    vector<int> binomial(degree + 1);   // binomial[i] shall be the binomial (degree Choose i)
-    binomial[0] = binomial[degree] = 1;
-    for (int i = 0; i + i <= degree; ++i)
-      binomial[degree - i] = binomial[i] = (binomial[i - 1] * (degree - i + 1)) / i;
-
-    vector<double> curve_coefs(dim * (degree + 1));
-    vector<double> surface_coefs = unitSquareBernsteinBasis();
-    vector<double>::const_iterator surf_it;
-
-    for (int i2 = 0; i2 <= deg_v; ++i2)
-      for (int i1 = 0; i1 <= deg_u; ++i1)
-	for (int k = 0; k <= dim; ++k, ++surf_it)
-	  for (int j2 = 0; j2 <= deg_v; ++j2)
-	    for (int j1 = 0; j1 <= deg_u; ++j1)
-	      curve_coefs[dim*(j1 + j2) + k] += bernstein_v[i2][j2] * bernstein_u[i1][j1] * (*surf_it);
-
-    for (int i = 0; i <= degree; ++i)
-      for (int k = 0; k <= dim; ++k)
-	curve_coefs[i * dim + k] /= (double)binomial[i];
-
-    vector<double> knots(2 * (degree + 1));
-    for (int i = 0; i <= degree; ++i)
-      {
-	knots[i] = 0.0;
-	knots[i + degree + 1] = 1.0;
-      }
-
-    return new SplineCurve(degree + 1, degree + 1, knots.begin(), curve_coefs.begin(), dim);
-  }
 
 
   void Element2D::bernsteinEvaluation(int degree, double value, vector<vector<double> >& result) const
@@ -867,7 +823,7 @@ double Element2D::sumOfScaledBsplines(double upar, double vpar)
 
     vector<int> binomial(degree + 1);   // binomial[i] shall be the binomial (degree Choose i)
     binomial[0] = binomial[degree] = 1;
-    for (int i = 0; i + i <= degree; ++i)
+    for (int i = 1; i + i <= degree; ++i)
       binomial[degree - i] = binomial[i] = (binomial[i - 1] * (degree - i + 1)) / i;
 
     for (int j = 0; j <= degree; ++j)

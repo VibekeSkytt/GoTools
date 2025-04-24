@@ -62,12 +62,44 @@ namespace Go
   /// Utility functionality used in computations involving LR B-spline surfaces
   namespace LRSplineUtils
   {
+    /// In approximation setting, classify data points.
+    /// Most points are regular, significant points get a higher weight in
+    /// the approximation. Ghost points are obsolete.
     enum PointType {
       UNDEF_POINTS = 0,
       REGULAR_POINTS = 1,
       SIGNIFICANT_POINTS = 2,
       GHOST_POINTS = 3
     };
+
+    /// Given a collection of B-splines (bsplines), evaluate the B-splines
+    /// in the given parameter value (upar,vpar). The evaluation results are
+    /// returned in result.
+    /// \param u_at_end True if upar is at the upper end of the parameter domain
+    /// \param v_at_end True if vpar is at the upper end of the parameter domain
+    void evalAllBSplines(const std::vector<LRBSpline2D*>& bsplines,
+			 double upar, double vpar, 
+			 bool u_at_end, bool v_at_end, 
+			 std::vector<double>& result);
+
+    /// Given a collection of B-splines (bsplines), evaluate the B-splines
+    /// in the given parameter value (upar,vpar) and multiply this value with
+    /// the corresponding coefficient times the scaling weight. 
+    /// The B-splines times scaled coefficients are returned in result.
+    /// \param u_at_end True if upar is at the upper end of the parameter domain
+    /// \param v_at_end True if vpar is at the upper end of the parameter domain
+    void evalAllBSplinePos(const std::vector<LRBSpline2D*>& bsplines,
+			   double upar, double vpar, 
+			   bool u_at_end, bool v_at_end, 
+			   std::vector<Point>& result);
+
+    /// Lifts a one-dimensional LR-spline function to a three-dimensional function by adding the
+    /// linear functions for the parameter values before the original function.
+    /// I.e. the function is changed
+    ///
+    /// from    (u,v) |-> (f(u,v))
+    /// to      (u,v) |-> (u, v, f(u,v))
+    void insertParameterFunctions(LRSplineSurface* lr_spline_sf);
 
     LRSplineSurface::ElementMap identify_elements_from_mesh(const Mesh2D& m);
 
@@ -152,15 +184,8 @@ namespace Go
     void split_univariate(std::vector<std::unique_ptr<BSplineUniLR> >& bsplines,
 			  int& last, int fixed_ix, int mult);
 
+    // Not implemented
     bool elementOK(const Element2D* elem, const Mesh2D& m);
-
-    // Lifts a one-dimensional LR-spline function to a three-dimensional function by adding the
-    // linear functions for the parameter values before the original function.
-    // I.e. the function is changed
-    //
-    // from    (u,v) |-> (f(u,v))
-    // to      (u,v) |-> (u, v, f(u,v))
-    void insertParameterFunctions(LRSplineSurface* lr_spline_sf);
 
     SplineSurface* fullTensorProductSurface(const LRSplineSurface& lr_spline_sf);
 
@@ -176,16 +201,6 @@ namespace Go
 			      bool add_distance_field = false, 
 			      PointType type = REGULAR_POINTS,
 			      bool outlier_flag = false);
-
-    void evalAllBSplines(const std::vector<LRBSpline2D*>& bsplines,
-			 double upar, double vpar, 
-			 bool u_at_end, bool v_at_end, 
-			 std::vector<double>& result);
-
-    void evalAllBSplinePos(const std::vector<LRBSpline2D*>& bsplines,
-			   double upar, double vpar, 
-			   bool u_at_end, bool v_at_end, 
-			   std::vector<Point>& result);
 
     void
       get_affected_bsplines(const std::vector<LRSplineSurface::Refinement2D>& refs, 

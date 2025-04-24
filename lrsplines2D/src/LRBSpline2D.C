@@ -637,7 +637,7 @@ vector<double> LRBSpline2D::unitIntervalBernsteinBasis(double start, double stop
 
   vector<vector<double> > coefs(deg+1);
   for (int i = 0; i < deg + 2; ++i)
-    {
+    //    {
     knots.push_back(slope * (knotval(d,knots_int[i]) - start));
 
   // Get the position of the interval containing [0,1]. We assume that for
@@ -693,7 +693,7 @@ vector<double> LRBSpline2D::unitIntervalBernsteinBasis(double start, double stop
 	    coefs[i][j] = res;
 	  }
       }
-    }
+  //    }
   return coefs[0];
 }
 
