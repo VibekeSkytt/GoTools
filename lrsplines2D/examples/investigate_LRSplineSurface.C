@@ -39,6 +39,7 @@
 
 #include "GoTools/lrsplines2D/LRSplineSurface.h"
 #include "GoTools/lrsplines2D/Element2D.h"
+#include "GoTools/lrsplines2D/LRBSpline2D.h"
 #include "GoTools/geometry/RectDomain.h"
 #include "GoTools/geometry/PointCloud.h"
 #include "GoTools/geometry/SplineCurve.h"
@@ -50,34 +51,43 @@
 
 using namespace Go;
 using std::vector;
+using std::pair;
 
 //===========================================================================
 //                                                                           
 /// Description:
 /// Read LR B-spline surface from file.
-/// Iterate trough all elements in a surface and demonstrate available 
-/// enquiries excluding those connected to scattered data approximation.
-///  
-/// Input to the example is the surface constructed in the example
-/// program refine_surface.
-/// For each element, the Bezier coefs of the corresponding patch is compute
-/// and stored in the file data/Bezier_coefs.g2. The corresponding patches
-/// are represented as spline surfaces and written to data/Bezier_patches.g2.
+/// Iterate trough all elements and B-splines in a surface.
+/// Enquire various information about the surface and represent the
+/// surface as a tensor product surface and as a collection of simpler
+/// LR B-spline surfaces.
+/// The purpose is to demonstrate various functionaliy.
+/// Parts of this example is similar to investigate_Element2D.
+/// For evaluation, see the example evaluateLRSurface.
+///
+/// The input surface is computed by the example program
+/// approximateParPointsWithLRSurf and expected to be found in
+/// data/approx_lrsurf.g2
+/// The tensor product surface is written to data/TP_surface.g2 and
+/// the collection of simpler surfaces to data/sub_surfs.g2.
 //                                                                           
 //===========================================================================
 
 int main(int argc, char *argv[])
 {
   // Read LR B-spline surface from file
-  std::string infile("data/data/lrsurf_fin.g2");
+  std::string infile("data/approx_lrsurf.g2");
   std::ifstream input1(infile.c_str());
   std::ifstream input2(infile.c_str());
 
   // Prepare for output
-  std::string outfile1("data/Bezier_coefs.g2");
-  std::string outfile2("data/Bezier_patches.g2");
+  std::string outfile1("data/TP_surface.g2");
+  std::string outfile2("data/sub_surf.g2");
   std::ofstream of1(outfile1.c_str());
   std::ofstream of2(outfile2.c_str());
+
+  // Two approaches is used to read the surface, one where the type of the
+  // geometric entity in the file is know and one where this is not the case
   
   // Read header specifying the type of geometry entity
   ObjectHeader header1;
@@ -118,7 +128,7 @@ int main(int argc, char *argv[])
       exit(-1);
     }
 
-  // Read specified entity
+  // Read specified element
   shared_ptr<GeomObject> geom_obj(Factory::createObject(header2.classType()));
   geom_obj->read(input2);
 
@@ -131,90 +141,90 @@ int main(int argc, char *argv[])
       exit(-1);
     }
 
-  // Fetch parameter domain of surface
-  RectDomain dom = surf1->containingDomain();
-
-  // Mid point of parameter domain
-  double umid = 0.5*(dom.umin() + dom.umax());
-  double vmid = 0.5*(dom.vmin() + dom.vmax());
-
   // Fetch degrees and dimension of geometry space for the
   // surface
   int deg1 = surf1->degree(XFIXED);
   int deg2 = surf1->degree(YFIXED);
   int dim = surf1->dimension();
+  std::cout << "Dimension: " << dim << ", degree in first parameter direction: ";
+  std::cout << deg1 << ", degree in second parameter direction: " << deg2 << std::endl;
 
-  // Knot vector for Bezier patch
-  double knots1[2*(deg1+1)];
-  double knots2[2*(deg2+1)];
-  for (int ki=0; ki<=deg1; ++ki)
-    {
-      knots1[ki] = 0.0;
-      knots1[deg1+1+ki] = 1.0;
-    }
-  for (int ki=0; ki<=deg2; ++ki)
-    {
-      knots2[ki] = 0.0;
-      knots2[deg2+1+ki] = 1.0;
-    }
+  // Enquire limits of parameter domain
+  double umin = surf1->paramMin(XFIXED);  // First parameter direction
+  double umax = surf1->paramMax(XFIXED);
+  double vmin = surf1->paramMin(YFIXED);  // Second parameter direction
+  double vmax = surf1->paramMax(YFIXED);
+  std::cout << "Parameter domain: [" << umin << "," << umax << "] x [";
+  std::cout << vmin << "," << vmax << "]" << std::endl;
+
+  int num_elem = surf1->numElements();
+  std::cout << "Number of elements: " << num_elem << std::endl;
   
   // Iterate through all elements
   for (LRSplineSurface::ElementMap::const_iterator el = surf1->elementsBegin();
        el != surf1->elementsEnd(); ++el)
     {
+      // Example functionality, see investigate_Element2D for more
       // Enquire parameter domain of the current element
-      double umin = el->second->umin();
-      double umax = el->second->umax();
-      double vmin = el->second->vmin();
-      double vmax = el->second->vmax();
+      double umin_el = el->second->umin();
+      double umax_el = el->second->umax();
+      double vmin_el = el->second->vmin();
+      double vmax_el = el->second->vmax();
+    }
 
-      // Parameter domain area of element
-      double area = el->second->area();
+  int num_bspl = surf1->numBasisFunctions();
+  std::cout << "Number of B-splines: " << num_bspl << std::endl;
+  
+  // Iterate through all B-splines
+  for (LRSplineSurface::BSplineMap::const_iterator bsp = surf1->basisFunctionsBegin();
+       bsp != surf1->basisFunctionsEnd(); ++bsp)
+    {
+      // Example functionaly
+      // Enquire knot vector in the two parameter direction
+      // First fetch index of knots in the LR Mesh
+      vector<int> kvec1 = bsp->second->kvec(XFIXED);
+      vector<int> kvec2 = bsp->second->kvec(YFIXED);
 
-      // Number of B-splines having this element in its support
-      int num_Bspline = el->second->nmbBasisFunctions();  // Alternative nmbSupport()
+      // Populate with actual knot values
+      vector<double> knots1(kvec1.size());
+      vector<double> knots2(kvec2.size());
+      for (size_t ki=0; ki<kvec1.size(); ++ki)
+	knots1[ki] = bsp->second->knotval(XFIXED, (int)ki);
+      for (size_t ki=0; ki<kvec2.size(); ++ki)
+	knots2[ki] = bsp->second->knotval(YFIXED, (int)ki);
+    }
 
-      // Fetch all B-splines having this element in its support
-      // Iterators are also available
-      const vector<LRBSpline2D*> Bsplines = el->second->getSupport();
-
-      // Fetch first B-spline
-      LRBSpline2D* curr_bspline = 0;
-      if (num_Bspline > 0)
+  // Split the surface into simpler pieces
+  int threshold_missing = 100;  // Govern requested degree of simplicity
+  double tol = 0.001;   // Used in the context of a trimmed surface
+  vector<pair<shared_ptr<LRSplineSurface>, LRSplineSurface::PatchStatus> > sub_sfs =
+    surf1->subdivideIntoSimpler(threshold_missing, tol);
+  std::cout << "Number of sub surfaces: " << sub_sfs.size() << std::endl;
+  if (sub_sfs.size() > 0)
+    {
+      for (size_t ki=0; ki<sub_sfs.size(); ++ki)
 	{
-	  curr_bspline = el->second->supportFunction(0);
+	  sub_sfs[ki].first->writeStandardHeader(of2);
+	  sub_sfs[ki].first->write(of2);
 	}
-
-      // Check if the mid parameter belongs to this element
-      bool is_inside = el->second->contains(umid, vmid);
-
-      // Get all neighbouring elements to this one
-      vector<Element2D*> neighbours;
-      el->second->fetchNeighbours(neighbours);
-
-      // Translate the surface patch corresponding to the current element
-      // to a Bezier surface and fetch the associated coefficients
-      vector<double> Bezier_coefs = el->second->unitSquareBernsteinBasis();
-
-      // Write coefficients to file as a PointCloud.
-      // NB! The current surface is a 3D surface, for a function the
-      // coefficients needs to be represented in 3D before defining the
-      // PointCloud.
-      PointCloud3D coef_cloud(&Bezier_coefs[0], Bezier_coefs.size()/3);
-      coef_cloud.writeStandardHeader(of1);
-      coef_cloud.write(of1);
-
-      // Define Bezier patch as spline surface
-      shared_ptr<SplineSurface> Bezier_patch(new SplineSurface(deg1+1, deg2+1,
-							       deg1+1, deg2+1,
-							       &knots1[0],
-							       &knots2[0],
-							       &Bezier_coefs[0],
-							       dim));
-      Bezier_patch->writeStandardHeader(of2);
-      Bezier_patch->write(of2);
-
     }
   
+  // Check if the LR B-spline surface is a tensor-product surface
+  bool TP = surf1->isFullTensorProduct();
+  std::cout << "Surface is tensor product: " << TP << std::endl;
+
+  // Create tensor product spline surface
+  // First add knots such to obtain a tensor product mesh
+  // NB! This functionality is not reversible
+  surf1->expandToFullTensorProduct();
+
+  // Fetch spline surface
+  shared_ptr<SplineSurface> tpsurf(surf1->asSplineSurface());
+  if (tpsurf.get())
+    {
+      tpsurf->writeStandardHeader(of1);
+      tpsurf->write(of1);
+    }
 }
+
 

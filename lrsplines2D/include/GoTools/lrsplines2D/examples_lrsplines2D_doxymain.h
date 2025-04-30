@@ -40,6 +40,51 @@
 #ifndef _EXAMPLES_LRSPLINES2D_DOXYMAIN_H
 #define _EXAMPLES_LRSPLINES2D_DOXYMAIN_H
 /**
+\page examples_LRSplines2D Example programs related to lrsplines2D
+
+refine_lrsurf.C
+
+This program demonstrates definition of an LR B-spline surface from a
+tensor-product spline surface and how to refine this surface with
+specified knot line segments.
+
+evaluateLRSurface.C
+
+This program demonstrates the various evaluation possibilities for an 
+LR B-spline surface.
+
+investigate_LRSplineSurface.C
+
+This program demonstrates a set of enquire functionalities for an 
+LR B-spline surface.
+
+investigate_Element2D.C
+
+This program reads and LR B-spline surface from file.
+It iterates trough all elements in a surface and demonstrate available 
+enquiries.
+
+approximateWithLRFunc.C
+
+Given a point cloud that can be parameterized on its x- and y-coordinated,
+set appropriate parameters and approximate the points with an LR surface
+in 1D (function).
+
+approximateParPointsWithLRSurf.C
+
+Given a parameterized point cloud, set a ppropriate parameters and 
+approximate the points with a 3D LR surface.
+
+isoContoursLRFunc.C
+
+Compute equally spaced contour curves from LR spline function.
+
+comparePointsLRSurf3D.C
+
+Compute distance between a points in a parameterized point cloud and
+the corresponding 3D surface. Collect points into groups according the
+this distance.
+
 \example refine_lrsurf refine_lrsurf.C
 \verbatim
 \endverbatim
@@ -47,5 +92,58 @@
 This program demonstrates definition of an LR B-spline surface from a
 tensor-product spline surface and how to refine this surface with
 specified knot line segments.
+
+\example evaluateLRSurface evaluateLRSurface.C
+\verbatim
+\endverbatim
+
+This program demonstrates the various evaluation possibilities for an 
+LR B-spline surface.
+
+\example investigate_LRSplineSurface investigate_LRSplineSurface.C
+\verbatim
+\endverbatim
+
+
+This program demonstrates a set of enquire functionalities for an 
+LR B-spline surface.
+
+\example investigate_Element2D investigate_Element2D.C
+\verbatim
+\endverbatim
+
+This program reads and LR B-spline surface from file.
+It iterates trough all elements in a surface and demonstrate available 
+enquiries.
+
+\example approximateWithLRFunc approximateWithLRFunc.C
+\verbatim
+\endverbatim
+
+Given a point cloud that can be parameterized on its x- and y-coordinated,
+set appropriate parameters and approximate the points with an LR surface
+in 1D (function).
+
+\example approximateParPointsWithLRSurf approximateParPointsWithLRSurf.C
+\verbatim
+\endverbatim
+
+Given a parameterized point cloud, set a ppropriate parameters and 
+approximate the points with a 3D LR surface.
+
+\example isoContoursLRFunc isoContoursLRFunc.C
+\verbatim
+\endverbatim
+
+Compute equally spaced contour curves from LR spline function.
+
+\example comparePointsLRSurf3D comparePointsLRSurf3D.C
+\verbatim
+\endverbatim
+
+Compute distance between a points in a parameterized point cloud and
+the corresponding 3D surface. Collect points into groups according the
+this distance.
+
 */
 #endif

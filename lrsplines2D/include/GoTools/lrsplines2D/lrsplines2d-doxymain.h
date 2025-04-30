@@ -51,6 +51,9 @@ and the following modules external to GoTools:
 
 The module depends on Version xxx of Boost
 
+Example programs corresponding to this module are listed in 
+\link examples_LRSplines2D examples_lrsplines2D \endlink
+
 \subsection  TP The problem with tensor-product grids
 
 The simplest way to generate parametric surface patches is by applying the tensor-product construction to univariate parametric space curves. Examples of these are B-spline surfaces, B-spline volumes, NURBS surfaces and NURBS volumes, which are implemented in GoTools.
@@ -105,9 +108,10 @@ inserting a new line segment and performing the subdivision in Step 2., there mi
 Consequently all such B-splines  must be refined.
 This process is continued until all tensor product B-splines have minimal support.
 </ol>
-If more than one new knotline segment is defined simultaneously, the refinement process is applied one segment at the time.
+If more than one new knotline segment is defined simultaneously, the refinement process is applied one segment at the time. Some details on how to choose
+new knot line segments can be found in \link lrsplines2d_refine \endlink .
 
-\subsection Classes The main classes
+\subsection Classes Classes involved in representing an LR B-spline surface
 
 \subsubsection Mesh2D
 The LR-mesh is represented in \link Go::Mesh2D \endlink. It contains 
@@ -117,6 +121,43 @@ knot line segment is represented by the index of the start knot and the
 knot multiplicity. Active segments have multiplicity one or higher while
 segments with multiplicity 0 indicates that there is no knot in this part 
 of the parameter domain.
+
+Mesh2D provides functionality to enquire properties of the mesh such as:
+number of knots excluding multiplicity (numDistinctKnots), value of a given
+knot (kval), iterators to knots (knotsBegin, knotsEnd), access to knots
+(getKnots), parameter domain (minParam, maxParam). Also mesh rectangle 
+information such as knot multiplicity and active and not active knot line 
+segments, is available.
+
+\subsubsection BSplineUniLR
+\link Go::BSplineUniLR \endlink represents a univariate B-spline by 
+storing indices to the corresponding knot vector in Mesh2D to the active knots
+of the current B-splines. Properties like degree, knot values and
+parameter interval are deduced. Information about a possible overlap between
+two univariate B-splines and the Greville parameter of this B-splines is
+available.
+
+\subsubsection LRBSpline2D
+A \link Go::LRBSpline2D \endlink is constructed as a tensor product between
+two univariate B-splines (BSplineUniLR), but contains in addition the 
+corrsponding coefficient, the scaling factor and a possible rational weight.
+The class contains information of the element in the support of the B-spline.
+
+The class provides functionality to enquire the coefficient, scaling factor
+and rational weight as well as geometry space dimension, associated knot 
+vector and degree. The elements in the support are avaiable and the 
+support limits canb be requested. The associated mesh is also available.
+
+\subsubsection Element2D
+An element represents the domain of one polynomial patch in the LR B-spline
+surface. It is limited by active knot line segments in both parameter
+direction. \link Go::Element2D \endlink contains information about the 
+limits of this domain, the B-splines overlapping it and, in approximation
+context, data points associated to this domain. Element2D provides access
+to information about the domain properties, the associated B-eplines and 
+neighbouring elements. The example program  
+\link investigate_Element2D nvestigate_Element2D \endlink shows how to
+obtain information related to the elements.
 
 \subsubsection LRSplineSurface
 \link Go::LRSplineSurface \endlink inherites \link Go::ParamSurface \endlink
@@ -138,13 +179,85 @@ The latter
 evaluates a regular grid of points, one by one, after connecting the elements
 with a tensor-product grid. Connecting a parameter pair to an element is the
 most time consuming part of the evaluation, and the grid ensures a rapid 
-recognition.
+recognition. Evaluation is demonstrated in the example \link evaluateLRSurface.C
+evaluateLRSurface \endlink . See also \link investigate_LRSplineSurface.C
+investigate_LRSplineSurface \endlink for more functionality.
 
-The LRSplineSurface is constructe through refinement given a tensor-product 
+The LRSplineSurface is constructed through refinement given a tensor-product 
 grid as input. The constructor can
 receive a spline surface, \link Go::SplineSurface \endlink, or the information 
 defining the grid as input. Refinement is triggered by LRSplineSurface, but
-performed in \link Go::LRSplineUtils \endlink. 
+performed in \link Go::LRSplineUtils \endlink. Given an element or a B-spline
+selected for refinement, a knot line segment that complies to the
+requirements, see \link LR \endlink, must be specified. Several options
+exists and are explained in some detail in \link lrsplines2d_refine \endlink .
+
+\subsection Classes2 Other classes, definitions and namespaces
+- <b>BSplineUniUtils</b> Utility functionality for keeping track of 
+univariate B-splines. The univariate B-splines are stored as vector in
+LRSplineSurface and these vectors need to be kept updated during refine 
+operations.
+- <b>Direction2D</b> Specifies the parameter direction of a surface, see
+\link Go::Direction2D \endlink
+- <b>LinDepUtils</b> The peeling algorithm, one step in identifiying linear
+dependencies, see \link Go::LinDepUtils \endlink
+- <b>LogLikelyhood</b> A statistical critierion for goodness of fit. 
+Related to scattered data approximation.
+- <b>LRApproxApp</b> Functionality related to the approximation of a point 
+cloud by an LR B-spline surface: specific interfaces to the approximation and
+computation of accuracy, see \link Go::LRApproxApp \endlink and 
+example \link comparePointsLRSurf3D.C comparePointsLRSurf3D \endlink
+- <b>LRBSpline2Dutils</b> LRBSpline2D related functionality used in refinement.
+- <b>LRFeatureUtils</b> Given a current LR B-spline surface with 
+associated point cloud, compute feature output in a grid. Called from
+LRSurfApprox to visualize certain aspects of the approximation, see the
+help documentation in \link PointCloud2LR.C \endlink
+- <b>LRMinMax</b> Computes extrema of LR spline function. The functionality
+requires associated contour curves as input, see \link Go::LRMinMax \endlink
+- <b>LRSplineEvalGrid</b> Grid evaluation of the elements of an 
+LR B-spline surface, \link Go::LRSplineEvalGrid \endlink
+- <b>LRSplineMBA</b> Called from LRSurfApprox. The name space provides 
+functionality to update an LR B-spline surface using an adaptation to the  local
+approximation method multi resolution B-spline approximation, see
+\link Go::LRSplineMBA \endlink
+- <b>LRSplineUtils</b> Utilities, mostly related to refinement of an 
+LR B-spline surface, but the namespace contains also some more functionality,
+see \link Go::LRSplineUtils \endlink
+- <b>LRSurfApprox</b> Approximate a scattered data point cloud by a 1D or 3D
+LR B-spline surface. In the latter case, the point cloud must be parameterized. 
+A large collection of parameters can be used to guide the approximation.
+A short explanation can be found in the help text to the application
+\link PointCloud2LR.C \endlink , which provides an interface to the
+functionality. See also \link Go::LRSurfApprox \endlink and the example
+programs \link approximateWithLRFunc approximateWithLRFunc.C \endlink and
+\link approximateParPointsWithLRSurf approximateParPointsWithLRSurf.C \endlink .
+A simplified interface can be found in \link Go::LRApproxApp \endlink.
+- <b>LRSurfSmoothLS</b> Least squares approximation with a smoothing term.
+Called from LRSurfApprox. This approximation approach is combined
+with multi resolution B-spline approximation (MBA) to compute the
+approximating surface. Least squares approximation is typically used in the
+start of the process, then the process continues with MBA, 
+\link Go::LRSurfSmoothLS \endlink
+- <b>LRSurfStitch</b> Modifies a collection of LR B-spline functions 
+organized in a regular pattern to obtain C<SUP>0</SUP> or C<SUP>1</SUP>
+continuity between adjacent functions. The process involves an increase
+in data size of the functions. See \link Go::LRSurfStitch \endlink 
+- <b>LRTraceIsocontours</b> Compute the level-set curves of an LR spline 
+function. The function is used to compute contour curves and the use is
+illustrated in the app \link isoContours.C \endlink and the
+example \link isoContoursLRFunc isoContoursLRFunc.C \endlink, see also
+\link Go::LRTraceIsocontours \endlink
+- <b>SSurfTraceIsocontours</b> Used by LRTraceIsocontours. 
+- <b>TraceContoursTypedefs</b> Typedefs and tempate functionality used by 
+LRTraceIsocontours. 
+- <b>Mesh2DUtils</b> Utility functionality for manouvring in an LR mesh.
+- <b>MeshLR</b> Base class for Mesh2D and \link Go::Mesh3D \endlink in 
+lrsplines3D.
+- <b>TrimSurface</b> Create bounded surface from an LR B-spline function 
+and associated point cloud to make the function domain correspond to the
+domain of the point cloud represented by its x- and y-values, see
+\link Go::TrimSurface \endlink
+- <b>LRSplinePlotUtils and LRSplinePlotUtils2 </b> Debug functionality
 
 \subsection Sources
 
