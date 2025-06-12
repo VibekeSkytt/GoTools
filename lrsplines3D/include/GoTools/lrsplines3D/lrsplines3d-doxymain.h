@@ -56,5 +56,6 @@ LRSplineVolume inherits \link Go::ParamVolume ParamVolume \endlink and is a spli
 \link Go::LRVolApprox  LRVolApprox \endlink implements an adaptive and iterative algorithm for approximating a trivariate point 
 cloud with format (x,y,z,f(x,y,z)) by local refinenement and approximation (\link Go::LRSpline3DMBA LRSpline3DMBA \endlink).
 
+More \link lrspline3D_doc  \endlink
 **/
 #endif // _LRSPLINES3D_DOXYMAIN_H

@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
   std::string outfile6("data/lrmesh_2.eps");
   std::string outfile7("data/lrmesh_fin.eps");
 
-  // Define quadratic spline surface with three inner knots in the first
+  // Define biquadratic spline surface with three inner knots in the first
   // parameter direction and two in the second direction
   int dim = 3;  // Dimension of geometry space
   int in1 = 6, in2 = 5;  // Number of coefficients in the two parameter directions
@@ -135,14 +135,14 @@ int main(int argc, char *argv[])
   // Refine in the second parameter direction
   Direction2D dir = YFIXED;    // The constant direction of the new
   // knot line segment
-  double par_y1 = 0.5;  // Position of new knot in the corresponding knot
-  // vector
-  double par_y2 = 1.5;  // Position of new knot in the corresponding knot
-  double start_y = 0.0;  // The start value of the new segment
-  double end_y = 3.0;    // The start value of the new segment
-  int mult = 1;          // Knot multiplicity
-  bool absolute = true;  // true = Do not increment multiplicity during
-  // multiple knot insertions, false = increment multiplicity
+  double par_y1 = 0.5;  // Position of new knot in the corresponding knot vector
+  double par_y2 = 1.5;  // Position of new knot in the corresponding knot vector
+  double start_y = 0.0; // The start value of the new segment
+  double end_y = 3.0;   // The end value of the new segment
+  int mult = 1;         // Knot multiplicity
+  bool absolute = true; // true = Do not increment multiplicity during
+                        // multiple knot insertions,
+                        // false = increment multiplicity
 
   // Perform knot insertion, one knot line segment at the time
   lr_surf->refine(dir, par_y1, start_y, end_y, mult, absolute);

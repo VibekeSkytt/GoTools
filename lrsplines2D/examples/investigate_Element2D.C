@@ -55,12 +55,12 @@ using std::vector;
 //                                                                           
 /// Description:
 /// Read LR B-spline surface from file.
-/// Iterate trough all elements in a surface and demonstrate available 
+/// Iterate through all elements in a surface and demonstrate available 
 /// enquiries excluding those connected to scattered data approximation.
 ///  
 /// Input to the example is the surface constructed in the example
-/// program refine_surface.
-/// For each element, the Bezier coefs of the corresponding patch is compute
+/// program refine_lrsurf.
+/// For each element, the Bezier coefs of the corresponding patch are computed
 /// and stored in the file data/Bezier_coefs.g2. The corresponding patches
 /// are represented as spline surfaces and written to data/Bezier_patches.g2.
 //                                                                           
@@ -80,6 +80,7 @@ int main(int argc, char *argv[])
   std::ofstream of2(outfile2.c_str());
   
   // Read header specifying the type of geometry entity
+  // The function throws if the entity header is invalid
   ObjectHeader header1;
   try {
     header1.read(input1);
@@ -90,7 +91,7 @@ int main(int argc, char *argv[])
       exit(-1);
     }
   
-  // The following assumes that the specified file contains an LR B-spline
+  // The following assumes that the specified file contains an LR spline
   // surface
   // Create empty surface
   shared_ptr<LRSplineSurface> surf1(new LRSplineSurface());
@@ -102,7 +103,7 @@ int main(int argc, char *argv[])
     }
 
   // Alternative reading procedure if we don't know that the file contains
-  // an LR B-spline surface
+  // an LR spline surface
   // Create the default factory
   GoTools::init();
   Registrator<LRSplineSurface> r293;
@@ -127,7 +128,7 @@ int main(int argc, char *argv[])
     dynamic_pointer_cast<LRSplineSurface, GeomObject>(geom_obj);
   if (!surf2.get())
     {
-      std::cerr << "The file contains no LR B-spline surface" << std::endl;
+      std::cerr << "The file contains no LR spline surface" << std::endl;
       exit(-1);
     }
 

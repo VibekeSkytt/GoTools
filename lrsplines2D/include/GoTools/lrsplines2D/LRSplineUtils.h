@@ -72,7 +72,7 @@ namespace Go
       GHOST_POINTS = 3
     };
 
-    /// Given a collection of B-splines (bsplines), evaluate the B-splines
+    /// Given a collection of B-splines (LRBsplines), evaluate the B-splines
     /// in the given parameter value (upar,vpar). The evaluation results are
     /// returned in result.
     /// \param u_at_end True if upar is at the upper end of the parameter domain

@@ -58,7 +58,7 @@ Example programs corresponding to this module are listed in
 
 The simplest way to generate parametric surface patches is by applying the tensor-product construction to univariate parametric space curves. Examples of these are B-spline surfaces, B-spline volumes, NURBS surfaces and NURBS volumes, which are implemented in GoTools.
 
-The number of control points of these tensor-product patches grows exponentially with the dimension of the geometric object. For instance, for curves with 10 control points, corresponding tensor-product surfaces will have 100 control points and tensor-product volumes will have 1000 control points. These control points form a rectangular gridded structure, making it impossible to refine the model locally without refining across the entire domain. Hence, in practice, it becomes unfeasible to add sufficient detail to the model where it is needed most.
+The number of control points of these tensor-product patches grows exponentially with the dimension of the geometric object. For instance, for curves with 10 control points, corresponding tensor-product surfaces will have 100 control points and tensor-product volumes will have 1000 control points. These control points form a rectlinear gridded structure, making it impossible to refine the model locally without refining across the entire domain. Hence, in practice, it becomes unfeasible to add sufficient detail to the model where it is needed most.
 
 \subsection LR LR B-splines and LR B-spline surfaces
 
@@ -70,7 +70,7 @@ An LR B-spline surface is defined as
 
 F(u,v) = \f$ \sum \f$ <SUB>i=1</SUB><SUP>L</SUP> P<SUB>i</SUB> s<SUB>i</SUB> R<SUB>i,p<SUB>1</SUB>,p<SUB>2</SUB></SUB> (u,v) 
 
-\\f[ F(u,v) = \sum _{i=1}^L P_i s_i R_{i, p_1, p_2} (u,v) \\f]
+\f[ F(u,v) = \sum _{i=1}^L P_i s_i R_{i, p_1, p_2} (u,v) \f]
 
 where P<SUB>i</SUB>, i=1, ... ,L are the surface coefficients, 
 and s<SUB>i</SUB> are scaling factors introduced
