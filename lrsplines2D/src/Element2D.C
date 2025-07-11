@@ -77,8 +77,10 @@ Element2D::Element2D() {
 	start_v_ =  0;
 	stop_u_  =  0;
 	stop_v_  =  0;
-	overloadCount_ = 0;
+	//overloadCount_ = 0;
 	is_modified_ = false;
+	overload_ = false;
+
 }
 
 Element2D::Element2D(double start_u, double start_v, double stop_u, double stop_v) {
@@ -87,12 +89,34 @@ Element2D::Element2D(double start_u, double start_v, double stop_u, double stop_
 	start_v_ = start_v;
 	stop_u_  = stop_u ;
 	stop_v_  = stop_v ;
-	overloadCount_ = 0;
+	//overloadCount_ = 0;
 	is_modified_ = false;
+	overload_ = false;
+
 }
 
 Element2D::~Element2D()
 {
+}
+
+bool Element2D::resetOverload()
+{
+  int nmb = 0;
+  for (size_t ki=0; ki<support_.size(); ++ki)
+    if (support_[ki]->getOverload())
+      {
+	++nmb;
+	if (nmb == 2)
+	  break;
+      }
+
+  overload_ = (nmb >= 2);
+  if (!overload_)
+    {
+      for (size_t ki=0; ki<support_.size(); ++ki)
+	support_[ki]->eraseOverload();
+    }
+  return overload_;
 }
 
 
@@ -211,16 +235,26 @@ void Element2D::swapParameterDirection()
     is_modified_ = true;
 }
 
-bool Element2D::isOverloaded()  const {
+bool Element2D::isOverloaded()  {
   int n = (int)support_.size();
 	if(n > 0) {
-		int p1 = support_.front()->degree(YFIXED) + 1;
-		int p2 = support_.front()->degree(XFIXED) + 1;
-		if(n > p1*p2)
-			return true;
+	  int p1 = support_.front()->degree(YFIXED) + 1;
+	  int p2 = support_.front()->degree(XFIXED) + 1;
+
+	  if(n > p1*p2)
+	    return true;
 	}
 	return false;
 }
+
+bool Element2D::isOverloaded(int lowest_nmb)  {
+  int n = (int)support_.size();
+  if(n > lowest_nmb)
+    return true;
+  else
+    return false;
+}
+
 
   void Element2D::fetchNeighbours(vector<Element2D*>& neighbours) const
   {

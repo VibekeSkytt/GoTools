@@ -751,6 +751,7 @@ EXCLUDE_SYMBOLS        =
 EXAMPLE_PATH           = ttl/examples/hesimplest \
                          compositemodel/examples \
                          lrsplines2D/examples \
+                         lrsplines3D/examples \
 			 trivariate/examples \
 			 trivariatemodel/examples \
 			 qualitymodule/examples \
@@ -784,6 +785,7 @@ IMAGE_PATH             = gotools-core/doc/images \
                          trivariate/doc/images \
                          trivariatemodel/doc/images \
                          lrsplines2D/doc/images \
+                         lrsplines3D/doc/images \
                          ttl/doc/images
 
 # The INPUT_FILTER tag can be used to specify a program that doxygen should

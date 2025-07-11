@@ -541,10 +541,41 @@ public:
    /// Modify the end of the element domain in the second parameter direction
    void setVmax(double v)                           { stop_v_  = v; };
 
-   bool isOverloaded() const;
-   void resetOverloadCount()    { overloadCount_ = 0;      }
-   int incrementOverloadCount() { return overloadCount_++; }
-   int getOverloadCount() const { return overloadCount_;   }
+   bool isOverloaded();
+   bool isOverloaded(int lowest_nmb);
+   bool initOverload()
+   {
+     if (isOverloaded())
+       overload_ = true;
+     return overload_;
+   }
+   
+   bool initOverload(int lowest_nmb)
+   {
+     if (isOverloaded(lowest_nmb))
+       overload_ = true;
+     return overload_;
+   }
+   
+   void setOverload(bool overload)
+   {
+     overload_ = overload;
+   }
+   bool getOverload()
+   {
+     return overload_;
+   }
+
+   bool resetOverload();
+   void eraseOverload()
+   {
+     overload_ = false;
+   }
+   
+   // bool isOverloaded() const;
+   // void resetOverloadCount()    { overloadCount_ = 0;      }
+   // int incrementOverloadCount() { return overloadCount_++; }
+   // int getOverloadCount() const { return overloadCount_;   }
 
 
    void updateBasisPointers(std::vector<LRBSpline2D*> &basis) ;
@@ -929,30 +960,31 @@ public:
    double sumOfScaledBsplines(double upar, double vpar);
 
 private:
-	double start_u_;
-	double start_v_;
-	double stop_u_;
-	double stop_v_;
+   double start_u_;
+   double start_v_;
+   double stop_u_;
+   double stop_v_;
 
-	std::vector<LRBSpline2D*> support_;
+   std::vector<LRBSpline2D*> support_;
 
-	int overloadCount_ ;
+   //int overloadCount_ ;
 
-	bool is_modified_;
+   bool is_modified_;
 
-	// Information used in the context of least squares approximation
-	// with smoothing
-	mutable shared_ptr<LSSmoothData> LSdata_;
+   // Information used in the context of least squares approximation
+   // with smoothing
+   mutable shared_ptr<LSSmoothData> LSdata_;
+   mutable bool overload_;
 
-	// Get the evaluations of the Bernstein functions up to given degree.
-	// The evaluation of the j-th Bernstein function of degree i will be
-	// stored as result[i][j] where 0 <= j <= i <= degree
-	void bernsteinEvaluation(int degree, double value, std::vector<std::vector<double> >& result) const;
+   // Get the evaluations of the Bernstein functions up to given degree.
+   // The evaluation of the j-th Bernstein function of degree i will be
+   // stored as result[i][j] where 0 <= j <= i <= degree
+   void bernsteinEvaluation(int degree, double value, std::vector<std::vector<double> >& result) const;
 
-	// For the linear function L, where L(0)=start and L(1)=end, we can express B^i_d(L) as
-	// sum_{j=0} ^d c_{ij} B^i_d(t) where B^i_d is the i-th Bernstein basis function of degree d.
-	// This method returns the c_{ij}-values, multiplied by binomial(d,j)
-	void univariateBernsteinEvaluationInLine(int degree, double start, double end, std::vector<std::vector<double> >& result) const;
+   // For the linear function L, where L(0)=start and L(1)=end, we can express B^i_d(L) as
+   // sum_{j=0} ^d c_{ij} B^i_d(t) where B^i_d is the i-th Bernstein basis function of degree d.
+   // This method returns the c_{ij}-values, multiplied by binomial(d,j)
+   void univariateBernsteinEvaluationInLine(int degree, double start, double end, std::vector<std::vector<double> >& result) const;
 };
 
 } // end namespace Go

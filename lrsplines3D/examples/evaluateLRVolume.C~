@@ -112,14 +112,12 @@ int main(int argc, char *argv[])
   // Parameter in which to evaluate
   double upar = 0.3*umin + 0.7*umax;
   double vpar = 0.5*(vmin + vmax);
-  std::cout << "Parameter pair in which to evaluate: " << upar << ", " << vpar << std::endl;
 
   // Evaluate without information of the element in which the parameter is
   // situated
   // Only position
   Point pos1;
   surf->point(pos1, upar, vpar);
-  std::cout << "Position at specified parameter: " << pos1 << std::endl;
 
   // Alternative interface
   Point pos2 = surf->ParamSurface::point(upar, vpar);
@@ -129,17 +127,14 @@ int main(int argc, char *argv[])
   // are requested the sequence continues: Suu, Suv, Svv, Suuu, Suuv, Suvv,
   // Svvv, ....
   vector<Point> pts1(3);
-  int no_derivs = 1;  // Number of derivatives to evaluate, = 0 means only
+  int no_derivs = 1;  // Number of derivatives to evaluate, =0 means only
   // position
   bool upar_from_right = false;  // True only if the parameter is placed
   // at the upper boundary in the first parameter direction
   bool vpar_from_right = false;  // True only if the parameter is placed
   // at the upper boundary in the second parameter direction
   surf->point(pts1, upar, vpar, no_derivs, upar_from_right, vpar_from_right);
-  std::cout << "Position and first derivatives: " << pts1[0] << std::endl;
-  std::cout << pts1[1] << std::endl;
-  std::cout << pts1[2] << std::endl;
-
+  
   // If the element corresponding to the parameter pair is known
   // Identify element. Note that this call may be time consuming if the
   // surface is large. If more than one evaluation is performed, the
@@ -155,6 +150,7 @@ int main(int argc, char *argv[])
   surf->point(pts2, upar, vpar, no_derivs, elem, upar_from_right,
 	      vpar_from_right);
 
+  std::cout << "Position at specified parameter: " << pos1 << std::endl;
 
   // Evaluate surface normal with and without specified element
   Point norm1, norm2;

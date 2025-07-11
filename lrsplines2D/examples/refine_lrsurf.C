@@ -44,7 +44,6 @@
 #include <fstream>
 
 using namespace Go;
-using namespace Go;
 
 //===========================================================================
 //                                                                           

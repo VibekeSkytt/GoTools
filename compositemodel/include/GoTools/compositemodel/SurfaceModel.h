@@ -304,7 +304,11 @@ class GO_API SurfaceModel : public CompositeModel
   /// \return Closest point
   ftPoint closestPoint(const Point& point);
 
-  /// Closest point between a given point and this surface model
+ void closestPoint(Point& point, int seed_ix, double seed[],
+		   Point& clo_pt, int& idx, double clo_par[],
+		   double& dist);
+
+ /// Closest point between a given point and this surface model
   /// \param point Input point
   /// \return Closest point
   ftPoint closestPoint(const ftPoint& point) { return closestPoint(point.position()); }
@@ -913,7 +917,7 @@ class GO_API SurfaceModel : public CompositeModel
 		      std::vector<std::pair<double,double> >& crv_bound,
 		      bool compute_curves=true) const;
 
-  ftPoint closestPointLocal(const ftPoint& point) const;
+  ftPoint closestPointLocal(const ftPoint& point, bool use_seed=false) const;
 
   void localExtreme(ftSurface *face, Point& dir, 
 		    Point& ext_pnt, int& ext_id,

@@ -56,14 +56,15 @@ using std::pair;
 //===========================================================================
 //                                                                           
 /// Description:
-/// Read LR B-spline surface from file.
-/// Iterate trough all elements and B-splines in a surface.
+/// Read LR spline surface from file.
+/// Iterate trough all elements and B-splines in the surface.
 /// Enquire various information about the surface and represent the
 /// surface as a tensor product surface and as a collection of simpler
 /// LR B-spline surfaces.
 /// The purpose is to demonstrate various functionaliy.
 /// Parts of this example is similar to investigate_Element2D.
 /// For evaluation, see the example evaluateLRSurface.
+/// More functionality can be found in LRSplineSurface.h
 ///
 /// The input surface is computed by the example program
 /// approximateParPointsWithLRSurf and expected to be found in
@@ -76,7 +77,7 @@ using std::pair;
 int main(int argc, char *argv[])
 {
   // Read LR B-spline surface from file
-  std::string infile("data/approx_lrsurf.g2");
+  std::string infile("data/lrsurf_ref1.g2"); //approx_lrsurf.g2");
   std::ifstream input1(infile.c_str());
   std::ifstream input2(infile.c_str());
 
@@ -87,7 +88,7 @@ int main(int argc, char *argv[])
   std::ofstream of2(outfile2.c_str());
 
   // Two approaches is used to read the surface, one where the type of the
-  // geometric entity in the file is know and one where this is not the case
+  // geometric entity in the file is known and one where this is not the case
   
   // Read header specifying the type of geometry entity
   ObjectHeader header1;
@@ -137,7 +138,7 @@ int main(int argc, char *argv[])
     dynamic_pointer_cast<LRSplineSurface, GeomObject>(geom_obj);
   if (!surf2.get())
     {
-      std::cerr << "The file contains no LR B-spline surface" << std::endl;
+      std::cerr << "The file contains no LR spline surface" << std::endl;
       exit(-1);
     }
 
@@ -180,7 +181,7 @@ int main(int argc, char *argv[])
        bsp != surf1->basisFunctionsEnd(); ++bsp)
     {
       // Example functionaly
-      // Enquire knot vector in the two parameter direction
+      // Enquire knot vector in the two parameter directions
       // First fetch index of knots in the LR Mesh
       vector<int> kvec1 = bsp->second->kvec(XFIXED);
       vector<int> kvec2 = bsp->second->kvec(YFIXED);
@@ -209,7 +210,7 @@ int main(int argc, char *argv[])
 	}
     }
   
-  // Check if the LR B-spline surface is a tensor-product surface
+  // Check if the LR spline surface is a tensor-product surface
   bool TP = surf1->isFullTensorProduct();
   std::cout << "Surface is tensor product: " << TP << std::endl;
 

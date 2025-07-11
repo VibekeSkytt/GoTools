@@ -44,24 +44,24 @@
 
 refine_lrsurf.C
 
-This program demonstrates definition of an LR B-spline surface from a
+This program demonstrates definition of an LR spline surface from a
 tensor-product spline surface and how to refine this surface with
 specified knot line segments.
 
 evaluateLRSurface.C
 
 This program demonstrates the various evaluation possibilities for an 
-LR B-spline surface.
+LR spline surface.
 
 investigate_LRSplineSurface.C
 
 This program demonstrates a set of enquire functionalities for an 
-LR B-spline surface.
+LR spline surface.
 
 investigate_Element2D.C
 
-This program reads and LR B-spline surface from file.
-It iterates trough all elements in a surface and demonstrate available 
+This program reads an LR spline surface from file.
+It iterates trough all elements in the surface and demonstrate available 
 enquiries.
 
 approximateWithLRFunc.C
@@ -85,11 +85,17 @@ Compute distance between a points in a parameterized point cloud and
 the corresponding 3D surface. Collect points into groups according the
 this distance.
 
+identify_and_resolve_linear_dependence.C
+
+Identify B-splines involved in a linear dependence situation.
+Remove the dependence by applying structured mesh refinement to the
+main B-splines in the dependence relation.
+
 \example refine_lrsurf refine_lrsurf.C
 \verbatim
 \endverbatim
 
-This program demonstrates definition of an LR B-spline surface from a
+This program demonstrates definition of an LR spline surface from a
 tensor-product spline surface and how to refine this surface with
 specified knot line segments.
 
@@ -98,7 +104,7 @@ specified knot line segments.
 \endverbatim
 
 This program demonstrates the various evaluation possibilities for an 
-LR B-spline surface.
+LR spline surface.
 
 \example investigate_LRSplineSurface investigate_LRSplineSurface.C
 \verbatim
@@ -106,14 +112,14 @@ LR B-spline surface.
 
 
 This program demonstrates a set of enquire functionalities for an 
-LR B-spline surface.
+LR spline surface.
 
 \example investigate_Element2D investigate_Element2D.C
 \verbatim
 \endverbatim
 
-This program reads and LR B-spline surface from file.
-It iterates trough all elements in a surface and demonstrate available 
+This program reads an LR spline surface from file.
+It iterates trough all elements in the surface and demonstrate available 
 enquiries.
 
 \example approximateWithLRFunc approximateWithLRFunc.C
@@ -144,6 +150,14 @@ Compute equally spaced contour curves from LR spline function.
 Compute distance between a points in a parameterized point cloud and
 the corresponding 3D surface. Collect points into groups according the
 this distance.
+
+\example identify_and_resolve_linear_dependence identify_and_resolve_linear_dependence.C
+\verbatim
+\endverbatim
+
+Identify B-splines involved in a linear dependence situation.
+Remove the dependence by applying structured mesh refinement to the
+main B-splines in the dependence relation.
 
 */
 #endif

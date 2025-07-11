@@ -60,13 +60,13 @@ The simplest way to generate parametric surface patches is by applying the tenso
 
 The number of control points of these tensor-product patches grows exponentially with the dimension of the geometric object. For instance, for curves with 10 control points, corresponding tensor-product surfaces will have 100 control points and tensor-product volumes will have 1000 control points. These control points form a rectlinear gridded structure, making it impossible to refine the model locally without refining across the entire domain. Hence, in practice, it becomes unfeasible to add sufficient detail to the model where it is needed most.
 
-\subsection LR LR B-splines and LR B-spline surfaces
+\subsection LR LR B-splines and LR spline surfaces
 
 Locally Refined B-splines (LR B-splines) aim to solve this problem by providing a mathematical framework, generalizing the tensor-product construction, for refining the model locally. This framework extends to any dimension.
 
-An LR B-spline surface, \link Go::LRSplineSurface \endlink, is a piecewise polynomial or piecewise rational polynomial surface defined on an LR-mesh, \link Go::Mesh2D \endlink. An LR-mesh is a locally refined mesh made by applying a sequence of
-refinements starting from a tensor-product mesh. LR B-spline surfaces are algorithmically defined throughout the refinement process of the mesh.
-An LR B-spline surface is defined as
+An LR spline surface, \link Go::LRSplineSurface \endlink, is a piecewise polynomial or piecewise rational polynomial surface defined on an LR-mesh, \link Go::Mesh2D \endlink. An LR-mesh is a locally refined mesh made by applying a sequence of
+refinements starting from a tensor-product mesh. LR spline surfaces are algorithmically defined throughout the refinement process of the mesh.
+An LR spline surface is defined as
 
 F(u,v) = \f$ \sum \f$ <SUB>i=1</SUB><SUP>L</SUP> P<SUB>i</SUB> s<SUB>i</SUB> R<SUB>i,p<SUB>1</SUB>,p<SUB>2</SUB></SUB> (u,v) 
 
@@ -81,7 +81,7 @@ defined on knot vectors of lengths p<SUB>1</SUB> + 2 and p<SUB>2</SUB> + 2
 on the parametric domain in the \[u\] and \[v\] directions respectively. 
 
 \image html mesh.PNG "LR-mesh. The support of one tensor product B-spline visualized as a red pattern.  Initial knotlines are shown as black lines, the inserted knotline segments are blue."  width=600px 
-An LR-mesh corresponding to an LR B-spline surface of bidegree two is shown in
+An LR-mesh corresponding to an LR spline surface of bidegree two is shown in
 the figure above. The mesh lines of the initial tensor-product surface are drawn
 in black. The corresponding knots are: [u<SUB>1</SUB>, u<SUB>1</SUB>, u<SUB>1</SUB>, u<SUB>2</SUB>, u<SUB>4</SUB>, u<SUB>6</SUB>, u<SUB>7</SUB>, u<SUB>7</SUB>,u<SUB>7</SUB>] in the first parameter direction and [v<SUB>1</SUB>, v<SUB>1</SUB>, v<SUB>1</SUB>, v<SUB>3</SUB>, v<SUB>5</SUB>, v<SUB>6</SUB>, 4<SUB>6</SUB>, v<SUB>6</SUB>] in the second direction. 
 The LR-mesh is constructed by first inserting knots at v<SUB>2</SUB> and 
@@ -93,7 +93,7 @@ surface. The parameter patches limited by knot lines are denoted elements,
 domain of the surface. In approximation context (link to page) the elements
 contain data points. The initial B-spline surface has 30 basis 
 functions (B-splines) while the
-constructed LR B-spline surface has 42  B-splines, \link Go::LRSpline2D \endlink. 
+constructed LR spline surface has 42  B-splines, \link Go::LRSpline2D \endlink. 
 Some lines of the LR-mesh intersecting the support of such B-spline do not correspond to knotlines of its knot mesh as they do not traverse the support completely. The refinement process is performed in the example \link refine_lrsurf 
 refine_lrsurf.C \endlink .
 
@@ -109,9 +109,19 @@ Consequently all such B-splines  must be refined.
 This process is continued until all tensor product B-splines have minimal support.
 </ol>
 If more than one new knotline segment is defined simultaneously, the refinement process is applied one segment at the time. Some details on how to choose
-new knot line segments can be found in \link lrsplines2d_refine \endlink .
+new knot line segments can be found in \link lrsplines2d_refine \endlink . 
 
-\subsection Classes Classes involved in representing an LR B-spline surface
+LR spline surface possess most of the nice properties of spline surfaces, such as:
+- Non-negative basis function
+- Partition of unity
+- The surface lies in the convex hull of its coefficients
+
+However, depending on the refinement strategy, linear dependence situations may
+occur. A case where such situations are identified and resolves is explained
+in the example \link identify_and_resolve_linear_dependence
+identify_and_resolve_linear_dependence.C \endlink.
+
+\subsection Classes Classes involved in representing an LR spline surface
 
 \subsubsection Mesh2D
 The LR-mesh is represented in \link Go::Mesh2D \endlink. It contains 
@@ -140,16 +150,16 @@ available.
 \subsubsection LRBSpline2D
 A \link Go::LRBSpline2D \endlink is constructed as a tensor product between
 two univariate B-splines (BSplineUniLR), but contains in addition the 
-corrsponding coefficient, the scaling factor and a possible rational weight.
+corresponding coefficient, the scaling factor and a possible rational weight.
 The class contains information of the element in the support of the B-spline.
 
 The class provides functionality to enquire the coefficient, scaling factor
 and rational weight as well as geometry space dimension, associated knot 
 vector and degree. The elements in the support are avaiable and the 
-support limits canb be requested. The associated mesh is also available.
+support limits can be requested. The associated mesh is also available.
 
 \subsubsection Element2D
-An element represents the domain of one polynomial patch in the LR B-spline
+An element represents the domain of one polynomial patch in the LR spline
 surface. It is limited by active knot line segments in both parameter
 direction. \link Go::Element2D \endlink contains information about the 
 limits of this domain, the B-splines overlapping it and, in approximation
@@ -204,27 +214,27 @@ dependencies, see \link Go::LinDepUtils \endlink
 - <b>LogLikelyhood</b> A statistical critierion for goodness of fit. 
 Related to scattered data approximation.
 - <b>LRApproxApp</b> Functionality related to the approximation of a point 
-cloud by an LR B-spline surface: specific interfaces to the approximation and
+cloud by an LR spline surface: specific interfaces to the approximation and
 computation of accuracy, see \link Go::LRApproxApp \endlink and 
 example \link comparePointsLRSurf3D.C comparePointsLRSurf3D \endlink
 - <b>LRBSpline2Dutils</b> LRBSpline2D related functionality used in refinement.
-- <b>LRFeatureUtils</b> Given a current LR B-spline surface with 
+- <b>LRFeatureUtils</b> Given a current LR spline surface with an
 associated point cloud, compute feature output in a grid. Called from
 LRSurfApprox to visualize certain aspects of the approximation, see the
 help documentation in \link PointCloud2LR.C \endlink
 - <b>LRMinMax</b> Computes extrema of LR spline function. The functionality
 requires associated contour curves as input, see \link Go::LRMinMax \endlink
 - <b>LRSplineEvalGrid</b> Grid evaluation of the elements of an 
-LR B-spline surface, \link Go::LRSplineEvalGrid \endlink
+LR spline surface, \link Go::LRSplineEvalGrid \endlink
 - <b>LRSplineMBA</b> Called from LRSurfApprox. The name space provides 
-functionality to update an LR B-spline surface using an adaptation to the  local
+functionality to update an LR spline surface using an adaptation to the  local
 approximation method multi resolution B-spline approximation, see
 \link Go::LRSplineMBA \endlink
 - <b>LRSplineUtils</b> Utilities, mostly related to refinement of an 
-LR B-spline surface, but the namespace contains also some more functionality,
+LR spline surface, but the namespace contains also some more functionality,
 see \link Go::LRSplineUtils \endlink
 - <b>LRSurfApprox</b> Approximate a scattered data point cloud by a 1D or 3D
-LR B-spline surface. In the latter case, the point cloud must be parameterized. 
+LR spline surface. In the latter case, the point cloud must be parameterized. 
 A large collection of parameters can be used to guide the approximation.
 A short explanation can be found in the help text to the application
 \link PointCloud2LR.C \endlink , which provides an interface to the
@@ -238,7 +248,7 @@ with multi resolution B-spline approximation (MBA) to compute the
 approximating surface. Least squares approximation is typically used in the
 start of the process, then the process continues with MBA, 
 \link Go::LRSurfSmoothLS \endlink
-- <b>LRSurfStitch</b> Modifies a collection of LR B-spline functions 
+- <b>LRSurfStitch</b> Modifies a collection of bivariate LR spline functions 
 organized in a regular pattern to obtain C<SUP>0</SUP> or C<SUP>1</SUP>
 continuity between adjacent functions. The process involves an increase
 in data size of the functions. See \link Go::LRSurfStitch \endlink 

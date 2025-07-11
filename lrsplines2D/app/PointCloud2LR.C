@@ -63,6 +63,7 @@
 //#define DEBUG
 //#define DEBUG_EL
 //#define DEBUG2
+#define DEBUG_PAR
 
 
 using namespace Go;
@@ -614,6 +615,18 @@ int main(int argc, char *argv[])
   else
     FileUtils::readTxtPointFile(pointsin, del, data, nmb_pts, extent);
 
+#ifdef DEBUG_PAR
+  if (del == 5)
+    {
+      std::ofstream ofg("geom_pts.g2");
+      ofg << "400 1 0 0" << std::endl;
+      ofg << data.size()/del << std::endl;
+      for (int ki=0; ki<(int)data.size(); ki+=del)
+	ofg << data[ki+2] << " " << data[ki+3] << " " << data[ki+4] << std::endl;
+    }
+  
+#endif
+  
   int nmb_sign = 0;
   vector<double> sign_data;
   vector<double> sign_extent(2*del);
