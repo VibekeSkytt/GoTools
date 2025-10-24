@@ -196,6 +196,90 @@ ApproxSurf::ApproxSurf(shared_ptr<SplineSurface>& srf,
 //***************************************************************************
 
 
+//***************************************************************************
+
+ApproxSurf::ApproxSurf(const std::vector<double>& points, 
+		       const std::vector<double>& parvals,
+		       int order1, int order2, int num_coef1, int num_coef2,
+		       int dim, double aepsge, bool repar)
+   //--------------------------------------------------------------------------
+   //     Constructor for class ApproxSurf.
+   //
+   //     Purpose : Initialize class variables
+   //
+   //     Calls   :
+   //
+   //     Written by : Vibeke Skytt,  SINTEF,  00-04
+   //--------------------------------------------------------------------------
+{
+  prevdist_ = maxdist_ = -10000.0;
+  prevav_ = avdist_ = 0;
+  outsideeps_ = 0;
+  dim_ = dim;
+  aepsge_ = aepsge;
+  smoothweight_ = 1.0e-3; // 1.0e-9;
+  constdir_ = -1;
+  use_normals_ = false;
+  close_belt_ = false;
+  edge_derivs_[0] = edge_derivs_[1] = edge_derivs_[2] = edge_derivs_[3] = 0;
+  pts_stabil_ = 0;
+  norm_stabil_ = 0;
+  orig_ = false;
+  repar_ = repar;
+  refine_ = true;
+  mba_ = false;
+  c1fac1_ = 0.0;
+  c1fac2_ = 0.0;
+  acc_criter_ =  ACCURACY_MAXDIST;
+
+  points_ = points;
+  parvals_ = parvals;
+
+  double umin, umax, vmin, vmax;
+  umin = umax = parvals_[0];
+  vmin = vmax = parvals_[1];
+  for (size_t kr=2; kr<parvals_.size(); kr+=2)
+    {
+      umin = std::min(umin, parvals_[kr]);
+      umax = std::max(umax, parvals_[kr]);
+      vmin = std::min(vmin, parvals_[kr+1]);
+      vmax = std::max(vmax, parvals_[kr+1]);
+    }
+  double udel = (umax - umin)/(num_coef1 - order1 + 1);
+  double vdel = (vmax - vmin)/(num_coef2 - order2 + 1);
+  
+  vector<double> knots_u(order1+num_coef1);
+  vector<double> knots_v(order2+num_coef2);
+
+  int ki, kj;
+  for (kj=0; kj<order1; ++kj)
+    {
+      knots_u[kj] = umin;
+      knots_u[kj+num_coef1] = umax;
+    }
+  for (ki=1; kj<num_coef1; ++kj, ++ki)
+    knots_u[kj] = umin + ki*udel;
+  
+  for (kj=0; kj<order2; ++kj)
+    {
+      knots_v[kj] = vmin;
+      knots_v[kj+num_coef2] = vmax;
+    }
+  for (ki=1; kj<num_coef2; ++kj, ++ki)
+    knots_v[kj] = vmin + ki*vdel;
+  
+  vector<double> coefs(num_coef1*num_coef2*dim, 0.0);
+  curr_srf_ = shared_ptr<SplineSurface>(new SplineSurface(num_coef1, num_coef2,
+							  order1, order2, &knots_u[0],
+							  &knots_v[0], &coefs[0],
+							  dim));
+  init_srf_ = shared_ptr<SplineSurface>(curr_srf_->clone());
+  
+  smoothfac_ = 1.0/((umax - umin) + (vmax - vmin));
+}
+
+//***************************************************************************
+
 ApproxSurf::~ApproxSurf()
    //--------------------------------------------------------------------------
    //     Destructor for class ApproxSurf.

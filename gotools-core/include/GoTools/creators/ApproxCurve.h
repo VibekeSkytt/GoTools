@@ -92,7 +92,7 @@ public:
     ///                approximate
     /// \param dim the spatial dimension of the points (usually 3)
     /// \param aepsge the geometric tolerance to work with
-    /// \param in the number of control points of the resulting spline curve
+    /// \param in the number of control points of the initial spline curve
     /// \param ik the order of the resulting spline curve (pol. degree + 1)
     ApproxCurve(const std::vector<double>& points, 
 		  const std::vector<double>& parvals,
@@ -106,7 +106,7 @@ public:
     ///                approximate
     /// \param dim the spatial dimension of the points (usually 3)
     /// \param aepsge the geometric tolerance to work with
-    /// \param in the number of control points of the resulting spline curve
+    /// \param in the number of control points of the initial spline curve
     /// \param ik the order of the resulting spline curve (pol. degree + 1)
     /// \param knots specifies the knotvector of the resulting spline curve.
     ApproxCurve(const std::vector<double>& points, 

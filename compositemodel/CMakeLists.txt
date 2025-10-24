@@ -13,6 +13,7 @@ INCLUDE_DIRECTORIES(
   ${GoCompositeModel_SOURCE_DIR}/include
   ${parametrization_SOURCE_DIR}/include
   ${GoTopology_SOURCE_DIR}/include
+  ${GoLRSpline2D_SOURCE_DIR}/include
   ${GoIntersections_SOURCE_DIR}/include
   ${GoImplicitization_SOURCE_DIR}/include
   ${GoIgeslib_SOURCE_DIR}/include
@@ -27,6 +28,7 @@ INCLUDE_DIRECTORIES(
 SET(DEPLIBS
   parametrization
   GoTopology
+  GoLRspline2D
   GoIntersections
   GoImplicitization
   GoIgeslib

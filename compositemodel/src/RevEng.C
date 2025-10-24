@@ -95,8 +95,8 @@ int colors[MAX_COLORS][3] = {
 //#define DEBUG_EDGE0
 //#define DEBUG_BLEND
 //#define DEBUG_MONGE
-//#define DEBUG_ENHANCE
-//#define DEBUG_SEG
+#define DEBUG_ENHANCE
+#define DEBUG_SEG
 //#define DEBUG
 //#define DEBUGONE
 //#define DEBUG_CHECK
@@ -105,7 +105,7 @@ int colors[MAX_COLORS][3] = {
 //#define DEBUG_GROW
 //#define DEBUG_VALIDATE
 //#define DEBUG_EDGE
-//#define DEBUG_TRIANG
+#define DEBUG_TRIANG
 //#define DEBUG_TRIM
 //#define DEBUG_MODEL
 //#define DEBUG_SMALL
@@ -277,7 +277,7 @@ void RevEng::enhancePoints()
       tri_ang[ki] = pt->getTriangAngle();
 #endif
     }
-#ifdef DEBUG_ENHANCE  
+#ifdef DEBUG_DIV
   std::sort(tri_ang.begin(), tri_ang.end());
   std::cout << "Triangle angles: " << tri_ang[0] << " " << tri_ang[nmbpt/4];
   std::cout << " " << tri_ang[nmbpt/2] << " " << tri_ang[3*nmbpt/4];

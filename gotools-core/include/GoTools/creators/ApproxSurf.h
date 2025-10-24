@@ -146,6 +146,12 @@ class ApproxSurf
 	       bool repar=true);
 
 
+    ApproxSurf(const std::vector<double>& points, 
+	       const std::vector<double>& parvals,
+	       int order1, int order2, int num_coef1, int num_coef2,
+	       int dim, double aepsge, bool repar=true);
+
+
     /// Destructor
     ~ApproxSurf();
 
