@@ -1,9 +1,9 @@
 @PACKAGE_INIT@
 
-include("${CMAKE_CURRENT_LIST_DIR}/GoToolsCoreTargets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/parametrizationTargets.cmake")
 
 # Legacy compatibility
-set(GoTools_LIBRARIES GoToolsCore)
+set(GoTools_LIBRARIES parametrization)
 
 # Optionally set variables
-set(GoToolsCore_INCLUDE_DIRS "@CMAKE_INSTALL_PREFIX@/include")
+set(parametrization_INCLUDE_DIRS "@CMAKE_INSTALL_PREFIX@/include")
