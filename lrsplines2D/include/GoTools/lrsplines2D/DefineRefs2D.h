@@ -66,6 +66,11 @@ namespace Go
 			      std::vector<LRSplineSurface::Refinement2D>& refs_y,
 			      bool adjust = true, bool reduced = false);
 
+    void defineRefsAtEdge(const Mesh2D& mesh, Direction2D dir,
+			  int edge, int ix, const std::vector<double>& knot_vals, 
+			  int element_width,
+			  std::vector<LRSplineSurface::Refinement2D>& refs);
+    
     /// Add a new mesh line segment to the collection of such. Combine with
     /// previously defined lines if possible
     void appendRef(std::vector<LRSplineSurface::Refinement2D>& refs,

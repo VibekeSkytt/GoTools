@@ -245,7 +245,7 @@ void LRSplineMBA::MBADistAndUpdate(LRSplineSurface *srf,
 	      // 	    distvec[ki*dim+ka] -= coef[ka]*val;
 	      // 	  tmp_weights[kj] = 0.0;
 	      // 	}
-	      //else
+	      // else
 		{
 		  const double wgt = val*bsplines[kj]->gamma();
 		  tmp_weights[kj] = wgt;
@@ -317,6 +317,8 @@ void LRSplineMBA::MBADistAndUpdate(LRSplineSurface *srf,
   //for (; it1 != cpsrf->basisFunctionsEnd(); ++it1, ++it2) 
   for (; it2 != srf->basisFunctionsEnd();  ++it2) 
     {
+      // if (it2->second->coefFixed())
+      // 	continue;
       auto nd_it = nom_denom.find(it2->second.get());
       Point coef(dim);
       if (nd_it == nom_denom.end())
@@ -860,6 +862,8 @@ void LRSplineMBA::MBAUpdate(LRSplineSurface *srf,
   LRSplineSurface::BSplineMap::const_iterator it2 = srf->basisFunctionsBegin();
   for (; it2 != srf->basisFunctionsEnd(); /*++it1,*/ ++it2) 
     {
+      // if (it2->second->coefFixed())
+      // 	continue;
       auto nd_it = nom_denom.find(it2->second.get());
       Point coef(dim);
       if (nd_it == nom_denom.end())
@@ -1159,6 +1163,8 @@ void LRSplineMBA::MBAUpdate_omp(LRSplineSurface *srf,
   LRSplineSurface::BSplineMap::const_iterator it2 = srf->basisFunctionsBegin();
   for (; it2 != srf->basisFunctionsEnd(); ++it2) 
     {
+      // if (it2->second->coefFixed())
+      // 	continue;
       auto nd_it = nom_denom.find(it2->second.get());
       Point coef(dim);
       if (nd_it == nom_denom.end())
@@ -1288,7 +1294,9 @@ void LRSplineMBA::MBAUpdate_omp(LRSplineSurface *srf,
   for (LRSplineSurface::BSplineMap::const_iterator it1 = srf->basisFunctionsBegin();
        it1 != srf->basisFunctionsEnd(); ++it1) 
     {
-      auto nd_it = nom_denom.find(it1->second.get());
+       // if (it1->second->coefFixed())
+       // 	continue;
+     auto nd_it = nom_denom.find(it1->second.get());
       Point coef(dim);
       if (nd_it == nom_denom.end())
 	coef.setValue(0.0);

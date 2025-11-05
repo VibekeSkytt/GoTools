@@ -3367,6 +3367,28 @@ double LRSplineSurface::endparam_v() const
     return;
   }
 
+//==============================================================================
+void LRSplineSurface::fetchEdgeCorners(int edge_num, double& u1, double& v1, double& u2,
+				       double& v2) const
+//==============================================================================
+{
+  // Edges are numbered: 0=left, 1=right, 2=lower, 3=upper
+  if (edge_num <= 1)
+    u1 = u2 = (edge_num == 0) ? startparam_u() : endparam_u();
+  else
+    {
+      u1 = startparam_u();
+      u2 = endparam_u();
+    }
+  if (edge_num >= 2)
+    v1 = v2 = (edge_num == 2) ? startparam_v() : endparam_v();
+  else
+    {
+      v1 = startparam_v();
+      v2 = endparam_v();
+    }
+}
+
 //===========================================================================
 SplineCurve*
 LRSplineSurface::edgeCurve(int edge_num) const

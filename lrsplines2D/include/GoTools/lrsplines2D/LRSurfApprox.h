@@ -559,7 +559,7 @@ private:
     std::vector<double> init_knots_u_; // Initial knots to select for refinement
     std::vector<double> init_knots_v_; // Initial knots to select for refinement
 
-    int edge_derivs_[4];
+  int edge_derivs_[4]; // =0: umin, =1: vmax, =2: umax, =3:vmin
     double maxdist_;
     double maxdist_prev_;
     double maxdist_sign_;

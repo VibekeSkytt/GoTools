@@ -2595,6 +2595,7 @@ void  LRSurfApprox::runMBAUpdate(bool computed_accuracy)
     const bool omp_for_mba_update = true;//false; // 201503 The omp version seems to be faster even when run sequentially.
 #endif
 
+
   double sign_scale = 1.0/std::max(1.0, (double)nmb_mba_iter_);
   if (omp_for_mba_update && (!computed_accuracy) && srf_->dimension() == 1)
     {
@@ -2638,7 +2639,8 @@ void  LRSurfApprox::runMBAUpdate(bool computed_accuracy)
       if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
 	adaptSurfaceToConstraints();
     }
-}
+
+ }
 
 //==============================================================================
 int LRSurfApprox::defineOutlierPts(Element2D* element, 

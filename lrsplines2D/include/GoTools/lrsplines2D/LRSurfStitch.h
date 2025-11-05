@@ -122,18 +122,6 @@ namespace Go
 
     void makeLineC1(LRBSpline2D* bsp[4], Direction2D dir);
 
-    void fetchEdgeCorners(shared_ptr<LRSplineSurface> surf, int edge,
-			  double& u1, double& v1, double& u2, double& v2);
-
-    void extractMissingKnots(std::vector<double>& union_vec, 
-			     std::vector<double>& vec,
-			     double tol, int order,
-			     std::vector<double>& resvec);
-
-    void defineRefinements(const Mesh2D& mesh, Direction2D dir,
-			   int edge, int ix, const std::vector<double>& knot_vals, 
-			   int element_width,
-			   std::vector<LRSplineSurface::Refinement2D>& refs); 
 
     void extractBoundaryBsplines(shared_ptr<LRSplineSurface> surf,
 				 int edge,
