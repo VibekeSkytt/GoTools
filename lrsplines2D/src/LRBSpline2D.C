@@ -487,7 +487,19 @@ int LRBSpline2D::endmult_v(bool atstart) const
 }
 
 //==============================================================================
+vector<double> LRBSpline2D::kvec_val(Direction2D d) const
+//==============================================================================
+{
+   const Mesh2D* mesh = dynamic_cast<const Mesh2D*>(bspline_u_->getMesh());
+  vector<double> kval(kvec(d).size());
+  for (size_t ki=0; ki<kval.size(); ++ki)
+    kval[ki] = mesh->kval(d, kvec(d)[ki]);
+  return kval;
+}
+
+//==============================================================================
 Point LRBSpline2D::getGrevilleParameter() const
+//==============================================================================
 {
   double upar = bspline_u_->getGrevilleParameter();
   double vpar = bspline_v_->getGrevilleParameter();

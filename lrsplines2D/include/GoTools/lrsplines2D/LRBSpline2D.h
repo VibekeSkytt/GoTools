@@ -271,6 +271,10 @@ class LRBSpline2D : public Streamable
   std::vector<int>& kvec(Direction2D d)      
     {return (d==XFIXED) ? bspline_u_->kvec() : bspline_v_->kvec();}
 
+  /// Knot vector values in the first (XFIXED) or second (YFIXED)
+  /// parameter direction
+  std::vector<double> kvec_val(Direction2D d) const;
+  
   /// Get the polynomial degree of the spline.
   const int degree(Direction2D d) const 
   {return (int)kvec(d).size() - 2;}  
