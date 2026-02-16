@@ -2581,7 +2581,7 @@ double LRSplineSurface::endparam_v() const
 	 for (size_t ki = 0; ki < refs.size(); ++ki)
 	   {
 #ifndef NDEBUG
-	     MESSAGE("ki = " << ki << "\n");
+	     //MESSAGE("ki = " << ki << "\n");
 #endif
 	     sf->refine(refs[ki], true); // Second argument is 'true', which means that the mult is set	     
 	                                 // to refs[ki].mult = deg+1.
@@ -2974,6 +2974,8 @@ double LRSplineSurface::endparam_v() const
 
     // First the mesh.
     mesh_.swapParameterDirection();
+
+    std::swap(bsplinesuni1_, bsplinesuni2_);
 
     // We then update all basis functions in bsplines_ with the
     // reversed domain. It is only the knot indices which need

@@ -132,6 +132,8 @@ ApproxSurf::ApproxSurf(std::vector<shared_ptr<SplineCurve> >& crvs,
   repar_ = repar;
   refine_ = true;
   mba_ = false;
+  vector<double> tmp_weight(parvals.size()/2, 1.0);
+  pt_weight_ = tmp_weight;
   c1fac1_ = 0.0;
   c1fac2_ = 0.0;
   acc_criter_ =  ACCURACY_MAXDIST;
@@ -178,6 +180,7 @@ ApproxSurf::ApproxSurf(shared_ptr<SplineSurface>& srf,
   orig_ = approx_orig;
   repar_ = repar;
   refine_ = true;
+  pt_weight_ = std::vector<double>(parvals.size()/2, 1.0);
   mba_ = false;
   c1fac1_ = 0.0;
   c1fac2_ = 0.0;
@@ -186,6 +189,55 @@ ApproxSurf::ApproxSurf(shared_ptr<SplineSurface>& srf,
   points_ = points;
   parvals_ = parvals;
 
+  smoothfac_ = 1.0/((srf->endparam_u() - srf->startparam_u()) +
+		    (srf->endparam_v() - srf->startparam_v()));
+
+  curr_srf_ = srf;
+  init_srf_ = shared_ptr<SplineSurface>(srf->clone());
+}
+
+//***************************************************************************
+
+ApproxSurf::ApproxSurf(shared_ptr<SplineSurface>& srf,
+		       const std::vector<double>& points, 
+		       const std::vector<double>& parvals,
+		       const std::vector<double>& pointwgts,
+		       int dim, double aepsge, int constdir,
+		       bool approx_orig,
+		       bool repar)
+   //--------------------------------------------------------------------------
+   //     Constructor for class ApproxSurf.
+   //
+   //     Purpose : Initialize class variables
+   //
+   //     Calls   :
+   //
+   //--------------------------------------------------------------------------
+{
+  prevdist_ = maxdist_ = -10000.0;
+  prevav_ = avdist_ = 0;
+  outsideeps_ = 0;
+  dim_ = dim;
+  aepsge_ = aepsge;
+  smoothweight_ = 1.0e-3; // 1.0e-9;
+  constdir_ = constdir;
+  use_normals_ = false;
+  close_belt_ = false;
+  edge_derivs_[0] = edge_derivs_[1] = edge_derivs_[2] = edge_derivs_[3] = 1;
+  pts_stabil_ = 0;
+  norm_stabil_ = 0;
+  orig_ = approx_orig;
+  repar_ = repar;
+  refine_ = true;
+  mba_ = false;
+  c1fac1_ = 0.0;
+  c1fac2_ = 0.0;
+  acc_criter_ =  ACCURACY_MAXDIST;
+
+  points_ = points;
+  parvals_ = parvals;
+  pt_weight_ = pointwgts;
+  
   smoothfac_ = 1.0/((srf->endparam_u() - srf->startparam_u()) +
 		    (srf->endparam_v() - srf->startparam_v()));
 
@@ -209,7 +261,7 @@ ApproxSurf::ApproxSurf(const std::vector<double>& points,
    //
    //     Calls   :
    //
-   //     Written by : Vibeke Skytt,  SINTEF,  00-04
+
    //--------------------------------------------------------------------------
 {
   prevdist_ = maxdist_ = -10000.0;
@@ -228,6 +280,8 @@ ApproxSurf::ApproxSurf(const std::vector<double>& points,
   repar_ = repar;
   refine_ = true;
   mba_ = false;
+  vector<double> tmp_weight(parvals.size()/2, 1.0);
+  pt_weight_ = tmp_weight;
   c1fac1_ = 0.0;
   c1fac2_ = 0.0;
   acc_criter_ =  ACCURACY_MAXDIST;
@@ -506,7 +560,7 @@ int ApproxSurf::makeSmoothSurf()
 	normweight /= weight_sum;
     }
     double approxweight = 1.0 - wgt1 - wgt2 - wgt3 - normweight;
-    std::vector<double> pt_weight(parvals_.size()/2, 1.0);
+    //std::vector<double> pt_weight(parvals_.size()/2, 1.0);
     double wgt_orig = 0.0;
     if (orig_)
       wgt_orig = 0.1*approxweight;
@@ -518,11 +572,11 @@ int ApproxSurf::makeSmoothSurf()
       srfgen.setOptimize(wgt1, wgt2, wgt3);
 
     srfgen.setLeastSquares(points_, parvals_,
-				  pt_weight, approxweight);
+				  pt_weight_, approxweight);
 
     if (use_normals_) {
 	stat = srfgen.setNormalCond(norm_points_, norm_parvals_,
-				    pt_weight, normweight);
+				    pt_weight_, normweight);
 	if (stat < 0)
 	    return stat;
     }

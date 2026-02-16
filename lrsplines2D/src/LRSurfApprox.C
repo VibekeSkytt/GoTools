@@ -496,8 +496,11 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   if (initMBA_)
     {
       runMBAUpdate(false);
-      LSapprox.setInitSf(srf_, coef_known_);
-      updateCoefKnown();
+      if (!initial_surface_)
+	{
+	  LSapprox.setInitSf(srf_, coef_known_);
+	  updateCoefKnown();
+	}
     }
   else if (!(initial_surface_ && useMBA_))
     {
@@ -5131,6 +5134,53 @@ void LRSurfApprox::makeInitSurf(shared_ptr<SplineSurface> surf)
   // Make LR spline surface
   double knot_tol = 1.0e-6;
 
+  if (false)
+    {
+  vector<double> pts, param;
+  int dim = surf->dimension();
+  pts.reserve(dim*(nmb_pts_));
+  param.reserve(2*(nmb_pts_));
+  int ki, kj, kr;
+  
+  for (kj=0, kr=0; kj<nmb_pts_; ++kj) 
+    {
+      for (ki=0; ki<2; ++ki, ++kr)
+	param.push_back(points_[kr]);
+      for (ki=0; ki<dim; ++ki, ++kr)
+	pts.push_back(points_[kr]);
+    }
+  
+  SmoothSurf asurf;  // Engine for least squares approximation with smoothing
+  int stat = 0;
+  int seem[2];       
+  seem[0] = seem[1] = 0;  // Not a closed surface
+
+  // Define weights
+  int order_u = surf->order_u();
+  int order_v = surf->order_v();
+  double smoothweight = 1.0e-6;
+  int min_der = std::max(3, std::min(order_u, order_v)-1);
+  double wgt1 = 0.0;
+  double wgt3 = (min_der >= 3) ? 0.5*smoothweight : 0.0;
+  double wgt2 = (1.0 - wgt3)*smoothweight;
+  wgt3 *= smoothweight;
+  double approxweight = 1.0 - wgt1 - wgt2 - wgt3;
+  std::vector<double> pt_weight(nmb_pts_, 1.0);
+ 
+  // Prepare for approximation
+  int ncoef_u = surf->numCoefs_u();
+  int ncoef_v = surf->numCoefs_v();
+  vector<int> coef_known(ncoef_u*ncoef_v, 0);
+  asurf.attach(surf, seem, &coef_known[0], 0, false);
+
+  if (smoothweight_ > 0.0)
+    asurf.setOptimize(wgt1, wgt2, wgt3);
+
+  asurf.setLeastSquares(pts, param,
+			 pt_weight, approxweight);
+  shared_ptr<SplineSurface> surf2;
+  stat = asurf.equationSolve(surf2);
+    }
   srf_ = shared_ptr<LRSplineSurface>(new LRSplineSurface(surf.get(), knot_tol));
   coef_known_.assign(srf_->numBasisFunctions(), 0.0);  // Initially nothing is fixed
 }
