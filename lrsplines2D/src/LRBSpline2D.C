@@ -584,21 +584,13 @@ std::vector<Element2D*>::iterator LRBSpline2D::supportedElementEnd()
   return support_.end();
 }
 
-//==============================================================================
-void LRBSpline2D::reverseParameterDirection(bool dir_is_u)
-//==============================================================================
-{
-  if (dir_is_u)
-    bspline_u_->reverseParameterDirection();
-  else
-    bspline_v_->reverseParameterDirection();
-}
-
 
 //==============================================================================
 void LRBSpline2D::swapParameterDirection()
 //==============================================================================
 {
+  bspline_u_->setPardir(2);
+  bspline_v_->setPardir(1);
   std::swap(bspline_u_, bspline_v_);
 }
 

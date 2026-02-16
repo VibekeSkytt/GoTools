@@ -434,8 +434,6 @@ class LRBSpline2D : public Streamable
       coef_times_gamma_ = coef*gamma;;
     }
 
-  void reverseParameterDirection(bool dir_is_u);
-
   void swapParameterDirection();
 
   
