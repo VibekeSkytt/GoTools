@@ -870,7 +870,34 @@ namespace Go
     return ftPoint(bestcp, bestface, bestu, bestv);
   }
 
-
+  //===========================================================================
+  void SurfaceModel::closestPoint(Point& point, int seed_ix, double seed[],
+				  Point& clo_pt, int& idx, double clo_par[],
+				  double& dist)
+  //===========================================================================
+  {
+    fill(face_checked_.begin(), face_checked_.end(), false);
+   ftPoint inpt;
+    bool use_seed = (seed_ix >= 0);
+    int ix = (seed_ix >= 0) ? seed_ix : 0;
+    ftSurface *first = static_pointer_cast<ftSurface>(faces_[ix]).get();
+    if (seed_ix >= 0)
+      inpt = ftPoint(point, first, seed[0], seed[1]);
+    else
+      inpt = ftPoint(point, first);
+    ftPoint close = closestPointLocal(inpt, use_seed);
+    if (close.face() != 0)
+      {
+	clo_pt = close.position();
+	idx = getIndex(close.face());
+	clo_par[0] = close.u();
+	clo_par[1] = close.v();
+	dist = point.dist(clo_pt);
+      }
+    else
+      closestPoint(point, clo_pt, idx, clo_par, dist);
+  }
+ 
 
   //===========================================================================
   int SurfaceModel::nmbEntities() const
@@ -1397,7 +1424,7 @@ void SurfaceModel::swapFaces(int idx1, int idx2)
   }
   
   //===========================================================================
-  ftPoint SurfaceModel::closestPointLocal(const ftPoint& point) const
+  ftPoint SurfaceModel::closestPointLocal(const ftPoint& point, bool use_seed) const
   //===========================================================================
   {
     const Point& pt = point.position();
@@ -1413,13 +1440,18 @@ void SurfaceModel::swapFaces(int idx1, int idx2)
     double closestpt_epsilon = toptol_.neighbour; // Maybe gap instead?
     ftSurface* bestface = 0;
     int nmb_checked = 0;
+    double seedval[2];
+    double *seed = use_seed ? seedval : 0;
+    seedval[0] = point.u();
+    seedval[1] = point.v();
     while (!finished) {
       if (!face_checked_[id]) {
 	curface = dynamic_cast<ftSurface*>(faces_[id].get());
 	face_checked_[id] = true;
 	//  	    cout << "Face: " << id << endl;
 	ASSERT(curface != 0);
-	curface->closestPoint(pt, u, v, cp, dist, closestpt_epsilon);
+	curface->closestPoint(pt, u, v, cp, dist, closestpt_epsilon, NULL,
+			      seed);
 	nmb_checked++;
 	if (dist < bestdist) {
 	  bestdist = dist;
@@ -1442,6 +1474,20 @@ void SurfaceModel::swapFaces(int idx1, int idx2)
 	  else {
 	    //  		    cout << "We're crossing a boundary!" << endl;
 	    id = getIndex(twin->face()->asFtSurface());
+	    if (use_seed)
+	      {
+		ftEdge *twin2 = twin->geomEdge();
+		if (twin2)
+		  {
+		    double tpar, tdist;
+		    Point close;
+		    twin2->closestPoint(bestcp, tpar, close, tdist);
+		    Point fpar = twin2->faceParameter(tpar);
+		    seedval[0] = fpar[0];
+		    seedval[1] = fpar[1];
+		  }
+	      }
+
 	  }
 	} else // point was in the interior
 	  finished = true;

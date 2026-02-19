@@ -147,6 +147,9 @@ LRSplineSurface::LRSplineSurface(const SplineSurface* const surf,
     }
   }
   emap_ = construct_element_map_(mesh_, bsplines_);
+
+ for (auto it=bsplines_.begin(); it!=bsplines_.end(); ++it)
+    it->second->setNestLevel(0);
 }
 
 //==============================================================================
@@ -198,6 +201,9 @@ LRSplineSurface::LRSplineSurface(double knot_tol, bool rational,
   }
 
   emap_ = construct_element_map_(mesh_, bsplines_);
+  
+ for (auto it=bsplines_.begin(); it!=bsplines_.end(); ++it)
+    it->second->computeNestLevel();
 }
 
 //==============================================================================
@@ -262,6 +268,9 @@ LRSplineSurface::LRSplineSurface(const LRSplineSurface& rhs)
   // The ElementMap has to be generated and cannot be copied directly, since it
   // contains raw pointers.  
   emap_ = construct_element_map_(mesh_, bsplines_);
+  
+ for (auto it=bsplines_.begin(); it!=bsplines_.end(); ++it)
+    it->second->computeNestLevel();
 }
 
 //===========================================================================
@@ -1110,6 +1119,12 @@ void LRSplineSurface::refine(Direction2D d, double fixed_val, double start,
       }
     }
   }
+
+  // Finally, ensure that all bsplines has got a generation count.
+  // If the flag is set, no action is taken
+  for (auto bsp=bsplines_.begin(); bsp!=bsplines_.end(); ++bsp)
+    bsp->second->computeNestLevel();
+  
 #ifdef DEBUG
   //std::cout << "Num elements post: " << numElements() << std::endl;
   std::ofstream refsf("refine_one_sf.g2");
@@ -1298,6 +1313,7 @@ void LRSplineSurface::refine(Direction2D d, double fixed_val, double start,
   emap_ = construct_element_map_(mesh_, bsplines_); // reconstructing the emap once at the end
   curr_element_ = NULL;  // No valid any more
   //std::wcout << "Refinement now finished. " << std::endl;
+  
 #if 0//ndef NDEBUG
   {
     vector<LRBSpline2D*> bas_funcs;
@@ -1309,6 +1325,11 @@ void LRSplineSurface::refine(Direction2D d, double fixed_val, double start,
   }
 #endif
 
+  // Finally, ensure that all bsplines has got a generation count.
+  // If the flag is set, no action is taken
+  for (auto bsp=bsplines_.begin(); bsp!=bsplines_.end(); ++bsp)
+    bsp->second->computeNestLevel();
+  
 }
 
 //==============================================================================
@@ -2975,6 +2996,8 @@ double LRSplineSurface::endparam_v() const
     // First the mesh.
     mesh_.swapParameterDirection();
 
+    std::swap(bsplinesuni1_, bsplinesuni2_);
+
     // We then update all basis functions in bsplines_ with the
     // reversed domain. It is only the knot indices which need
     // updating.
@@ -3031,7 +3054,22 @@ double LRSplineSurface::endparam_v() const
     mesh_.reverseParameterDirection(dir_is_u);
     MESSAGE("Done reversing the mesh dir!");
 
-    // We then update all basis functions in bsplines_ with the
+    if (dir_is_u)
+      {
+       for (size_t ki=0; ki<bsplinesuni1_.size(); ++ki)
+         bsplinesuni1_[ki]->reverseParameterDirection();
+       for (size_t ki=0; ki<bsplinesuni1_.size()/2; ++ki)
+         std::swap(bsplinesuni1_[ki],bsplinesuni1_[bsplinesuni1_.size()-ki-1]);
+      }
+    else
+      {
+       for (size_t ki=0; ki<bsplinesuni2_.size(); ++ki)
+         bsplinesuni2_[ki]->reverseParameterDirection();
+       for (size_t ki=0; ki<bsplinesuni2_.size()/2; ++ki)
+         std::swap(bsplinesuni2_[ki],bsplinesuni2_[bsplinesuni2_.size()-ki-1]);
+      }
+       
+     // We then update all basis functions in bsplines_ with the
     // reversed domain. It is only the knot indices which need
     // updating.
     // Since the key is const we must recreate the map.
@@ -3041,7 +3079,6 @@ double LRSplineSurface::endparam_v() const
       {
 	unique_ptr<LRBSpline2D> bas_func;
 	std::swap(bas_func, iter->second);
-	bas_func->reverseParameterDirection(dir_is_u);
 
 	// We create the new key.
 	BSKey bs_key = iter->first;

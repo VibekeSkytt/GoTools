@@ -49,9 +49,17 @@ This module depends on the following GoTools modules:
 and the following modules external to GoTools:
 - SISL (SINTEF)
 
+<<<<<<< HEAD
 Example programs corresponding to this module are listed in 
 \link examples_LRSplines2D examples_lrsplines2D \endlink
 
+=======
+The module depends on Version xxx of Boost
+
+Example programs corresponding to this module are listed in 
+\link examples_LRSplines2D examples_lrsplines2D \endlink
+
+>>>>>>> vsk_origin2/lr_doc
 \subsection  TP The problem with tensor-product grids
 
 The simplest way to generate parametric surface patches is by applying the tensor-product construction to univariate parametric space curves. Examples of these are B-spline surfaces, B-spline volumes, NURBS surfaces and NURBS volumes, which are implemented in GoTools.
@@ -66,6 +74,11 @@ An LR spline surface, \link Go::LRSplineSurface \endlink, is a piecewise polynom
 refinements starting from a tensor-product mesh. LR spline surfaces are algorithmically defined throughout the refinement process of the mesh.
 An LR spline surface is defined as
 
+<<<<<<< HEAD
+=======
+F(u,v) = \f$ \sum \f$ <SUB>i=1</SUB><SUP>L</SUP> P<SUB>i</SUB> s<SUB>i</SUB> R<SUB>i,p<SUB>1</SUB>,p<SUB>2</SUB></SUB> (u,v) 
+
+>>>>>>> vsk_origin2/lr_doc
 \f[ F(u,v) = \sum _{i=1}^L P_i s_i R_{i, p_1, p_2} (u,v) \f]
 
 where P<SUB>i</SUB>, i=1, ... ,L are the surface coefficients, 

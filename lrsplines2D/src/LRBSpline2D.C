@@ -47,6 +47,7 @@
 #include "GoTools/utils/StreamUtils.h"
 #include "GoTools/geometry/BsplineBasis.h"
 #include "GoTools/geometry/SplineUtils.h"
+#include <set>
 
 //#define DEBUG
 
@@ -93,7 +94,9 @@ LRBSpline2D::LRBSpline2D(const LRBSpline2D& rhs)
   rational_ = rhs.rational_;
   // don't copy the support
   weight_ = rhs.weight_;
+  nest_level_ = rhs.nest_level_; // To be computed?
   overload_ = rhs.overload_;
+  visited_ = rhs.visited_;
 }
 
 //==============================================================================
@@ -179,8 +182,10 @@ void LRBSpline2D::write(ostream& os) const
   bspline_v_ = new BSplineUniLR();
   bspline_v_->read(is);
 
+  nest_level_ = -1;
   coef_fixed_ = 0;
   overload_ = false;
+  visited_ = false;
 }
 
 
@@ -236,8 +241,10 @@ void LRBSpline2D::write(ostream& os) const
   bspline_v_ = bsplineuni_v[left2].get();
   bspline_v_->incrCount();
   
+  nest_level_ = -1;
   coef_fixed_ = 0;
   overload_ = false;
+  visited_ = false;
 }
 
 //==============================================================================
@@ -530,10 +537,28 @@ bool LRBSpline2D::overlaps(Element2D *el) const
 }
 
 //==============================================================================
-bool LRBSpline2D::covers(double domain[]) const
+bool LRBSpline2D::overlaps(LRBSpline2D *bsp) const
 //==============================================================================
 {
   // Does it make sense to include equality?
+  if (bsp->umin() >= umax())
+    return false;
+  if (bsp->umax() <= umin())
+    return false;
+  if (bsp->vmin() >= vmax())
+    return false;
+  if (bsp->vmax() <= vmin())
+    return false;
+  
+  return true;
+}
+
+//==============================================================================
+bool LRBSpline2D::covers(double domain[]) const
+//==============================================================================
+{
+  if (!overlaps(domain))
+    return false;
   if (domain[0] < umin())
     return false;
   if (domain[1] > umax())
@@ -550,7 +575,8 @@ bool LRBSpline2D::covers(double domain[]) const
 bool LRBSpline2D::covers(LRBSpline2D *bsp) const
 //==============================================================================
 {
-  // Does it make sense to include equality?
+  if (!overlaps(bsp))
+    return false;
   if (bsp->umin() < umin())
     return false;
   if (bsp->umax() > umax())
@@ -559,10 +585,55 @@ bool LRBSpline2D::covers(LRBSpline2D *bsp) const
     return false;
   if (bsp->vmax() > vmax())
     return false;
+
+  if (bsp->umin() == umin() && bsp->endmult_u(true) > endmult_u(true))
+    return false;
+  if (bsp->umax() == umax() && bsp->endmult_u(false) > endmult_u(false))
+    return false;
+  if (bsp->vmin() == vmin() && bsp->endmult_v(true) > endmult_v(true))
+    return false;
+  if (bsp->vmax() == vmax() && bsp->endmult_v(false) > endmult_v(false))
+    return false;
   
   return true;
 }
  
+//==============================================================================
+void LRBSpline2D::computeNestLevel()
+//==============================================================================
+{
+  if (nest_level_ >= 0)
+    return;   // Assumes the recorded value is correct
+
+  visited_ = true;
+  
+  // Collect potential ancestors
+  set<LRBSpline2D*> cand;
+  for (auto el=support_.begin(); el!=support_.end(); ++el)
+    {
+      for (auto bsp=(*el)->supportBegin(); bsp!=(*el)->supportEnd(); ++bsp)
+	if ((*bsp) != this)
+	  cand.insert(*bsp);
+    }
+
+  for (auto bsp=cand.begin(); bsp!=cand.end(); ++bsp)
+    {
+      if ((*bsp)->visited())
+	continue;
+      if (!(*bsp)->hasNestLevel())
+	(*bsp)->computeNestLevel();
+      if ((*bsp)->covers(this))
+	{
+	  int count = (*bsp)->getNestLevel();
+	  nest_level_ = std::max(nest_level_, count + 1);
+	}
+    }
+
+  if (nest_level_ < 0)
+    nest_level_ = 0;
+  visited_ = false;
+}
+
 //==============================================================================
 bool LRBSpline2D::addSupport(Element2D *el)
 //==============================================================================
@@ -636,21 +707,13 @@ bool LRBSpline2D::checkOverload()
 }
 
 
-//==============================================================================
-void LRBSpline2D::reverseParameterDirection(bool dir_is_u)
-//==============================================================================
-{
-  if (dir_is_u)
-    bspline_u_->reverseParameterDirection();
-  else
-    bspline_v_->reverseParameterDirection();
-}
-
 
 //==============================================================================
 void LRBSpline2D::swapParameterDirection()
 //==============================================================================
 {
+  bspline_u_->setPardir(2);
+  bspline_v_->setPardir(1);
   std::swap(bspline_u_, bspline_v_);
 }
 

@@ -37,62 +37,57 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _EXAMPLES_DOXYMAIN_H
-#define _EXAMPLES_DOXYMAIN_H
+#include "GoTools/lrsplines2D/LRSplineSurface.h"
+#include "GoTools/geometry/ObjectHeader.h"
+#include <iostream>
+#include <fstream>
 
-/**
-\page gotools_examples GoTools example files
+using namespace std;
+using namespace Go;
 
-A number of example programs are created to illustrate the use of various
-GoTools functionality.
+int main(int argc, char *argv[])
+{
+  if (argc != 2) {
+    std::cout << "Usage: lrspline_in (.g2) r" << std::endl;
+    return -1;
+  }
 
-Example programs in gotools-core:
-- \ref adapt_curve
-- \ref append_curve
-- \ref approx_curve
-- \ref approx_surface
-- \ref circle
-- \ref closestpoint_curve
-- \ref closestpoint_degenerate_sf
-- \ref closestpoint_surface
-- \ref cone
-- \ref const_param_curves
-- \ref coons_patch_gen
-- \ref cylinder
-- \ref ellipse
-- \ref interpol_curve_free
-- \ref interpol_curve_hermite
-- \ref linear_swept_surface
-- \ref project_curve
-- \ref rotational_swept_surface
-- \ref sphere
-- \ref surface_of_revolution
-- \ref torus
+  std::ifstream filein(argv[1]);
 
-Example program in igeslib
-- \ref intersect_with_plane The program demonstrates reading from and writing to an  IGES file and 
-intersection between a \beginlink \link Go::ParamSurface parametric surface \endlink and a plane.
+  ObjectHeader header;
+  header.read(filein);
+  shared_ptr<LRSplineSurface> surf1(new LRSplineSurface());
+  surf1->read(filein);
 
-The module trivariate has the following example programs:
-- \ref coons_patch_volume_gen
-- \ref createCoonsVolume
-- \ref linear_swept_volume
-- \ref loft_volume_creator
-- \ref rotational_swept_volume
+  shared_ptr<LRSplineSurface> surf2(new LRSplineSurface(*surf1));
+  shared_ptr<LRSplineSurface> surf3(new LRSplineSurface(*surf1));
+  shared_ptr<LRSplineSurface> surf4(new LRSplineSurface(*surf1));
 
-The example programs related to compositemodel:
-- \ref createSplitDisc
-- \ref createBlockStructuredDisc
-- \ref createVolumeBoundaries
-- \ref face2splineset
+  surf3->reverseParameterDirection(true);
+  surf4->reverseParameterDirection(false);
 
-The example programs in the trivariatemodel module are:
-- \ref createMidShip
-- \ref mirrorAndLoft
-- \ref multiPatchSweep
+  double u1 = surf1->paramMin(XFIXED);
+  double u2 = surf1->paramMax(XFIXED);
+  double v1 = surf1->paramMin(YFIXED);
+  double v2 = surf1->paramMax(YFIXED);
 
-lrspline2D has the following examples
-- \ref refine_lrspline
-*/
+  double upar = 0.25*u1 + 0.75*u2;
+  double vpar = 0.6*v1 + 0.4*v2;
 
-#endif // _EXAMPLES_DOXYMAIN_H
+  Point pnt1, pnt2, pnt3, pnt4;
+  surf1->point(pnt1, upar, vpar);
+  std::cout << "Point 1: " << pnt1 << std::endl;
+  surf1->point(pnt2, upar, vpar);
+  std::cout << "Point 2, 1: " << pnt2 << std::endl;
+  surf2->swapParameterDirection();
+  surf2->point(pnt2, vpar, upar);
+  std::cout << "Point 2: " << pnt2 << std::endl;
+  surf3->point(pnt3, u2 - (upar-u1), vpar);
+  surf4->point(pnt4, upar, v2 - (vpar-v1));
+
+  std::cout << "Point 3: " << pnt3 << std::endl;
+  std::cout << "Point 4: " << pnt4 << std::endl;
+}
+
+  
+  

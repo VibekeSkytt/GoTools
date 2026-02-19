@@ -93,8 +93,10 @@ class LRBSpline2D : public Streamable
       gamma_(gamma),
       bspline_u_(bspline_u),
       bspline_v_(bspline_v),
+      nest_level_(-1),
       coef_fixed_(0),
-      overload_(false)
+      overload_(false),
+      visited_(false)
     {
       bspline_u_->incrCount();
       bspline_v_->incrCount();
@@ -114,6 +116,7 @@ class LRBSpline2D : public Streamable
     std::swap(bspline_v_, rhs.bspline_v_);
     std::swap(coef_fixed_,rhs.coef_fixed_);
     std::swap(overload_,rhs.overload_);
+    std::swap(visited_,rhs.visited_);
   }
 
   /// Destructor
@@ -371,9 +374,37 @@ class LRBSpline2D : public Streamable
   bool overlaps(Element2D *el) const;
   /// Check if the support of this B-spline overlaps the given domain: umin, umax, vmin, wmax.
   bool overlaps(double domain[]) const;
+  bool overlaps(LRBSpline2D* bsp) const;
+  
   /// Check if the support of this B-spline cover the given domain: umin, umax, vmin, wmax.
   bool covers(double domain[]) const;
   bool covers(LRBSpline2D* bsp) const;
+  /// Set nesting level. Only for internal use
+  void setNestLevel(int nest_level)
+  {
+    nest_level_ = nest_level;
+  }
+  /// Get nesting level. Used in linear dependence check and projections
+  int getNestLevel()
+  {
+    return nest_level_;
+  }
+
+  /// Check if the nesting level is set
+  bool hasNestLevel()
+  {
+    return (nest_level_ >= 0);
+  }
+
+  /// Set nesting level to unknown
+  void unsetNestLevel()
+  {
+    nest_level_ = -1;
+  }
+
+  /// Compute nesting level
+  void computeNestLevel();
+  
   /// Add element to vector of elements in the support
   bool addSupport(Element2D *el) ;
   /// Remove element from vector of elements in the support
@@ -393,6 +424,16 @@ class LRBSpline2D : public Streamable
   void eraseOverload()
   {
     overload_ = false;
+  }
+
+  bool visited()
+  {
+    return visited_;
+  }
+
+  void setVisited(bool visited)
+  {
+    visited_ = visited;
   }
 
   /// Iterator to start of elements in the support
@@ -450,8 +491,6 @@ class LRBSpline2D : public Streamable
       coef_times_gamma_ = coef*gamma;;
     }
 
-  void reverseParameterDirection(bool dir_is_u);
-
   void swapParameterDirection();
 
   
@@ -477,10 +516,14 @@ class LRBSpline2D : public Streamable
   BSplineUniLR *bspline_v_;
   std::vector<Element2D*> support_;  // Elements lying in the support of this LRB-spline
 
+  int nest_level_; // Nesting level. Tells about complete inclusion of the
+  // domain in the domain of another B-spline
+  
   // Used in least squares approximation with smoothing
   int coef_fixed_;  // 0=free coefficients, 1=fixed, 2=not affected
 
   mutable bool overload_;
+  mutable bool visited_;
 
   /// For a given interval inside one of the segments in the knot vector of a given direction, the
   /// univariate B-spline in the direction is a polynomial. After transforming the rectangle to the

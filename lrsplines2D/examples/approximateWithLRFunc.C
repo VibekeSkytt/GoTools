@@ -76,7 +76,11 @@ using std::vector;
 int main(int argc, char *argv[])
 {
   // Prepare for reading the point file
+<<<<<<< HEAD
   std::string infile("../../gotools-data/lrsplines2D/examples/data/pointcloud.txt");
+=======
+  std::string infile("../gotools/gotools-data/lrsplines2D/examples/data/pointcloud.txt");
+>>>>>>> vsk_origin2/lr_doc
   std::ifstream pointsin(infile.c_str());
   
   // Prepare for output
