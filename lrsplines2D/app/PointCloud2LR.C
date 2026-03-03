@@ -818,15 +818,16 @@ int main(int argc, char *argv[])
   double mba_coef = 0.0;
   if (initmba)
     mba_coef = 0.5*(extent[2*(del-1)] + extent[2*(del-1)+1]);
+  int proj_type = (mba) ? 0 : 1;  // Testing quasi interpolation
   shared_ptr<LRSurfApprox> approx;
   if (distribute_ncoef)
     approx = shared_ptr<LRSurfApprox>(new LRSurfApprox(nc[0], order, nc[1], order, data, del-2, 
 						       AEPSGE, initmba ? true : false, mba_coef,
-						       true, true));
+						       proj_type, true, true));
   else
     approx = shared_ptr<LRSurfApprox>(new LRSurfApprox(nmb_coef, order, nmb_coef, order, data, del-2, 
 						       AEPSGE, initmba ? true : false, mba_coef,
-						       true, true));
+						       proj_type, true, true));
   approx->setSmoothingWeight(smoothwg);
   approx->setSmoothBoundary(true);
   if (mba)

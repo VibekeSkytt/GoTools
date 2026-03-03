@@ -42,6 +42,7 @@
 #include "GoTools/lrsplines2D/LinDepUtils.h"
 #include "GoTools/lrsplines2D/Mesh2D.h"
 #include "GoTools/lrsplines2D/LRSplineMBA.h"
+#include "GoTools/lrsplines2D/LRProjection.h"
 #include "GoTools/lrsplines2D/LRSplineUtils.h"
 #include "GoTools/lrsplines2D/LRFeatureUtils.h"
 #include "GoTools/creators/SmoothSurf.h"
@@ -60,7 +61,7 @@
 // #define DEBUG
 // #define DEBUG1
 // #define DEBUG2
-// #define DEBUG_SURF
+#define DEBUG_SURF
 // #define DEBUG_DIST
 // #define DEBUG_REFINE
 
@@ -75,10 +76,10 @@ using namespace Go;
 //==============================================================================
 LRSurfApprox::LRSurfApprox(vector<double>& points, 
 			   int dim, double epsge,  bool init_mba, 
-			   double mba_level,
+			   double mba_level, int proj_type,
 			   bool closest_dist, bool repar)
   : nmb_pts_((int)points.size()/(2+dim)), points_(points), useMBA_(false), 
-    toMBA_(4), initMBA_(init_mba), initMBA_coef_(mba_level), 
+    toMBA_(4), initMBA_(init_mba), initMBA_coef_(mba_level), proj_type_(proj_type),
     aepsge_(epsge), repar_(repar), check_close_(closest_dist), 
     check_init_accuracy_(false), initial_surface_(false)
 //==============================================================================
@@ -104,7 +105,7 @@ LRSurfApprox::LRSurfApprox(shared_ptr<SplineSurface>& srf,
 			   double epsge, bool closest_dist,
 			   bool repar)
   : points_(points), useMBA_(false), toMBA_(4), initMBA_(false), 
-    initMBA_coef_(0.0), aepsge_(epsge), 
+    initMBA_coef_(0.0), proj_type_(0), aepsge_(epsge), 
     repar_(repar), check_close_(closest_dist), check_init_accuracy_(false),
     initial_surface_(true)
 //==============================================================================
@@ -121,11 +122,11 @@ LRSurfApprox::LRSurfApprox(shared_ptr<SplineSurface>& srf,
 LRSurfApprox::LRSurfApprox(shared_ptr<LRSplineSurface>& srf,
 			   vector<double>& points, 
 			   double epsge, bool init_mba, double mba_level,
-			   bool closest_dist, bool repar)
+			   int proj_type, bool closest_dist, bool repar)
 //==============================================================================
   : srf_(srf), points_(points), useMBA_(false), 
-    toMBA_(4), initMBA_(init_mba), 
-    initMBA_coef_(mba_level), aepsge_(epsge),  repar_(repar), 
+    toMBA_(4), initMBA_(init_mba), initMBA_coef_(mba_level), 
+    proj_type_(proj_type), aepsge_(epsge),  repar_(repar), 
     check_close_(closest_dist), check_init_accuracy_(false), 
     initial_surface_(true)
 {
@@ -143,7 +144,7 @@ LRSurfApprox::LRSurfApprox(shared_ptr<LRSplineSurface>& srf,
 			   double epsge, bool closest_dist,
 			   bool repar, bool check_init_accuracy)
   : points_(points), useMBA_(false), toMBA_(4), 
-    initMBA_(false), initMBA_coef_(0.0), aepsge_(epsge), 
+    initMBA_(false), initMBA_coef_(0.0), proj_type_(0), aepsge_(epsge), 
     repar_(repar), check_close_(closest_dist), 
     check_init_accuracy_(check_init_accuracy), 
     initial_surface_(true)
@@ -168,11 +169,11 @@ LRSurfApprox::LRSurfApprox(shared_ptr<LRSplineSurface>& srf,
 LRSurfApprox::LRSurfApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
 			   vector<double>& points, 
 			   int dim, double epsge, bool init_mba, 
-			   double mba_level,
+			   double mba_level, int proj_type,
 			   bool closest_dist, bool repar)
 //==============================================================================
   : nmb_pts_((int)points.size()/(2+dim)), points_(points), useMBA_(false),
-    toMBA_(4), initMBA_(init_mba), initMBA_coef_(mba_level), 
+    toMBA_(4), initMBA_(init_mba), initMBA_coef_(mba_level), proj_type_(proj_type),
     aepsge_(epsge), repar_(repar), check_close_(closest_dist), 
     check_init_accuracy_(false), initial_surface_(false)
 {
@@ -196,11 +197,11 @@ LRSurfApprox::LRSurfApprox(int order_u, vector<double>& knots_u,
 			   int order_v, vector<double>& knots_v,
 			   vector<double>& points, int dim, 
 			   double epsge, bool init_mba, 
-			   double mba_level,
+			   double mba_level, int proj_type,
 			   bool closest_dist, bool repar)
 //==============================================================================
   : nmb_pts_((int)points.size()/(2+dim)), points_(points), useMBA_(false),
-    toMBA_(4), initMBA_(init_mba), initMBA_coef_(mba_level), 
+    toMBA_(4), initMBA_(init_mba), initMBA_coef_(mba_level), proj_type_(proj_type),
     aepsge_(epsge), repar_(repar), check_close_(closest_dist), 
     check_init_accuracy_(false), initial_surface_(false)
 {
@@ -264,11 +265,11 @@ LRSurfApprox::LRSurfApprox(int order_u, vector<double>& knots_u,
 LRSurfApprox::LRSurfApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
 			   vector<double>& points, int dim, 
 			   double domain[4], double epsge, bool init_mba, 
-			   double mba_level,
+			   double mba_level, int proj_type,
 			   bool closest_dist, bool repar)
 //==============================================================================
   : nmb_pts_((int)points.size()/(2+dim)), points_(points), useMBA_(false),
-    toMBA_(4), initMBA_(init_mba), initMBA_coef_(mba_level), 
+    toMBA_(4), initMBA_(init_mba), initMBA_coef_(mba_level), proj_type_(proj_type),
     aepsge_(epsge), repar_(repar), check_close_(closest_dist), 
     check_init_accuracy_(false), initial_surface_(false)
 {
@@ -493,7 +494,11 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
     setFixBoundary(true);
 
   // Initial approximation of LR B-spline surface
-  if (initMBA_)
+  /*if (!(initial_surface_) && proj_type_ > 0)
+    {
+      runProjection(proj_type_);
+    }
+    else*/ if (initMBA_)
     {
       runMBAUpdate(false);
       LSapprox.setInitSf(srf_, coef_known_);
@@ -792,7 +797,11 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
       // 	}
 
        // Update surface
-      if (useMBA_ || ki >= toMBA_)
+      if (proj_type_ > 0)
+	{
+	  runProjection(proj_type_);
+	}
+      else if (useMBA_ || ki >= toMBA_)
       {
 	#ifdef DEBUG
 	std::cout << "Using MBA" << std::endl;
@@ -2639,6 +2648,49 @@ void  LRSurfApprox::runMBAUpdate(bool computed_accuracy)
 	adaptSurfaceToConstraints();
     }
 }
+
+//==============================================================================
+void  LRSurfApprox::runProjection(int proj_type)
+//==============================================================================
+{
+  // Compute by nesting level
+  int max_level = 10;  // Should always be enough
+  for (int level=0; level<max_level; ++level)
+    {
+      int num_update = 0;
+      for (auto bspl=srf_->basisFunctionsBegin();
+	   bspl!=srf_->basisFunctionsEnd(); ++bspl)
+	{
+	  int blevel = bspl->second->getNestLevel();
+	  if (blevel != level)
+	    continue;
+
+	  // Compute coefficient using projection
+	  Point coef;
+	  LRProjection::computeCoef(srf_.get(), bspl->second.get(), proj_type, coef);
+
+	  if (blevel > 0)
+	    {
+	      // Update coefficient with respect to lower nesting level coefficients
+	      bspl->second->adaptProjCoef(coef);
+	      int stop_break = 1;
+	    }
+
+	  Point coef2 = bspl->second->Coef();
+	  if (blevel > 0)
+	    std::cout << "level= " << blevel << ", dist= " << coef.dist(coef2) << std::endl;
+	  double gamma = bspl->second->gamma();
+	  srf_->setCoef(coef, bspl->second.get());
+
+	  num_update++;
+	}
+      if (num_update == 0)
+	break;
+    }
+
+}
+
+
 
 //==============================================================================
 int LRSurfApprox::defineOutlierPts(Element2D* element, 

@@ -100,7 +100,7 @@ class LRSurfApprox
   /// \param repar Perform reparameterization during iterations
   LRSurfApprox(std::vector<double>& points, 
 	       int dim, double epsge, bool init_mba=false, 
-	       double mba_level = 0.0,
+	       double mba_level = 0.0, int proj_type = 0,
 	       bool closest_dist=true, bool repar=false);
 
   /// Constructor given an initial spline surface
@@ -147,7 +147,7 @@ class LRSurfApprox
   LRSurfApprox(shared_ptr<LRSplineSurface>& srf,
 	       std::vector<double>& points, 
 	       double epsge, bool init_mba=true, double mba_level = 0.0,
-	       bool repar=false, bool closest_dist=true);
+	       int proj_type = 0, bool repar=false, bool closest_dist=true);
 
   /// Constructor given a parameterized point set and the size of an initial
   /// spline space
@@ -167,7 +167,7 @@ class LRSurfApprox
   LRSurfApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
 	       std::vector<double>& points, 
 	       int dim, double epsge, bool init_mba=false, 
-	       double mba_level = 0.0,
+	       double mba_level = 0.0, int proj_type = 0,
 	       bool closest_dist=true, bool repar=false);
   /// Constructor given a parameterized point set and an initial
   /// spline space
@@ -188,7 +188,7 @@ class LRSurfApprox
 	       int order_v, std::vector<double>& knots_v,
 	       std::vector<double>& points, 
 	       int dim, double epsge, bool init_mba=false, 
-	       double mba_level = 0.0,
+	       double mba_level = 0.0, int proj_type = 0,
 	       bool closest_dist=true, bool repar=false);
 
   /// Constructor given a parameterized point set and the size of an initial
@@ -210,7 +210,7 @@ class LRSurfApprox
   LRSurfApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
 	       std::vector<double>& points, int dim, 
 	       double domain[4], double epsge, bool init_mba=false, 
-	       double mba_level = 0.0,
+	       double mba_level = 0.0, int proj_type = 0,
 	       bool closest_dist=true, bool repar=false);
 
   /// Destructor
@@ -326,6 +326,21 @@ class LRSurfApprox
       useMBA_ = useMBA;
     }
 
+  void setProjectionType(int proj_type)
+  {
+    proj_type_ = proj_type;
+  }
+
+  void unsetProjection()
+  {
+    proj_type_ = 0;
+  }
+
+  int getProjectionType()
+  {
+    return proj_type_;
+  }
+  
     /// Add lower constraint. Only functional (1D surface)
     void addLowerConstraint(double minval)
     {
@@ -555,6 +570,7 @@ private:
     int toMBA_;      // Start with LR-MBA at the given iteration step
     bool initMBA_;   // The initial surface is made using LR-MBA
     double initMBA_coef_;  // Initial hight of constant surface
+  int proj_type_;  // Type of quasi interpolation. 0=do not use quasi interpolation
 
     std::vector<double> init_knots_u_; // Initial knots to select for refinement
     std::vector<double> init_knots_v_; // Initial knots to select for refinement
@@ -653,6 +669,8 @@ private:
 
     void runMBAUpdate(bool computed_accuracy);
 
+  void runProjection(int proj_type);
+  
     int defineOutlierPts(Element2D* element, 
 			 std::vector<double>& prev_dist, double lim,
 			 double rad);

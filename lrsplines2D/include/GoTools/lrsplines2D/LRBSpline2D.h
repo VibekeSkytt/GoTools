@@ -420,6 +420,8 @@ class LRBSpline2D : public Streamable
     return overload_;
   }
 
+  void adaptProjCoef(Point& coef);
+  
   bool checkOverload();
   void eraseOverload()
   {
@@ -534,6 +536,8 @@ class LRBSpline2D : public Streamable
   /// \param d         the direction (XFIXED for first parameter, YFIXED for second parameter)
   /// \return          a vector with the coefficients
   std::vector<double> unitIntervalBernsteinBasis(double start, double stop, Direction2D d) const;
+
+  double nestingWeight(LRBSpline2D* other);
 
 }; // end class LRBSpline2D
 
