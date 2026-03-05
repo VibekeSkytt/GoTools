@@ -43,7 +43,9 @@
 #include "GoTools/lrsplines2D/BSplineUniLR.h"
 #include "GoTools/lrsplines2D/Element2D.h"
 #include "GoTools/geometry/SplineSurface.h"
+#include "GoTools/geometry/Utils.h"
 #include "GoTools/creators/SmoothSurf.h"
+#include <cmath>
 #include <iostream>
 #include <fstream>
 
@@ -66,23 +68,85 @@ void LRProjection::computeCoef(LRSplineSurface *srf,
 {
   // Collect data points
   vector<double> data;
+  int nmb_out = 0, nmb = 0;
+  double av_dist = 0.0, max_dist = 0.0;
   for (auto el=bspl->supportedElementBegin(); el!=bspl->supportedElementEnd(); ++el)
     {
       vector<double> elem_data = (*el)->getDataPoints();
       data.insert(data.end(), elem_data.begin(), elem_data.end());
+      max_dist = std::max(max_dist, (*el)->getMaxError());
+      av_dist += (*el)->getAccumulatedError();
+      nmb_out += (*el)->getNmbOutsideTol();
+      nmb += (*el)->nmbDataPoints();
     }
+  av_dist /= (double)nmb;
+  
   int del = (*bspl->supportedElementBegin())->getNmbValPrPoint();
   if (del == 0)
     del = srf->dimension() + 3;  // Parameter pair, point and distance
 
-  // Perform projection
-  double smoothwgt = 1.0e-9;
-  TPproject(bspl, data, del, smoothwgt, coef);
+  int deg1 = bspl->degree(XFIXED);
+  int deg2 = bspl->degree(YFIXED);
+  if (proj_type == 1)
+    {
+      if (nmb < deg1*deg2)
+	{
+	  coef = bspl->Coef();
+	}
+      else
+	{
+	  // Perform projection
+	  double smoothwgt = 1.0e-3; //1.0e-9; 
+	  TPproject(bspl, data, del, smoothwgt, coef);
+	  Point coef2 = bspl->Coef();
+	  double dist = coef.dist(coef2);
+	  if (dist > 10.0*max_dist)
+	    coef = coef2;
+	}
+    }
+  else if (proj_type == 2)
+    {
+      if (nmb < deg1*deg2)
+	extendedDataSet(bspl, data, nmb, nmb_out, max_dist, av_dist);
+      IDWproject(bspl, data, del, coef);
+    }
+  int stop_break = 1;
+}
+
+//==============================================================================
+void LRProjection::extendedDataSet(LRBSpline2D *bspl,
+				   vector<double>& data,
+				   int& nmb, int& nmb_out,
+				   double& max_dist, double& av_dist)
+//==============================================================================
+{
+  std::set<Element2D*> elems;
+  for (auto el=bspl->supportedElementBegin(); el!=bspl->supportedElementEnd(); ++el)
+    {
+      elems.insert(*el);
+      for (auto b2=(*el)->supportBegin(); b2!=(*el)->supportEnd(); ++b2)
+	{
+	  for (auto el2=(*b2)->supportedElementBegin(); el2!=(*b2)->supportedElementEnd(); ++el2)
+	    elems.insert(*el2);
+	}
+    }
+
+  for (auto el=elems.begin(); el!=elems.end(); ++el)
+    {
+      vector<double> elem_data = (*el)->getDataPoints();
+      data.insert(data.end(), elem_data.begin(), elem_data.end());
+      max_dist = std::max(max_dist, (*el)->getMaxError());
+      av_dist += (*el)->getAccumulatedError();
+      nmb_out += (*el)->getNmbOutsideTol();
+      nmb += (*el)->nmbDataPoints();
+    }
+
+  av_dist /= (double)nmb;
 }
 
 //==============================================================================
 void LRProjection::TPproject(LRBSpline2D *bspl,
-			     vector<double> data,
+			     vector<double>& data,
 			     int del,
 			     double smoothwgt,
 			     Point& coef)
@@ -141,6 +205,9 @@ void LRProjection::TPproject(LRBSpline2D *bspl,
 	points.push_back(data[ka+kb+2]);
     }
 
+  if (num_points > in1*in2)
+    smoothwgt *= 0.01;
+  
   // Approximation
   SmoothSurf approx;
   int seem[2];
@@ -158,11 +225,52 @@ void LRProjection::TPproject(LRBSpline2D *bspl,
   approx.setLeastSquares(points, param, pnt_wgt, approx_wgt);
 
   shared_ptr<SplineSurface> approx_surf;
+  try {
   approx.equationSolve(approx_surf);
-
+  }
+  catch (...)
+    {
+      coef = bspl->Coef();
+      return;
+    }
+  
   // Fetch coefficient corresponding to input B-spline
   int k1 = order1 - startmult1;
   int k2 = order2 - startmult2;
   int kk = k2*in1 + k1;
   coef = Point(approx_surf->coefs_begin()+kk*dim, approx_surf->coefs_begin()+(kk+1)*dim);
 }
+
+//==============================================================================
+void LRProjection::IDWproject(LRBSpline2D *bspl,
+			      vector<double>& data,
+			      int del,
+			      Point& coef)
+//==============================================================================
+{
+  double eps = 1.0e-10;
+  Point greville = bspl->getGrevilleParameter();
+  int dim = bspl->dimension();
+  Point nom(dim);
+  nom.setValue(0.0);
+  double denom = 0.0;
+  int pp = 2;
+  int nmbd = (int)data.size()/del;
+  for (int ka=0; ka<nmbd; ++ka)
+    {
+      Point curr(&data[ka*del+2], &data[ka*del+2+dim]);
+      double tmp = Utils::distance_squared(greville.begin(), greville.end(), &data[ka*del]);
+      double tmp2 = 1.0/pow(tmp, pp);
+      if (tmp < eps)
+	{
+	  coef = curr;
+	  return;
+	}
+
+      nom += tmp2*curr;
+      denom += tmp2;
+    }
+
+  coef = nom/denom;
+}
+

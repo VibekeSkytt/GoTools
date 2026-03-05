@@ -54,11 +54,21 @@ namespace Go
 		     int proj_type,
 		     Point& coef);
 
+    void extendedDataSet(LRBSpline2D *bspl,
+			 std::vector<double>& data,
+			 int& nmb, int& nmb_out,
+			 double& max_dist, double& av_dist);
+    
     void TPproject(LRBSpline2D *bspl,
-		   std::vector<double> data,
+		   std::vector<double>& data,
 		   int del,
 		   double smoothwgt,
 		   Point& coef);
+    
+    void IDWproject(LRBSpline2D *bspl,
+		    std::vector<double>& data,
+		    int del,
+		    Point& coef);
     
   }; // end namespace LRProjection
 

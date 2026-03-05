@@ -262,12 +262,12 @@ struct LSSmoothData
 
   int getNmbOutsideTol()
   {
-    return nmb_outside_tol_;
+    return (data_points_.size() == 0) ? 0 : nmb_outside_tol_;
   }
 
   int getNmbSignOutsideTol()
   {
-    return nmb_outside_tol_;
+    return nmb_sign_outside_tol_;
   }
 
   void getInfoSignificantPoints(int dim, double& maxdist, double& avdist,

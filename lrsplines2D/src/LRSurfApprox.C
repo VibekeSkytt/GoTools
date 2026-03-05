@@ -2661,6 +2661,9 @@ void  LRSurfApprox::runProjection(int proj_type)
       for (auto bspl=srf_->basisFunctionsBegin();
 	   bspl!=srf_->basisFunctionsEnd(); ++bspl)
 	{
+	  if (bspl->second->coefFixed())
+	    continue;
+	  
 	  int blevel = bspl->second->getNestLevel();
 	  if (blevel != level)
 	    continue;
