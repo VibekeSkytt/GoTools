@@ -54,10 +54,10 @@ namespace Go
 		     int proj_type,
 		     Point& coef);
 
-    void extendedDataSet(LRBSpline2D *bspl,
-			 std::vector<double>& data,
-			 int& nmb, int& nmb_out,
-			 double& max_dist, double& av_dist);
+    void RDataSet(LRSplineSurface *srf, LRBSpline2D *bspl, int nmb_pts,
+		  double& rad, std::vector<double>& data,
+		  int del, int& nmb, int& nmb_out,
+		  double& max_dist, double& av_dist);
     
     void TPproject(LRBSpline2D *bspl,
 		   std::vector<double>& data,
@@ -65,10 +65,20 @@ namespace Go
 		   double smoothwgt,
 		   Point& coef);
     
-    void IDWproject(LRBSpline2D *bspl,
+    void IDWproject(LRBSpline2D *bspl, double rad,
 		    std::vector<double>& data,
 		    int del,
 		    Point& coef);
+
+    void BilinProject(LRBSpline2D *bspl, std::vector<double>& data, int del,
+		      double rad, Point& coef);
+    
+    void QuadProject(LRBSpline2D *bspl, std::vector<double>& data, int del,
+		     double rad, Point& coef);
+    
+    void CubicProject(LRBSpline2D *bspl, std::vector<double>& data, int del,
+		      double rad, Point& coef);
+    
     
   }; // end namespace LRProjection
 

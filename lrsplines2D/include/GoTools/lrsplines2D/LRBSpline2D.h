@@ -538,6 +538,8 @@ class LRBSpline2D : public Streamable
   std::vector<double> unitIntervalBernsteinBasis(double start, double stop, Direction2D d) const;
 
   double nestingWeight(LRBSpline2D* other);
+  void discreteBsplines(Direction2D dir, int ik, std::vector<int>& kvec1,
+			std::vector<int>& kvec2, std::vector<double>& alfa);
 
 }; // end class LRBSpline2D
 

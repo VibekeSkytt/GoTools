@@ -47,10 +47,12 @@
 #include "GoTools/utils/StreamUtils.h"
 #include "GoTools/geometry/BsplineBasis.h"
 #include "GoTools/geometry/SplineUtils.h"
+#include "sislP.h"
 #include <set>
 #include <algorithm>
 
 //#define DEBUG
+//#define DEBUG_PROJ
 
 // The following is a workaround since 'thread_local' is not well supported by compilers yet
 #if defined(__GNUC__)
@@ -630,6 +632,16 @@ void LRBSpline2D::computeNestLevel()
 
   if (nest_level_ < 0)
     nest_level_ = 0;
+
+  for (auto bsp=cand.begin(); bsp!=cand.end(); ++bsp)
+    {
+    if (covers(*bsp))
+      {
+	int level = (*bsp)->getNestLevel();
+	(*bsp)->setNestLevel(std::max(level, nest_level_+1));
+      }
+    }
+      
   visited_ = false;
 }
 
@@ -763,6 +775,7 @@ double LRBSpline2D::nestingWeight(LRBSpline2D* other)
   vector<knotwgt> kvec_v2;
   kvec_v2.push_back(knotwgt(kvec_v2_0, 1.0));
 
+#ifdef DEBUG_PROJ
   std::cout << "Knots ancestor: [";
   for (size_t kj=0; kj<kvec_u2_0.size(); ++kj)
     std::cout << knotval(XFIXED, kvec_u2_0[kj]) << ", ";
@@ -771,7 +784,7 @@ double LRBSpline2D::nestingWeight(LRBSpline2D* other)
     std::cout << knotval(YFIXED, kvec_v2_0[kj]) << ", ";
   std::cout << "]" << std::endl;
   std::cout << "Nesting level: " << other->nest_level_ << ", scale factor: " << other->gamma_ << std::endl;
-    
+#endif
   vector<int> diff1, diff2;
   std::set_difference(kvec_u1.begin(), kvec_u1.end(), kvec_u2_0.begin(),
 		      kvec_u2_0.end(), std::back_inserter(diff1));
@@ -780,10 +793,14 @@ double LRBSpline2D::nestingWeight(LRBSpline2D* other)
 
   const Mesh2D *mesh = getMesh();
 
-  if (diff1.size() > 1)
-    std::cout << "Knots in 1. parameter direction: " << diff1.size() << std::endl;
-  if (diff2.size() > 1)
-    std::cout << "Knots in 2. parameter direction: " << diff2.size() << std::endl;
+#ifdef DEBUG_PROJ
+  std::cout << "Knots in 1. parameter direction: " << diff1.size() << std::endl;
+  std::cout << "Knots in 2. parameter direction: " << diff2.size() << std::endl;
+ #endif
+
+  // vector<double> alpha1, alpha2;
+  // discreteBsplines(XFIXED, degree(XFIXED)+1, kvec_u1, kvec_u2_0, alpha1);
+  // discreteBsplines(YFIXED, degree(YFIXED)+1, kvec_v1, kvec_v2_0, alpha2);
   
   int k1 = kvec_u1[0]; 
   int k2 = kvec_u1[kvec_u1.size()-1]; 
@@ -895,12 +912,55 @@ double LRBSpline2D::nestingWeight(LRBSpline2D* other)
 
   double alpha = 1.0;
   for (size_t kj=0; kj<kvec_u2.size(); ++kj)
-    alpha *= kvec_u2[kj].alpha_;
+    if (std::equal(kvec_u1.begin(), kvec_u1.end(), &kvec_u2[kj].kvec_[0]))
+	alpha *= kvec_u2[kj].alpha_;
   for (size_t kj=0; kj<kvec_v2.size(); ++kj)
-    alpha *= kvec_v2[kj].alpha_;
+    if (std::equal(kvec_v1.begin(), kvec_v1.end(), &kvec_v2[kj].kvec_[0]))
+	alpha *= kvec_v2[kj].alpha_;
 
   std::cout << "Weight: " << alpha << std::endl;
   return alpha;
+}
+
+//==============================================================================
+void LRBSpline2D::discreteBsplines(Direction2D dir, int ik, vector<int>& kvec1,
+				   vector<int>& kvec2, vector<double>& alfa)
+//==============================================================================
+{
+  const Mesh2D *mesh = getMesh();
+  vector<double> kvec;
+  std::set_union(kvec1.begin(), kvec1.end(), kvec2.begin(), kvec2.end(),
+		 std::back_inserter(kvec));
+  vector<int> diff;
+  std::set_difference(kvec1.begin(), kvec1.end(), kvec2.begin(),
+		      kvec2.end(), std::back_inserter(diff));
+  if (diff.size() == 0)
+    return;
+  vector<double> et1(kvec.size());
+  vector<double> et2(kvec2.size());
+  for (size_t ki=0; ki<kvec.size(); ++ki)
+    et1[ki] = mesh->kval(dir, kvec[ki]);
+  for (size_t ki=0; ki<kvec2.size(); ++ki)
+    et2[ki] = mesh->kval(dir, kvec2[ki]);
+
+  vector<double> alfa1(2*ik);
+  vector<double> alfa2(ik);
+  vector<double> sp(ik);
+
+  int my = 0;
+  int ka;
+  int in = ik + (int)diff.size();
+  for (ka=0, my=0; ka<in; ++ka)
+    {
+      while (et2[my+1] <= et1[ka])
+	++my;
+      
+      int kpl1, kpl2, kfi1, kfi2, kla1, kla2;
+      int kstat = 0;
+      SplineUtils::osloalg(ka, my, ik, in, &kpl1, &kfi1, &kla1, &et1[0], &et2[0], &alfa1[0]);
+      s1701(ka, my, ik, in, &kpl2, &kfi2, &kla2, &et1[0], &et2[0], &sp[0], &alfa2[0], &kstat);
+      int stop_break = 1;
+    }
 }
 
 //==============================================================================

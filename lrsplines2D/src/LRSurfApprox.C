@@ -2682,6 +2682,8 @@ void  LRSurfApprox::runProjection(int proj_type)
 	  Point coef2 = bspl->second->Coef();
 	  if (blevel > 0)
 	    std::cout << "level= " << blevel << ", dist= " << coef.dist(coef2) << std::endl;
+	  if (coef.dist(coef2) > 0.1)
+	    std::cout << "Dist: " << coef.dist(coef2) << ", coef: " << coef << std::endl;
 	  double gamma = bspl->second->gamma();
 	  srf_->setCoef(coef, bspl->second.get());
 
