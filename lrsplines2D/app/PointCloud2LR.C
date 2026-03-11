@@ -93,6 +93,9 @@ void print_help_text()
   std::cout << "                 1 = use only multilevel B-spline approximation (MBA) \n";
   std::cout << "                 n = start with least squares, turn to MBA after n iterations \n";
   std::cout << "                -1 = initiate computation using MBA \n";
+  std::cout << "-proj <0/1/2>: 0 = not projection (default) \n";
+  std::cout << "               1 = projection with least square \n";
+  std::cout << "               2 = projection with radial basis functions (IDW) \n";
   std::cout << "Default setting is start with least squares, turn to MBA for the last iterations \n";
   std::cout << "-degree <polynomial degree> : 2 or 3 recommended \n";
   std::cout << "-nmb_coef <initial value> : Initial number of coefficients in each parameter direction \n";
@@ -228,7 +231,8 @@ int main(int argc, char *argv[])
   double smoothwg = 1.0e-9; 
   int initmba = 0; //1;  // Initiate surface using the mba method
   int mba = 0;      // Use least squares approximation
-  int tomba = std::min(5, max_iter-1);    // Turn to the mba method at 
+  int tomba = std::min(5, max_iter-1);    // Turn to the mba method at
+  int projection = 0;
   // iteration level 5 or in the last iteration
   int degree = 2;
   int outlierflag = 0;
@@ -322,6 +326,13 @@ int main(int argc, char *argv[])
 	    initmba = 1;
 	  else
 	    tomba = mm;
+	}
+      else if (arg == "-proj")
+	{
+	  int stat = fetchIntParameter(argc, argv, ki, projection, 
+				       nmb_par, par_read);
+	  if (stat < 0)
+	    return 1;
 	}
       else if (arg == "-degree")
 	{
@@ -822,11 +833,11 @@ int main(int argc, char *argv[])
   if (distribute_ncoef)
     approx = shared_ptr<LRSurfApprox>(new LRSurfApprox(nc[0], order, nc[1], order, data, del-2, 
 						       AEPSGE, initmba ? true : false, mba_coef,
-						       true, true));
+						       projection, true, true));
   else
     approx = shared_ptr<LRSurfApprox>(new LRSurfApprox(nmb_coef, order, nmb_coef, order, data, del-2, 
 						       AEPSGE, initmba ? true : false, mba_coef,
-						       true, true));
+						       projection, true, true));
   approx->setSmoothingWeight(smoothwg);
   approx->setSmoothBoundary(true);
   if (mba)
