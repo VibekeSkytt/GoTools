@@ -774,6 +774,9 @@ namespace Go
   		  Mesh2D& mesh, 
 		  std::vector<LRBSpline2D*>& b_splines,
 		  int first_ixu, int first_ixv);
+
+  void setNestLevel();
+
  private:
 
   // ----------------------------------------------------
@@ -819,6 +822,7 @@ namespace Go
     collect_basis(int from_u, int to_u, 
 		  int from_v, int to_v) const;
 
+  
     void 
       s1773(const double ppoint[],double aepsge, 
 	    double estart[],double eend[],double enext[],
