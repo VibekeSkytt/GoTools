@@ -138,7 +138,7 @@ class LRSurfApprox
   LRSurfApprox(shared_ptr<SplineSurface>& srf,
 	       std::vector<double>& points, 
 	       double epsge, bool closest_dist=true,
-	       bool repar=false);
+	       bool repar=false, bool approx=false);
 
   /// Constructor given a parameterized point set and an initial LR B-spline surface
   /// \param srf    Given LR B-spline surface
@@ -725,7 +725,7 @@ private:
 
     /// Create initial LR B-spline surface
     void makeInitSurf(int dim);
-    void makeInitSurf(shared_ptr<SplineSurface> surf);
+  void makeInitSurf(shared_ptr<SplineSurface> surf, bool approx=false);
     void makeInitSurf(int dim, int ncoef_u, int order_u, int ncoef_v, int order_v,
 		      double domain[4]);
     void makeInitSurf(int dim, int ncoef_u, int order_u, int ncoef_v, 

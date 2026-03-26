@@ -210,6 +210,11 @@ class ApproxSurf
 	    edge_derivs_[0] = edge_derivs_[1] = edge_derivs_[2] = edge_derivs_[3] = fix;
 	}
 
+    void setFixCorners(bool fix_corners)
+	{
+	  corner_fix_ = fix_corners;
+	}
+
     /// Decide whether specific edges of the surface's boundary should be kept fixed
     /// (i.e. unchanged by approximation process), as well as a certain number of cross-
     /// derivatives across these curves.
@@ -339,6 +344,7 @@ class ApproxSurf
     double c1fac1_, c1fac2_;
   int acc_criter_;
   double acc_frac_;
+  bool corner_fix_;
 
     /// Generate an initial curve representing the spline space
     int makeInitSurf(std::vector<shared_ptr<SplineCurve> > &crvs, 

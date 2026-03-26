@@ -104,7 +104,7 @@ LRSurfApprox::LRSurfApprox(vector<double>& points,
 LRSurfApprox::LRSurfApprox(shared_ptr<SplineSurface>& srf,
 			   vector<double>& points, 
 			   double epsge, bool closest_dist,
-			   bool repar)
+			   bool repar, bool approx)
   : points_(points), useMBA_(false), toMBA_(4), initMBA_(false), 
     initMBA_coef_(0.0), proj_type_(0), aepsge_(epsge), 
     repar_(repar), check_close_(closest_dist), check_init_accuracy_(false),
@@ -116,7 +116,7 @@ LRSurfApprox::LRSurfApprox(shared_ptr<SplineSurface>& srf,
   nmb_pts_ = (int)points.size()/(2+srf->dimension());
 
   // Create an LR B-spline surface based on the given spline surface
-  makeInitSurf(srf);
+  makeInitSurf(srf, approx);
 }
 
 //==============================================================================
@@ -4002,9 +4002,9 @@ int LRSurfApprox::refineSurf(int iter, int& dir, double threshold)
   //nmb_split = std::min(nmb_split, 600);  // Limit the number of refinements
   int min_nmb_pts = std::max(1, max_num/10); //4;
   //double pnt_fac = 0.2;
-  //int min_nmb_out = 4;1
-  // if (med_err2 < 0.1*max_err2)
-  //   nmb_split = (int)(0.5*nmb_perm);
+  int min_nmb_out = 4;//1
+  if (med_err2 < 0.1*max_err2)
+    nmb_split = (int)(0.5*nmb_perm);
 
   vector<LRSplineSurface::Refinement2D> refs_x, refs_y;
   int nmb_refs = 0;
@@ -4049,8 +4049,8 @@ int LRSurfApprox::refineSurf(int iter, int& dir, double threshold)
       if (nmb_refs >= nmb_split && num_out_sign[bspl_perm[kr]] == 0)
 	continue;
 
-      // if (kr > pri && error2[bspl_perm[kr]] < 0.5*error2[bspl_perm[kr-1]])
-      // 	break;
+      if (kr > pri && error2[bspl_perm[kr]] < 0.5*error2[bspl_perm[kr-1]])
+	break;
 
       // //if (av_error[bspl_perm[kr]] < fac*mean_err)
       // if (false /*av_error[bspl_perm[kr]] < fac*mean_err &&
@@ -5253,13 +5253,13 @@ shared_ptr<SplineSurface> LRSurfApprox::createSurf(double* points, int nmb_pts,
 }
 
 //==============================================================================
-void LRSurfApprox::makeInitSurf(shared_ptr<SplineSurface> surf)
+void LRSurfApprox::makeInitSurf(shared_ptr<SplineSurface> surf, bool approx)
 //==============================================================================
 {
   // Make LR spline surface
   double knot_tol = 1.0e-6;
 
-  if (false)
+  if (approx)
     {
   vector<double> pts, param;
   int dim = surf->dimension();
@@ -5283,12 +5283,11 @@ void LRSurfApprox::makeInitSurf(shared_ptr<SplineSurface> surf)
   // Define weights
   int order_u = surf->order_u();
   int order_v = surf->order_v();
-  double smoothweight = 1.0e-6;
   int min_der = std::max(3, std::min(order_u, order_v)-1);
   double wgt1 = 0.0;
-  double wgt3 = (min_der >= 3) ? 0.5*smoothweight : 0.0;
-  double wgt2 = (1.0 - wgt3)*smoothweight;
-  wgt3 *= smoothweight;
+  double wgt3 = (min_der >= 3) ? 0.5*smoothweight_ : 0.0;
+  double wgt2 = (1.0 - wgt3)*smoothweight_;
+  wgt3 *= smoothweight_;
   double approxweight = 1.0 - wgt1 - wgt2 - wgt3;
   std::vector<double> pt_weight(nmb_pts_, 1.0);
  

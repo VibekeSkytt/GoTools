@@ -93,6 +93,7 @@ ApproxSurf::ApproxSurf()
   c1fac1_ = 0.0;
   c1fac2_ = 0.0;
   acc_criter_ =  ACCURACY_MAXDIST;
+  corner_fix_ = false;
 }
 
 //***************************************************************************
@@ -144,6 +145,7 @@ ApproxSurf::ApproxSurf(std::vector<shared_ptr<SplineCurve> >& crvs,
   smoothfac_ = 1.0/((curr_srf_->endparam_u() - curr_srf_->startparam_u()) +
 		    (curr_srf_->endparam_v() - curr_srf_->startparam_v()));
 
+  corner_fix_ = false;
 }
 
 //***************************************************************************
@@ -194,6 +196,7 @@ ApproxSurf::ApproxSurf(shared_ptr<SplineSurface>& srf,
 
   curr_srf_ = srf;
   init_srf_ = shared_ptr<SplineSurface>(srf->clone());
+  corner_fix_ = false;
 }
 
 //***************************************************************************
@@ -243,6 +246,7 @@ ApproxSurf::ApproxSurf(shared_ptr<SplineSurface>& srf,
 
   curr_srf_ = srf;
   init_srf_ = shared_ptr<SplineSurface>(srf->clone());
+  corner_fix_ = false;
 }
 
 //***************************************************************************
@@ -330,6 +334,7 @@ ApproxSurf::ApproxSurf(const std::vector<double>& points,
   init_srf_ = shared_ptr<SplineSurface>(curr_srf_->clone());
   
   smoothfac_ = 1.0/((umax - umin) + (vmax - vmin));
+  corner_fix_ = false;
 }
 
 //***************************************************************************
@@ -1129,6 +1134,11 @@ void ApproxSurf::setCoefKnown()
     for (kj = 0; kj < kn2; ++kj)
       coef_known_[kj*kn1+ki] = 1;
 
+  if (corner_fix_)
+    {
+      coef_known_[0] = coef_known_[kn1-1] = coef_known_[(kn2-1)*kn1] =
+	coef_known_[kn1*kn2-1] = 1;
+    }
 
 }
 
