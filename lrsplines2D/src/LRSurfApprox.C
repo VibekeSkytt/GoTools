@@ -2703,7 +2703,14 @@ void  LRSurfApprox::runProjection(int proj_type)
 	  if (blevel > 0)
 	    {
 	      // Update coefficient with respect to lower nesting level coefficients
-	      bspl->second->adaptProjCoef(coef);
+	      bool OK = bspl->second->adaptProjCoef(coef);
+	      if (!OK)
+		{
+		  // Recompute
+		  LRProjection::computeCoef(srf_.get(), bspl->second.get(),
+					    proj_type, dlim, coef);
+		  OK = bspl->second->adaptProjCoef(coef); // Should be OK now
+		}
 	      int stop_break = 1;
 	    }
 
@@ -2725,7 +2732,14 @@ void  LRSurfApprox::runProjection(int proj_type)
 	      if (blevel > 0)
 		{
 		  // Update coefficient with respect to lower nesting level coefficients
-		  bspl->second->adaptProjCoef(coef3);
+		  bool OK = bspl->second->adaptProjCoef(coef3);
+		  if (!OK)
+		    {
+		      // Recompute
+		      LRProjection::computeCoef(srf_.get(), bspl->second.get(),
+						proj_IDW, dlim, coef3);
+		      OK = bspl->second->adaptProjCoef(coef3); // Should be OK now
+		    }
 
 		}
 	      double dist2 = coef3.dist(coef2);

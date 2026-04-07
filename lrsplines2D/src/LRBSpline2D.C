@@ -735,11 +735,11 @@ std::vector<Element2D*>::iterator LRBSpline2D::supportedElementEnd()
 }
 
 //==============================================================================
-void LRBSpline2D::adaptProjCoef(Point& coef)
+bool LRBSpline2D::adaptProjCoef(Point& coef)
 //==============================================================================
 {
   if (nest_level_ == 0)
-    return;
+    return true;
 
   // Collect ancestors
   set<LRBSpline2D*> ancest0;
@@ -783,8 +783,14 @@ void LRBSpline2D::adaptProjCoef(Point& coef)
     }
   double tmp2 = (1.0 - tmp)/gamma_;
   if (fabs(tmp2-1.0) > 1.0e-4)
-    std::cout << "Invariant: " << tmp2 << std::endl;
+    {
+      std::cout << "Invariant: " << tmp2 << std::endl;
+      setNestLevel(-1);
+      computeNestLevel();
+      return false;
+    }
   coef /= gamma_;
+  return true;
 }
 
   struct knotwgt

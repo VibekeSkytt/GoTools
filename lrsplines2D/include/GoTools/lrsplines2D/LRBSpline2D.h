@@ -427,7 +427,7 @@ class LRBSpline2D : public Streamable
     return overload_;
   }
 
-  void adaptProjCoef(Point& coef);
+  bool adaptProjCoef(Point& coef);
   
   bool checkOverload();
   void eraseOverload()
