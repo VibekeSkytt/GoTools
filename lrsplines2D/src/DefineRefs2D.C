@@ -40,6 +40,7 @@
 #include "GoTools/lrsplines2D/DefineRefs2D.h"
 #include "GoTools/lrsplines2D/LRBSpline2D.h"
 #include "GoTools/lrsplines2D/Mesh2D.h"
+#include "GoTools/lrsplines2D/Mesh2DUtils.h"
 
 using namespace Go;
 using std::vector;
@@ -197,6 +198,70 @@ void DefineRefs2D::refineStructuredMesh(const LRSplineSurface& surf,
 	}
     }
 
+}
+
+//==============================================================================
+void DefineRefs2D::defineRefsAtEdge(const Mesh2D& mesh, Direction2D dir,
+				    int edge, int ix, const vector<double>& knot_vals, 
+				    int element_width,
+				    vector<LRSplineSurface::Refinement2D>& refs)
+//==============================================================================
+{
+  Direction2D curr_dir = flip(dir);
+  for (size_t kj=0; kj<knot_vals.size(); ++kj)
+    {
+      double curr_knot = knot_vals[kj];
+      int other_ix = 
+	Mesh2DUtils::last_nonlarger_knotvalue_ix(mesh, dir, curr_knot);
+
+      double p1 = mesh.kval(curr_dir, ix);
+      double p2;
+      if (edge == 1 || edge == 3)
+      {
+	  int c_ix = ix;
+	  for (int ki=0; ki<element_width; ++ki)
+	  {
+	      int p_ix = c_ix;
+	      c_ix = // We search for the next line which contains curr_knot.
+		  Mesh2DUtils::search_downwards_for_nonzero_multiplicity(mesh, curr_dir,
+									 c_ix-1, other_ix);
+	      // // If segment already exists we must decrease p1.
+	      // int mult = mesh.nu(dir, other_ix, c_ix, p_ix);
+	      // if (mult > 0)
+	      // {
+	      // 	  MESSAGE("Do something!");
+	      // 	  p1 = mesh.kval(curr_dir, c_ix);
+	      // }
+	  }
+	  p2 = mesh.kval(curr_dir, c_ix);
+	}
+      else
+	{
+	  int c_ix = ix;
+	  for (int ki=0; ki<element_width; ++ki)
+	  {
+	      int p_ix = c_ix;
+	      c_ix =
+		  Mesh2DUtils::search_upwards_for_nonzero_multiplicity(mesh, curr_dir,
+								       c_ix+1, other_ix);
+	      // // If segment already exists we must increase p1.
+	      // int mult = mesh.nu(dir, other_ix, p_ix, c_ix);
+	      // if (mult > 0)
+	      // {
+	      // 	  MESSAGE("Do something!");
+	      // 	  p1 = mesh.kval(curr_dir, c_ix);
+	      // }
+	  }
+	  p2 = mesh.kval(curr_dir, c_ix);
+	}
+
+      if (p1 > p2)
+	std::swap(p1, p2);
+
+      LRSplineSurface::Refinement2D curr_ref;
+      curr_ref.setVal(curr_knot, p1, p2, dir, 1);
+      refs.push_back(curr_ref);
+    }
 }
 
 //==============================================================================

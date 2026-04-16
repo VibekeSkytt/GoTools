@@ -85,11 +85,19 @@ void SplineInterpolator::interpolate(int num_points,
 
     
     // First we make a knot vector and define the spline space
+    int num_coefs, order;
+    if (basis_set_)
+      {
+	num_coefs = basis_.numCoefs();
+	order = basis_.order();
+      }
+    else
+      {
     int additional_coefs = (ctype_ == Free) ? 0 :
       (((ctype_ == NaturalAtStart && end_tangent_.get() == 0)
 	|| (ctype_ == NaturalAtEnd && start_tangent_.get() == 0)) ? 1 : 2);
-    int num_coefs = num_points + additional_coefs;
-    int order = std::min(4, num_coefs);
+     num_coefs = num_points + additional_coefs;
+     order = std::min(4, num_coefs);
     ALWAYS_ERROR_IF(num_coefs < 2,"Insufficient number of points.");
     std::vector<double> knots;
     knots.reserve(num_coefs + order);
@@ -122,7 +130,7 @@ void SplineInterpolator::interpolate(int num_points,
     }
     knots.insert(knots.end(), order, param_start[num_points-1]);
     basis_ = BsplineBasis(num_coefs, order, &knots[0]);
-
+      }
     // Create the interpolation matrix.
     // The first and last row (equation) depends on the boundary
     // conditions (for Hermite and Natural conditions) or are

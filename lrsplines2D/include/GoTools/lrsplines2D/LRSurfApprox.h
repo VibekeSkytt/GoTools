@@ -65,6 +65,18 @@ class LRSurfApprox
     RectDomain box;
     double tol;
 
+    TolBox()
+    {
+      tol = -1.0;
+    }
+    
+    TolBox(double umin, double umax, double vmin, double vmax,
+	   double tolerance)
+    {
+      box = RectDomain(Vector2D(umin, vmin), Vector2D(umax, vmax));
+      tol = tolerance;
+    }
+    
     void setVal(double umin, double umax, double vmin, double vmax,
 		double tolerance)
     {
@@ -86,7 +98,16 @@ class LRSurfApprox
     {
       return box.isInDomain(Vector2D(uval,vval), 0.0);
     }
-  };
+    
+    bool contains(LRBSpline2D *bspl)
+    {
+      if (bspl->umin() < box.umin() || bspl->umax() > box.umax() ||
+	  bspl->vmin() < box.vmin() || bspl->vmax() > box.vmax())
+	return false;
+      else
+	return true;
+    }
+ };
   
   /// Constructor given a parameterized point set
   /// \param points Parameterized point set given as (u1,v1,x1,y1,z1, u2, v2, ...)
@@ -117,7 +138,7 @@ class LRSurfApprox
   LRSurfApprox(shared_ptr<SplineSurface>& srf,
 	       std::vector<double>& points, 
 	       double epsge, bool closest_dist=true,
-	       bool repar=false);
+	       bool repar=false, bool approx=false);
 
   /// Constructor given a parameterized point set and an initial LR B-spline surface
   /// \param srf    Given LR B-spline surface
@@ -452,11 +473,18 @@ class LRSurfApprox
       var_fac_pos_ = var_fac_neg_ = 1.0;
     }
 
-  // Set variable tolerance depending on domain
+  /// Set variable tolerance depending on domain
     void setVarTolBox(std::vector<TolBox> tolerances)
     {
       tolerances_ = tolerances;
     }
+
+  /// Set domain of high priority for refinement
+    void setRefPriBox(std::vector<TolBox> refpri)
+    {
+      refpri_ = refpri;
+    }
+  
 
     /// Whether or not intermediate information should be written to
     /// standard output (default is not)
@@ -575,7 +603,7 @@ private:
     std::vector<double> init_knots_u_; // Initial knots to select for refinement
     std::vector<double> init_knots_v_; // Initial knots to select for refinement
 
-    int edge_derivs_[4];
+  int edge_derivs_[4]; // =0: umin, =1: vmax, =2: umax, =3:vmin
     double maxdist_;
     double maxdist_prev_;
     double maxdist_sign_;
@@ -633,9 +661,10 @@ private:
     std::vector<TolBox> tolerances_;
 
     // Refinement strategy
-    int category1_, category2_, alter_, threshold1_, threshold2_;
-    double swap_;
-    
+  int category1_, category2_, alter_, threshold1_, threshold2_;
+  double swap_;
+  std::vector<TolBox> refpri_;
+   
     // Features output
     bool write_feature_;
     int ncell_;
@@ -669,7 +698,7 @@ private:
 
     void runMBAUpdate(bool computed_accuracy);
 
-  void runProjection(int proj_type);
+  void runProjection(int proj_type, int level, int num_points = -1);
   
     int defineOutlierPts(Element2D* element, 
 			 std::vector<double>& prev_dist, double lim,
@@ -686,7 +715,7 @@ private:
 
     /// Create initial LR B-spline surface
     void makeInitSurf(int dim);
-    void makeInitSurf(shared_ptr<SplineSurface> surf);
+  void makeInitSurf(shared_ptr<SplineSurface> surf, bool approx=false);
     void makeInitSurf(int dim, int ncoef_u, int order_u, int ncoef_v, int order_v,
 		      double domain[4]);
     void makeInitSurf(int dim, int ncoef_u, int order_u, int ncoef_v, 

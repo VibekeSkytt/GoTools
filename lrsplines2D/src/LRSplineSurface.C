@@ -201,9 +201,10 @@ LRSplineSurface::LRSplineSurface(double knot_tol, bool rational,
   }
 
   emap_ = construct_element_map_(mesh_, bsplines_);
-  
- for (auto it=bsplines_.begin(); it!=bsplines_.end(); ++it)
-    it->second->computeNestLevel();
+
+  setNestLevel();
+ // for (auto it=bsplines_.begin(); it!=bsplines_.end(); ++it)
+ //    it->second->computeNestLevel();
 }
 
 //==============================================================================
@@ -268,9 +269,10 @@ LRSplineSurface::LRSplineSurface(const LRSplineSurface& rhs)
   // The ElementMap has to be generated and cannot be copied directly, since it
   // contains raw pointers.  
   emap_ = construct_element_map_(mesh_, bsplines_);
-  
- for (auto it=bsplines_.begin(); it!=bsplines_.end(); ++it)
-    it->second->computeNestLevel();
+
+  setNestLevel();
+ // for (auto it=bsplines_.begin(); it!=bsplines_.end(); ++it)
+ //    it->second->computeNestLevel();
 }
 
 //===========================================================================
@@ -390,7 +392,7 @@ void  LRSplineSurface::read(istream& is)
     int stop_break = 1;
   }
 #endif
-
+  setNestLevel();
 }
 
 //==============================================================================
@@ -1122,8 +1124,9 @@ void LRSplineSurface::refine(Direction2D d, double fixed_val, double start,
 
   // Finally, ensure that all bsplines has got a generation count.
   // If the flag is set, no action is taken
-  for (auto bsp=bsplines_.begin(); bsp!=bsplines_.end(); ++bsp)
-    bsp->second->computeNestLevel();
+  //setNestLevel();
+  // for (auto bsp=bsplines_.begin(); bsp!=bsplines_.end(); ++bsp)
+  //   bsp->second->computeNestLevel();
   
 #ifdef DEBUG
   //std::cout << "Num elements post: " << numElements() << std::endl;
@@ -1149,6 +1152,42 @@ void LRSplineSurface::refine(Direction2D d, double fixed_val, double start,
     return (r1.kval < r2.kval);
   }
 
+
+//==============================================================================
+  void LRSplineSurface::setNestLevel()
+//==============================================================================
+  {
+  int max_level = 10;  // Should always be enough
+  for (int level=0; level<max_level; ++level)
+    {
+      bool finished = true;
+      for (auto bspl=bsplines_.begin(); bspl!=bsplines_.end(); ++bspl)
+	{
+	  int blevel = bspl->second->getNestLevel();
+	  if (blevel != -1)
+	    continue;  // Already set
+
+	  finished = false;
+	  vector<LRBSpline2D*> cand;
+	  bspl->second->getOverlapping(cand);
+
+	  int max_level = -1;
+	  size_t kr;
+	  for (kr=0; kr<cand.size(); ++kr)
+	    {
+	      int clevel = cand[kr]->getNestLevel();
+	      if (clevel < 0)
+		break;
+	      max_level = std::max(max_level, clevel);
+	    }
+	  if (kr < cand.size() || max_level > level-1)
+	    continue;
+	  bspl->second->setNestLevel(level);
+	}
+      if (finished)
+	break;
+    }
+  }
 
 //==============================================================================
   void LRSplineSurface::refine(const vector<Refinement2D>& refs, 
@@ -2602,7 +2641,7 @@ double LRSplineSurface::endparam_v() const
 	 for (size_t ki = 0; ki < refs.size(); ++ki)
 	   {
 #ifndef NDEBUG
-	     MESSAGE("ki = " << ki << "\n");
+	     //MESSAGE("ki = " << ki << "\n");
 #endif
 	     sf->refine(refs[ki], true); // Second argument is 'true', which means that the mult is set	     
 	                                 // to refs[ki].mult = deg+1.
@@ -3403,6 +3442,28 @@ double LRSplineSurface::endparam_v() const
 
     return;
   }
+
+//==============================================================================
+void LRSplineSurface::fetchEdgeCorners(int edge_num, double& u1, double& v1, double& u2,
+				       double& v2) const
+//==============================================================================
+{
+  // Edges are numbered: 0=left, 1=right, 2=lower, 3=upper
+  if (edge_num <= 1)
+    u1 = u2 = (edge_num == 0) ? startparam_u() : endparam_u();
+  else
+    {
+      u1 = startparam_u();
+      u2 = endparam_u();
+    }
+  if (edge_num >= 2)
+    v1 = v2 = (edge_num == 2) ? startparam_v() : endparam_v();
+  else
+    {
+      v1 = startparam_v();
+      v2 = endparam_v();
+    }
+}
 
 //===========================================================================
 SplineCurve*

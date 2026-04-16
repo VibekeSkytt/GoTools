@@ -274,6 +274,10 @@ class LRBSpline2D : public Streamable
   std::vector<int>& kvec(Direction2D d)      
     {return (d==XFIXED) ? bspline_u_->kvec() : bspline_v_->kvec();}
 
+  /// Knot vector values in the first (XFIXED) or second (YFIXED)
+  /// parameter direction
+  std::vector<double> kvec_val(Direction2D d) const;
+  
   /// Get the polynomial degree of the spline.
   const int degree(Direction2D d) const 
   {return (int)kvec(d).size() - 2;}  
@@ -379,6 +383,9 @@ class LRBSpline2D : public Streamable
   /// Check if the support of this B-spline cover the given domain: umin, umax, vmin, wmax.
   bool covers(double domain[]) const;
   bool covers(LRBSpline2D* bsp) const;
+
+  void getOverlapping(std::vector<LRBSpline2D*>& overlap);
+  
   /// Set nesting level. Only for internal use
   void setNestLevel(int nest_level)
   {
@@ -420,7 +427,7 @@ class LRBSpline2D : public Streamable
     return overload_;
   }
 
-  void adaptProjCoef(Point& coef);
+  bool adaptProjCoef(Point& coef);
   
   bool checkOverload();
   void eraseOverload()

@@ -60,7 +60,7 @@
 #define BOOST_TIMER_SOURCE
 #define BOOST_ALL_NO_LIB
 
-//#define DEBUG
+#define DEBUG
 //#define DEBUG_EL
 //#define DEBUG2
 #define DEBUG_PAR
@@ -738,8 +738,9 @@ int main(int argc, char *argv[])
 #endif
 
   // Move point cloud to origo
-  Point mid(0.5*(extent[2*(del-3)] + extent[2*(del-3)+1]),
-	    0.5*(extent[2*(del-2)] + extent[2*(del-2)+1]), 0.0);
+  // Point mid(0.5*(extent[2*(del-3)] + extent[2*(del-3)+1]),
+  // 	    0.5*(extent[2*(del-2)] + extent[2*(del-2)+1]), 0.0);
+    Point mid(0.0, 0.0, 0.0);
   for (ki=0; ki<nmb_pts; ++ki)
     for (kj=del-3; kj<del-1; ++kj)
       {
@@ -786,8 +787,9 @@ int main(int argc, char *argv[])
 #ifdef DEBUG
   // Write translated surface and points to g2 format
   vector<double> data2;
+  int ptpos = (del == 5) ? 2 : 0;
   data2.reserve(nmb_pts*3);
-  for (ki=0, kj=0; ki<nmb_pts; ++ki, kj+=del)
+  for (ki=0, kj=ptpos; ki<nmb_pts; ++ki, kj+=del)
     data2.insert(data2.end(), data.begin()+kj, data.begin()+kj+3);
   PointCloud3D cloud(data2.begin(), nmb_pts);
 
@@ -833,11 +835,11 @@ int main(int argc, char *argv[])
   if (distribute_ncoef)
     approx = shared_ptr<LRSurfApprox>(new LRSurfApprox(nc[0], order, nc[1], order, data, del-2, 
 						       AEPSGE, initmba ? true : false, mba_coef,
-						       projection, true, true));
+						       projection, true, false));
   else
     approx = shared_ptr<LRSurfApprox>(new LRSurfApprox(nmb_coef, order, nmb_coef, order, data, del-2, 
 						       AEPSGE, initmba ? true : false, mba_coef,
-						       projection, true, true));
+						       projection, true, false));
   approx->setSmoothingWeight(smoothwg);
   approx->setSmoothBoundary(true);
   if (mba)

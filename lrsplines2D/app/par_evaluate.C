@@ -36,49 +36,45 @@
  * This file may be used in accordance with the terms contained in a
  * written agreement between you and SINTEF ICT. 
  */
+ 
+#include "GoTools/geometry/PointCloud.h"
+#include "GoTools/geometry/FileUtils.h"
+#include "GoTools/geometry/ObjectHeader.h"
+#include "GoTools/geometry/SplineSurface.h"
+#include <iostream>
+#include <fstream>
 
-#ifndef DEFINEREFS2D_H
-#define DEFINEREFS2D_H
+using namespace Go;
+using std::vector;
 
-#include "GoTools/lrsplines2D/LRSplineSurface.h"
-
-//==============================================================================
-namespace Go
-//==============================================================================
+int main(int argc, char *argv[])
 {
-  /// Given a specifiction for how to refine with respect to an LRBSpline2D
-  /// (or Element2D?), prepare input for LRSplineSurface::refine
+  if (argc != 4) {
+    std::cout << "Parameters : Input points (.txt), input surface (.g2), output points (.txt)"  << std::endl;
+    exit(-1);
+  }
+  std::ifstream pointfile(argv[1]);
+  std::ifstream surffile(argv[2]);
+  std::ofstream pointout(argv[3]);
 
-  class LRBSpline2D;
+  // Read parameter values (and points)
+  int del = 5;
+  int nmb_pts = 0;
+  vector<double> data;
+  vector<double> extent(2*del);   // Limits for points in all coordinates
+  FileUtils::readTxtPointFile(pointfile, del, data, nmb_pts, extent);
+
+  // Read surface
+  ObjectHeader header;
+  header.read(surffile);
+  shared_ptr<SplineSurface> surf(new SplineSurface());
+  surf->read(surffile);
   
-  namespace DefineRefs2D
-  {
-    /// For a set of B-splines, return specifiction of new mesh lines to insert
-    /// in order to perform structured mesh refinement
-    /// \param adjust if true: elongate existing mesh lines if possible
-    ///               if false: always insert new mesh lines in the middle of
-    ///               existing knots
-    /// \param reduced if true: skip some mesh lines if a complete structured mesh
-    ///                         would lead to close mesh lines
-    void refineStructuredMesh(const LRSplineSurface& surf,
-			      std::vector<LRBSpline2D*>& source,
-			      std::vector<LRSplineSurface::Refinement2D>& refs_x,
-			      std::vector<LRSplineSurface::Refinement2D>& refs_y,
-			      bool adjust = true, bool reduced = false);
+  // Evaluate
+  for (int ki=0; ki<nmb_pts; ++ki)
+    {
+      Point pos = surf->ParamSurface::point(data[ki*del], data[ki*del+1]);
+      pointout << data[ki*del] << " " << data[ki*del+1] << " " << pos << std::endl;
+    }
+}
 
-    void defineRefsAtEdge(const Mesh2D& mesh, Direction2D dir,
-			  int edge, int ix, const std::vector<double>& knot_vals, 
-			  int element_width,
-			  std::vector<LRSplineSurface::Refinement2D>& refs);
-    
-    /// Add a new mesh line segment to the collection of such. Combine with
-    /// previously defined lines if possible
-    void appendRef(std::vector<LRSplineSurface::Refinement2D>& refs,
-		   LRSplineSurface::Refinement2D& curr_ref, double tol);
-
-    
-  } // end namespace DefineRefs2D
-} // end namespace Go
-
-
-#endif

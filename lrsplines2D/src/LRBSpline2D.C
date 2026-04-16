@@ -495,7 +495,19 @@ int LRBSpline2D::endmult_v(bool atstart) const
 }
 
 //==============================================================================
+vector<double> LRBSpline2D::kvec_val(Direction2D d) const
+//==============================================================================
+{
+   const Mesh2D* mesh = dynamic_cast<const Mesh2D*>(bspline_u_->getMesh());
+  vector<double> kval(kvec(d).size());
+  for (size_t ki=0; ki<kval.size(); ++ki)
+    kval[ki] = mesh->kval(d, kvec(d)[ki]);
+  return kval;
+}
+
+//==============================================================================
 Point LRBSpline2D::getGrevilleParameter() const
+//==============================================================================
 {
   double upar = bspline_u_->getGrevilleParameter();
   double vpar = bspline_v_->getGrevilleParameter();
@@ -638,11 +650,32 @@ void LRBSpline2D::computeNestLevel()
     if (covers(*bsp))
       {
 	int level = (*bsp)->getNestLevel();
-	(*bsp)->setNestLevel(std::max(level, nest_level_+1));
+	if (level >= 0)
+	  (*bsp)->setNestLevel(std::max(level, nest_level_+1));
       }
     }
       
   visited_ = false;
+}
+
+//==============================================================================
+void LRBSpline2D::getOverlapping(vector<LRBSpline2D*>& overlap)
+//==============================================================================
+{
+  set<LRBSpline2D*> cand;
+  for (auto el=support_.begin(); el!=support_.end(); ++el)
+    {
+      for (auto bsp=(*el)->supportBegin(); bsp!=(*el)->supportEnd(); ++bsp)
+	if ((*bsp) != this)
+	  cand.insert(*bsp);
+    }
+
+  for (auto bsp=cand.begin(); bsp!=cand.end(); ++bsp)
+    {
+      if ((*bsp)->covers(this))
+	overlap.push_back(*bsp);
+    }
+ 
 }
 
 //==============================================================================
@@ -702,11 +735,11 @@ std::vector<Element2D*>::iterator LRBSpline2D::supportedElementEnd()
 }
 
 //==============================================================================
-void LRBSpline2D::adaptProjCoef(Point& coef)
+bool LRBSpline2D::adaptProjCoef(Point& coef)
 //==============================================================================
 {
   if (nest_level_ == 0)
-    return;
+    return true;
 
   // Collect ancestors
   set<LRBSpline2D*> ancest0;
@@ -721,7 +754,8 @@ void LRBSpline2D::adaptProjCoef(Point& coef)
 	  }
     }
 
-  std::cout << "Nesting level: " << nest_level_ << ", scale factor: " << gamma_ << std::endl;
+#ifdef DEBUG_PROJ
+   std::cout << "Nesting level: " << nest_level_ << ", scale factor: " << gamma_ << std::endl;
   std::cout << "Knots curr: [";
   vector<int> kvec_u1 = bspline_u_->kvec();
   vector<int> kvec_v1 = bspline_v_->kvec();
@@ -731,10 +765,13 @@ void LRBSpline2D::adaptProjCoef(Point& coef)
   for (size_t kj=0; kj<kvec_v1.size(); ++kj)
     std::cout << knotval(YFIXED, kvec_v1[kj]) << ", ";
   std::cout << "]" << std::endl;
+#endif
     
   vector<LRBSpline2D*> ancest(ancest0.begin(), ancest0.end());
-  if (ancest.size() > 1)
+#ifdef DEBUG_PROJ
+   if (ancest.size() > 1)
     std::cout << "Number of ancestors: " << ancest.size() << std::endl;
+#endif
   double tmp = 0.0;
   for (size_t ki=0; ki<ancest.size(); ++ki)
     {
@@ -746,8 +783,14 @@ void LRBSpline2D::adaptProjCoef(Point& coef)
     }
   double tmp2 = (1.0 - tmp)/gamma_;
   if (fabs(tmp2-1.0) > 1.0e-4)
-    std::cout << "Invariant: " << tmp2 << std::endl;
+    {
+      std::cout << "Invariant: " << tmp2 << std::endl;
+      setNestLevel(-1);
+      computeNestLevel();
+      return false;
+    }
   coef /= gamma_;
+  return true;
 }
 
   struct knotwgt
@@ -918,7 +961,9 @@ double LRBSpline2D::nestingWeight(LRBSpline2D* other)
     if (std::equal(kvec_v1.begin(), kvec_v1.end(), &kvec_v2[kj].kvec_[0]))
 	alpha *= kvec_v2[kj].alpha_;
 
-  std::cout << "Weight: " << alpha << std::endl;
+#ifdef DEBUG_PROJ
+   std::cout << "Weight: " << alpha << std::endl;
+#endif
   return alpha;
 }
 
@@ -978,8 +1023,6 @@ bool LRBSpline2D::checkOverload()
   overload_ = overload;
   return overload;
 }
-
-
 
 //==============================================================================
 void LRBSpline2D::swapParameterDirection()

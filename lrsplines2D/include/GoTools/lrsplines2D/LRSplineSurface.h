@@ -497,6 +497,11 @@ namespace Go
     virtual void 
       getCornerPoints(std::vector<std::pair<Point,Point> >& corners) const;
 
+  /// Fetch parameter values of corners adjacent to specified edge
+  /// Edges are numbered: 0=left, 1=right, 2=lower, 3=upper
+  void fetchEdgeCorners(int edge_num, double& u1, double& v1, double& u2,
+			double& v2) const;
+
     /// Generate and return a SplineCurve that represents a constant parameter 
     /// curve on the surface
     /// \param parameter value of the fixed parameter
@@ -769,6 +774,9 @@ namespace Go
   		  Mesh2D& mesh, 
 		  std::vector<LRBSpline2D*>& b_splines,
 		  int first_ixu, int first_ixv);
+
+  void setNestLevel();
+
  private:
 
   // ----------------------------------------------------
@@ -814,6 +822,7 @@ namespace Go
     collect_basis(int from_u, int to_u, 
 		  int from_v, int to_v) const;
 
+  
     void 
       s1773(const double ppoint[],double aepsge, 
 	    double estart[],double eend[],double enext[],
