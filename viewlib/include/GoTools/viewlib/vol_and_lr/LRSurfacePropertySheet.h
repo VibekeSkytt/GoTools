@@ -37,45 +37,57 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _GVAPPLICATIONVOLANDLR_H
-#define _GVAPPLICATIONVOLANDLR_H
+#ifndef _LRSURFACEPROPERTYSHEET_H
+#define _LRSURFACEPROPERTYSHEET_H
 
 
-#include "GoTools/viewlib/gvApplication.h"
-#include "GoTools/tesselator/GeneralMesh.h"
+#include "GoTools/viewlib/gvPropertySheet.h"
+#include "GoTools/viewlib/ui_RectangularSurfacePropertySheet_form.h"
+#include "GoTools/geometry/ParamSurface.h"
+#include "GoTools/viewlib/vol_and_lr/gvLRSurfacePaintable.h"
+#include "GoTools/viewlib/vol_and_lr/LRSurfaceTesselator.h"
 
+#include <QObject>
 
-class gvApplicationVolAndLR : public gvApplication
+class gvData;
+//class LRSurfaceTesselator;
+//class gvLRSurfacePaintable;
+
+/** Documentation ...
+    etc
+ */
+
+class LRSurfacePropertySheet : public QObject, public gvPropertySheet
 {
 
 Q_OBJECT
 
-
 public:
-    gvApplicationVolAndLR(std::auto_ptr<DataHandler> dh,
-			  QWidget * parent=0,
-			  const char * name=0,
-			  Qt::WindowFlags f=0);
+    LRSurfacePropertySheet()
+    {}
 
-    virtual ~gvApplicationVolAndLR();
+    LRSurfacePropertySheet(Go::LRSurfaceTesselator* tess,
+				   gvLRSurfacePaintable* pable,
+				   shared_ptr<Go::ParamSurface>& surf)
+	: tess_(tess), pable_(pable), form_(0), obs_(0), surf_(surf)
+    {}
+
+    virtual ~LRSurfacePropertySheet();
+
+    virtual void createSheet(QWidget* parent, gvObserver* obs);
 
 public slots:
-    virtual void view_reset();
-
-    void translate_to_origin(); // All selected objects are translated by the center of their bounding box.
-    void move_vertices_to_origin(); // All selected objects are translated by the center of their bounding box.
-
-    virtual void
-    changeSurfaceResolutions(int new_u_res,
-			     int new_v_res); // Change resolution of
-					     // all selected sfs.
-protected:
-    void buildExtraGUI();
+    void apply();
+ 
 
 private:
-    Go::GeneralMesh* getMesh(int object_id);
-
+  Go::LRSurfaceTesselator* tess_;
+  gvLRSurfacePaintable* pable_;
+  Ui::RectangularSurfacePropertySheet_form* form_;
+  gvObserver* obs_;
+  shared_ptr<Go::ParamSurface> surf_;
 };
 
-#endif // _GVAPPLICATIONVOLANDLR_H
+
+#endif // _PARAMETRICSURFACEPROPERTYSHEET_H
 

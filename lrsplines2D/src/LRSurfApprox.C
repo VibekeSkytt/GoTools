@@ -498,7 +498,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   // Initial approximation of LR B-spline surface
   /*if (!(initial_surface_) && proj_type_ > 0)
     {
-      runProjection(proj_type_);
+      runProjection(proj_type_, 0);
     }
     else*/ if (initMBA_)
     {
@@ -808,7 +808,9 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
        // Update surface
       if (proj_type_ > 0)
 	{
-	  runProjection(proj_type_);
+	  // if (ki == max_iter-1)
+	  //   apply_smooth_proj_ = false;
+	  runProjection(proj_type_, ki+1);
 	}
       else if (useMBA_ || ki >= toMBA_)
       {
@@ -2674,12 +2676,12 @@ void  LRSurfApprox::runMBAUpdate(bool computed_accuracy)
  }
 
 //==============================================================================
-void  LRSurfApprox::runProjection(int proj_type)
+void  LRSurfApprox::runProjection(int proj_type, int level)
 //==============================================================================
 {
   // Compute by nesting level
   int max_level = 10;  // Should always be enough
-  double dlim = 2.0*maxdist_;
+  double dlim = (level > 0) ? 2.0*maxdist_ : 50.0*aepsge_;
   int proj_IDW = 2;
   int proj_quad = 4;
  for (int level=0; level<max_level; ++level)
@@ -2697,8 +2699,9 @@ void  LRSurfApprox::runProjection(int proj_type)
 
 	  // Compute coefficient using projection
 	  Point coef;
-	  LRProjection::computeCoef(srf_.get(), bspl->second.get(), proj_type,
-				    dlim, coef);
+	  double rad = LRProjection::computeCoef(srf_.get(),
+						 bspl->second.get(), proj_type,
+						 apply_smooth_proj_, dlim, coef);
 
 	  if (blevel > 0)
 	    {
@@ -2707,8 +2710,10 @@ void  LRSurfApprox::runProjection(int proj_type)
 	      if (!OK)
 		{
 		  // Recompute
-		  LRProjection::computeCoef(srf_.get(), bspl->second.get(),
-					    proj_type, dlim, coef);
+		  rad = LRProjection::computeCoef(srf_.get(),
+							 bspl->second.get(),
+						  proj_type, apply_smooth_proj_,
+						  dlim, coef);
 		  OK = bspl->second->adaptProjCoef(coef); // Should be OK now
 		}
 	      int stop_break = 1;
@@ -2726,9 +2731,9 @@ void  LRSurfApprox::runProjection(int proj_type)
 	      std::cout << "Dist: " << dist1 << ", coef2: " << coef2 << std::endl;
 #endif
 	      Point coef3;
-	      LRProjection::computeCoef(srf_.get(), bspl->second.get(),
-					(proj_type > proj_quad) ? proj_quad : proj_IDW,
-					dlim, coef3);
+	      rad = LRProjection::computeCoef(srf_.get(), bspl->second.get(),
+					      (proj_type > proj_quad) ? proj_quad : proj_IDW,
+					      apply_smooth_proj_, dlim, coef3);
 	      if (blevel > 0)
 		{
 		  // Update coefficient with respect to lower nesting level coefficients
@@ -2736,8 +2741,9 @@ void  LRSurfApprox::runProjection(int proj_type)
 		  if (!OK)
 		    {
 		      // Recompute
-		      LRProjection::computeCoef(srf_.get(), bspl->second.get(),
-						proj_IDW, dlim, coef3);
+		      rad = LRProjection::computeCoef(srf_.get(), bspl->second.get(),
+						      proj_IDW, apply_smooth_proj_,
+						      dlim, coef3);
 		      OK = bspl->second->adaptProjCoef(coef3); // Should be OK now
 		    }
 
@@ -5378,6 +5384,7 @@ void LRSurfApprox::initDefaultParams()
   has_local_constraint_ = false;
   nmb_mba_iter_ = 2;
   mba_sgn_ = 0;
+  apply_smooth_proj_ = false;
   outlier_detection_ = false;
   has_var_tol_ = false;
   var_fac_pos_ = 0.0;

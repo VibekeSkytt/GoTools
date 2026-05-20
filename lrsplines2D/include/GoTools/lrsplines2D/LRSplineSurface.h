@@ -642,6 +642,10 @@ namespace Go
   /// other parameer direction
   std::vector<LRBSpline2D*> getBoundaryBsplines(Direction2D d, bool atstart);
 
+  void getBSplinesAtOpening(Direction2D d, double val,
+			    std::vector<LRBSpline2D*>& bspl_lower,
+			    std::vector<LRBSpline2D*>& bspl_upper);
+
   /// Returns 'true' if the underlying mesh is a regular grid, i.e. 
   /// the surface is a tensor product spline surface.
   bool isFullTensorProduct() const;

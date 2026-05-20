@@ -667,6 +667,31 @@ LRSplineSurface::getBoundaryBsplines(Direction2D d, bool atstart)
   return bsplines;
  }
 
+// =============================================================================
+void LRSplineSurface::getBSplinesAtOpening(Direction2D d, double val,
+					   vector<LRBSpline2D*>& bspl_lower,
+					   vector<LRBSpline2D*>& bspl_upper)
+// =============================================================================
+{
+  Direction2D d2 = (d == XFIXED) ? YFIXED : XFIXED;
+  for (BSplineMap::iterator it=basisFunctionsBeginNonconst(); 
+       it != basisFunctionsEndNonconst(); ++it)
+    {
+      int deg = it->second->degree(d);
+      int mult1 = (d == XFIXED) ? it->second->endmult_u(true) :
+	it->second->endmult_v(true);
+      double bval1 = it->second->getUnivariate(d)->min();
+      int mult2 = (d == XFIXED) ? it->second->endmult_u(false) :
+	it->second->endmult_v(false);
+      double bval2 = it->second->getUnivariate(d)->max();
+      if (mult1 == deg+1 && bval1 == val)
+	bspl_upper.push_back(it->second.get());
+      if (mult2 == deg+1 && bval2 == val)
+	bspl_lower.push_back(it->second.get());
+    }
+}
+
+
 //==============================================================================
 bool LRSplineSurface::isFullTensorProduct() const
 //==============================================================================
@@ -1746,14 +1771,16 @@ Point LRSplineSurface::operator()(double u, double v, int u_deriv, int v_deriv) 
   // Distinguish between rational and non-rational to avoid
   // making temporary storage in the non-rational case
   double eps = 1.0e-12;
-  const bool u_on_end = (u >= mesh_.maxParam(XFIXED)-eps); //(u == (*b)->umax());
-  const bool v_on_end = (v >= mesh_.maxParam(YFIXED)-eps); // (v == (*b)->vmax());
+  // const bool u_on_end = (u >= mesh_.maxParam(XFIXED)-eps); //(u == (*b)->umax());
+  // const bool v_on_end = (v >= mesh_.maxParam(YFIXED)-eps); // (v == (*b)->vmax());
 
   if (!rational_)
     {
       for (auto b = covering_B_functions.begin(); 
 	   b != covering_B_functions.end(); ++b, ++ki) 
 	{
+	  const bool u_on_end = (u >= (*b)->umax()-eps);
+	  const bool v_on_end = (v >= (*b)->vmax()-eps);
 	  // The b-function contains the coefficient.
 	  result += (*b)->eval(u, 
 			       v, 
@@ -1774,8 +1801,8 @@ Point LRSplineSurface::operator()(double u, double v, int u_deriv, int v_deriv) 
       for (auto b = covering_B_functions.begin(); 
 	   b != covering_B_functions.end(); ++b, ++ki) 
 	{
-	  // const bool u_on_end = (u == (*b)->umax());
-	  // const bool v_on_end = (v == (*b)->vmax());
+	  const bool u_on_end = (u >= (*b)->umax()-eps);
+	  const bool v_on_end = (v >= (*b)->vmax()-eps);
 
 	  // The b-function contains the coefficient.
 	  double basis_val_pos = (*b)->evalBasisFunction(u, 

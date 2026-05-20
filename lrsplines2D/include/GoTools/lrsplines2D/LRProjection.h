@@ -49,10 +49,10 @@ namespace Go
   /// Update coefficients of LR B-spline surface using quasi interpolation
   namespace LRProjection
   {
-    void computeCoef(LRSplineSurface *srf, 
+    double computeCoef(LRSplineSurface *srf, 
 		     LRBSpline2D *bspl,
-		     int proj_type, double dlim,
-		     Point& coef);
+		       int proj_type, bool apply_smooth, double dlim,
+		     Point& coef, int num_points = -1);
 
     void RDataSet(LRSplineSurface *srf, LRBSpline2D *bspl, int nmb_pts,
 		  double& rad, std::vector<double>& data,
@@ -70,15 +70,28 @@ namespace Go
 		    int del,
 		    Point& coef);
 
-    bool BilinProject(LRBSpline2D *bspl, std::vector<double>& data, int del,
-		      double rad, Point& coef);
+    bool BiLinProject(LRBSpline2D *bspl, std::vector<double>& data, int del,
+		      double rad, Point& coef, bool apply_smooth = false);
+    
+    bool LinProject(LRBSpline2D *bspl, std::vector<double>& data, int del,
+		      double rad, Point& coef, bool apply_smooth = true);
+    
+   bool BiQuadProject(LRBSpline2D *bspl, std::vector<double>& data, int del,
+		       double rad, Point& coef, bool apply_smooth = false);
     
     bool QuadProject(LRBSpline2D *bspl, std::vector<double>& data, int del,
-		     double rad, Point& coef);
+		       double rad, Point& coef, bool apply_smooth = false);
     
     bool CubicProject(LRBSpline2D *bspl, std::vector<double>& data, int del,
-		      double rad, Point& coef);
+		      double rad, Point& coef, bool apply_smooth = false);
     
+    bool BiCubicProject(LRBSpline2D *bspl, std::vector<double>& data, int del,
+			double rad, Point& coef, bool apply_smooth = false);
+    
+    
+    bool PolynomialProject(int degree, int tot_degree, LRBSpline2D *bspl,
+			   std::vector<double>& data, int del, double rad, 
+			   Point& coef, bool apply_smooth);
     
   }; // end namespace LRProjection
 
