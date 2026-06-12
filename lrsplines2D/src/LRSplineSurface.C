@@ -1439,19 +1439,42 @@ void LRSplineSurface::to3D()
     THROW("Cannot convert a 0-degree spline to 3D.");
 
   //LRSplineUtils::insertParameterFunctions(this);
-  for (auto b = bsplines_.begin(); b != bsplines_.end(); ++b) {
-    const double x = LRSplineUtils::compute_greville(b->second->kvec(XFIXED), 
-						     mesh().knotsBegin(XFIXED));
-    const double y = LRSplineUtils::compute_greville(b->second->kvec(YFIXED), 
-						      mesh().knotsBegin(YFIXED));
-    const double z_gamma = b->second->coefTimesGamma()[0];
-    const double gamma = b->second->gamma();
-    b->second->coefTimesGamma() = Point(x*gamma, y*gamma, z_gamma);
-//    b->second->coefTimesGamma() = Point(x, y, z_gamma);
-    //wcout << b.second.coefTimesGamma() << std::endl;
-    // int dim = b->second->coefTimesGamma().size();
-    // double z = z_gamma/gamma;
-    // std::cout << "z: " << z << std::endl;
+  int max_level = 10;  // Should always be enough
+ for (int level=0; level<max_level; ++level)
+    {
+      int num_update = 0;
+      for (auto b = bsplines_.begin(); b != bsplines_.end(); ++b) {
+	int blevel = b->second->getNestLevel();
+	if (blevel != level)
+	  continue;
+	double x = LRSplineUtils::compute_greville(b->second->kvec(XFIXED), 
+							 mesh().knotsBegin(XFIXED));
+	double y = LRSplineUtils::compute_greville(b->second->kvec(YFIXED), 
+							 mesh().knotsBegin(YFIXED));
+	const double z_gamma = b->second->coefTimesGamma()[0];
+	const double gamma = b->second->gamma();
+	if (blevel > 0)
+	  {
+	    Point uv(x, y);
+	    bool OK = b->second->adaptProjCoef(uv);
+	    if (!OK)
+	      {
+		uv = Point(x,y);
+		(void)b->second->adaptProjCoef(uv);
+	      }
+	    x = uv[0];
+	    y = uv[1];
+	  }
+	b->second->coefTimesGamma() = Point(x*gamma, y*gamma, z_gamma);
+	//    b->second->coefTimesGamma() = Point(x, y, z_gamma);
+	//wcout << b.second.coefTimesGamma() << std::endl;
+	// int dim = b->second->coefTimesGamma().size();
+	// double z = z_gamma/gamma;
+	// std::cout << "z: " << z << std::endl;
+	++num_update;
+      }
+      if (num_update == 0)
+	break;
   }
   int dim = dimension();
   // std::cout << "Global dim: " << dim << std::endl;

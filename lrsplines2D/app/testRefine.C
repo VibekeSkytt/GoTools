@@ -104,16 +104,6 @@ int main(int argc, char *argv[])
     }
     
   
-  shared_ptr<LRSplineSurface> tmp2(lrsf->clone());
-  if (tmp2->dimension() == 1)
-    tmp2->to3D();
-
-  // tmp2->writeStandardHeader(fileout);
-  // tmp2->write(fileout);
-  // fileout << std::endl;
-  // LineCloud lines2 = tmp2->getElementBds();
-  // lines2.writeStandardHeader(fileout);
-  // lines2.write(fileout);
   
   int nmb_refs;
   filein2 >> nmb_refs;
@@ -132,12 +122,10 @@ int main(int argc, char *argv[])
       std::cout << "Iteration no. " << ki << std::endl;
       lrsf->refine((dir==0) ? XFIXED : YFIXED, parval, start, end, mult, true);
 
-      puts("Writing lr-spline to file.");
-      if (lrsf->dimension() == 1)
-	lrsf->to3D();
-      lrsf->writeStandardHeader(fileout);
-      lrsf->write(fileout);
-      fileout << std::endl;
-    }
+     }
+  puts("Writing lr-spline to file.");
+  lrsf->writeStandardHeader(fileout);
+  lrsf->write(fileout);
+
   return 0;
 }

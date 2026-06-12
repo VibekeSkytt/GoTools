@@ -223,47 +223,61 @@ bool ParameterizeUtils::recognizeCornerNodes(vector<int>& bd_nodes,
 {
   if (bd_nodes.size() < 4)
     return false;  // Do not make a suggestion for a degenerate surface
+#ifdef DEBUG
+  std::ofstream ofbd("boundary_nodes.g2");
+  ofbd << "400 1 0 4 255 0 0 255" << std::endl;
+  ofbd << bd_pnts.size() << std::endl;
+  for (size_t kh=0; kh<bd_pnts.size(); ++kh)
+    ofbd << bd_pnts[kh] << std::endl;
 
+  ofbd << "410 1 0 4 50 0 200 255" << std::endl;
+   ofbd << bd_pnts.size() << std::endl;
+  for (size_t kh=0; kh<bd_pnts.size(); ++kh)
+    ofbd << bd_pnts[kh] << " " << bd_pnts[(kh+1)%bd_pnts.size()] << std::endl;
+ 
+#endif
   // Compute angles between consequtive triangle edges at the boundary
   int size = (int)bd_nodes.size();
-  int nmb = (bd_nodes.size() > 40) ? 2 : 1;
+  int nmb = 1; //(bd_nodes.size() > 40) ? 2 : 1;
   int ki, kj, kr;
   vector<double> bd_ang;
-  vector<double> bd_ang0;
-  for (ki=nmb; ki<size; ++ki)
-    {
-      kj = (ki+nmb)%((int)bd_nodes.size());
+  //vector<double> bd_ang0;
+  //for (ki=nmb; ki<size; ++ki)
+   for (ki=0; ki<size; ++ki)
+   {
+      kj = (ki+1)%((int)bd_pnts.size());
+      kr = (ki == 0) ? (int)bd_pnts.size()-1 : ki-1;
+      Vector3D vec1 = bd_pnts[kj] - bd_pnts[ki];
+      Vector3D vec2 = bd_pnts[ki] - bd_pnts[kr];
+      // for (kr=0; kr<nmb; ++kr)
+      // 	{
+      // 	  vec1 += (bd_pnts[ki-kr] - bd_pnts[ki-kr-1]);
+      // 	  vec2 += (bd_pnts[(ki+kr+1)%size] - bd_pnts[(ki+kr)%size]);
+      // 	}
+      // vec1 /= (double)nmb;
+      // vec2 /= (double)nmb;
 
-      Vector3D vec1(0.0); 
-      Vector3D vec2(0.0); 
-      for (kr=0; kr<nmb; ++kr)
-	{
-	  vec1 += (bd_pnts[ki-kr] - bd_pnts[ki-kr-1]);
-	  vec2 += (bd_pnts[(ki+kr+1)%size] - bd_pnts[(ki+kr)%size]);
-	}
-      vec1 /= (double)nmb;
-      vec2 /= (double)nmb;
-
-      // TEST
-      vec1[2] = 0.0;
-      vec2[2] = 0.0;
-      // END TEST
+      // // TEST
+      // vec1[2] = 0.0;
+      // vec2[2] = 0.0;
+      // // END TEST
 
       double angle = vec1.angle(vec2);
+      angle = std::min(angle, M_PI-angle);
       bd_ang.push_back(angle);
 
-      vec1[2] = 0.0;
-      vec2[2] = 0.0;
-      angle = vec1.angle(vec2);
-      bd_ang0.push_back(angle);
+      // vec1[2] = 0.0;
+      // vec2[2] = 0.0;
+      // angle = vec1.angle(vec2);
+      // bd_ang0.push_back(angle);
     }
-  for (kr=0; kr<nmb; ++kr)
-    {
-      bd_ang.insert(bd_ang.begin(), bd_ang[bd_ang.size()-1]);
-      bd_ang0.insert(bd_ang0.begin(), bd_ang0[bd_ang0.size()-1]);
-      bd_ang.pop_back();
-      bd_ang0.pop_back();
-    }
+  // for (kr=0; kr<nmb; ++kr)
+  //   {
+  //     bd_ang.insert(bd_ang.begin(), bd_ang[bd_ang.size()-1]);
+  //     bd_ang0.insert(bd_ang0.begin(), bd_ang0[bd_ang0.size()-1]);
+  //     bd_ang.pop_back();
+  //     bd_ang0.pop_back();
+  //   }
 
   // @@@ VSK, 0214. Sort corner angles after the sum of the angles and the
   // angles projected onto the xy-plane and uses the nodes with the 4 largest
@@ -275,10 +289,10 @@ bool ParameterizeUtils::recognizeCornerNodes(vector<int>& bd_nodes,
 
   for (ki=0; ki<(int)bd_nodes.size(); ++ki)
     {
-      double ang2 = bd_ang[perm[ki]] + bd_ang0[perm[ki]];
+      double ang2 = bd_ang[perm[ki]]; // + bd_ang0[perm[ki]];
       for (kj=ki+1; kj<(int)bd_nodes.size(); ++kj)
 	{
-	  double ang3 = bd_ang[perm[kj]] + bd_ang0[perm[kj]];
+	  double ang3 = bd_ang[perm[kj]]; // + bd_ang0[perm[kj]];
 	  if (ang3 > ang2)
 	    {
 	      std::swap(perm[ki], perm[kj]);

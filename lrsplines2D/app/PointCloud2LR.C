@@ -581,6 +581,13 @@ int main(int argc, char *argv[])
   if (signtol < 0)
     signtol = 0.5*AEPSGE;  // Default value
 
+  bool smoothproj = false;
+  if (projection > 10 && projection < 20)
+    {
+      smoothproj = true;
+      projection = (projection % 10);
+    }
+  
   // Read point cloud
   vector<double> data;
   vector<double> extent(2*del);   // Limits for points in all coordinates
@@ -852,6 +859,10 @@ int main(int argc, char *argv[])
 	approx->setSwitchToMBA(tomba);
 	approx->setMakeGhostPoints(false /*true*/);
     }
+
+  if (smoothproj)
+    approx->setSmoothProjection(true);
+  
   if (outlierflag > 0)
     approx->setOutlierFlag(true);
   if (minsize > 0.0)

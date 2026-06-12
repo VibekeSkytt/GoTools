@@ -741,6 +741,8 @@ bool LRBSpline2D::adaptProjCoef(Point& coef)
   if (nest_level_ == 0)
     return true;
 
+  int cdim = coef.dimension();
+  
   // Collect ancestors
   set<LRBSpline2D*> ancest0;
   for (auto el=support_.begin(); el!=support_.end(); ++el)
@@ -777,6 +779,11 @@ bool LRBSpline2D::adaptProjCoef(Point& coef)
     {
       double weight = nestingWeight(ancest[ki]);
       Point coefgamma = ancest[ki]->coefTimesGamma();
+      if (coefgamma.dimension() > cdim)
+	{
+	  Point tmp(coefgamma.begin(), coefgamma.begin()+cdim);
+	  coefgamma = tmp;
+	}
       coef -= weight*coefgamma;
       double gamma = ancest[ki]->gamma();
       tmp += weight*gamma;

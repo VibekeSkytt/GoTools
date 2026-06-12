@@ -496,11 +496,11 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
     setFixBoundary(true);
 
   // Initial approximation of LR B-spline surface
-  /*if (!(initial_surface_) && proj_type_ > 0)
+  if (!(initial_surface_) && proj_type_ > 0 && proj_type_ < 20)
     {
       runProjection(proj_type_, 0);
     }
-    else*/ if (initMBA_)
+    else if (initMBA_)
     {
       runMBAUpdate(false);
       if (!initial_surface_)
@@ -522,6 +522,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 #ifdef DEBUG_SURF
   std::ofstream of1("init_sf.g2");
   std::ofstream of1el("init_el.g2");
+  std::ofstream of1coef("init_coef.g2");
   srf_->writeStandardHeader(of1);
   srf_->write(of1);
   of1 << std::endl;
@@ -533,6 +534,21 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   LineCloud lines = srf_->getElementBds();
   lines.writeStandardHeader(of1el);
   lines.write(of1el);
+  of1coef << "400 1 0 4 100 0 155 255" << std::endl;
+  of1coef << srf_->numBasisFunctions() << std::endl;
+  LRSplineSurface::BSplineMap::const_iterator it1 = 
+    srf_->basisFunctionsBegin();
+  for (; it1 != srf_->basisFunctionsEnd(); ++it1)
+    {
+      Point coef = it1->second->Coef();
+      if (srf_->dimension() == 1)
+	{
+	  Point greville = it1->second->getGrevilleParameter();
+	  of1coef << greville << " " << coef << std::endl;
+	}
+      else
+	of1coef << coef << std::endl;
+    }
 #endif
 
   // Compute accuracy in data points
@@ -650,7 +666,8 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 #endif
 
   ghost_elems.clear();
-  points_.clear();  // Not used anymore TESTING
+  if (proj_type_ < 100)
+    points_.clear();  // Not used anymore 
   double threshold_prev = -1.0;
   int prevcoef = srf_->numBasisFunctions();
   int prevelem = srf_->numElements();
@@ -658,6 +675,23 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
   double max_prev = maxdist_;
   int outsideeps_prev = outsideeps_;
   int ki;
+  int deg1 = srf_->degree(XFIXED);
+  char tmpacc[40];
+  sprintf(tmpacc,"accuracy_method_%d.txt",deg1);
+  std::ofstream ofc0(tmpacc);
+  char tmpacc2[40];
+  sprintf(tmpacc2,"numpoints_proc_%d_%d.txt",deg1,proj_type_);
+  std::ofstream ofn0(tmpacc2);
+  if (proj_type_ == 100)
+    {
+      ofc0 << "Number of data points: " << nmb_pts_ << ", degree: " << deg1 << std::endl;
+    }
+  else if (proj_type_ >= 102 && proj_type_ <= 118)
+    {
+      ofn0 << "Number of data points: " << nmb_pts_ << ", degree: " << deg1 << std::endl;
+      ofn0 << "Projection type: " << proj_type_-100 << std::endl;
+    }
+
   for (ki=0; ki<max_iter; ++ki)
     {
       // Check if the requested accuracy is reached
@@ -806,7 +840,159 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
       // 	}
 
        // Update surface
-      if (proj_type_ > 0)
+      if (proj_type_ == 100)
+	{
+	  // Compare methods
+	  shared_ptr<LRSplineSurface> curr_srf(srf_->clone());
+	  ofc0 << std::endl << "Number of coefficients: " << srf_->numBasisFunctions() << std::endl;
+	  ofc0 << "Iteration number: " << ki+1 << std::endl << std::endl;
+	  for (int proj=1; proj<=8; ++proj)
+	    {
+	      runProjection(proj, ki+1);
+	      if (omp_for_elements)
+		computeAccuracy_omp(ghost_elems);
+	      else
+		computeAccuracy(ghost_elems);
+
+	      ofc0 << "Projection type " << proj << std::endl;
+	      ofc0 << "Maximum distance: " << maxdist_;
+	      ofc0 << ", average distance: " << avdist_all_ << std::endl;
+	      ofc0 << "Number of points outside tolerance: " << outsideeps_;
+	      ofc0 << ", average distance in outside points: " << avdist_ << std::endl << std::endl;
+
+	      char file1[40];
+	      sprintf(file1,"upd_sf%d_proj_%d_%d.g2",deg1,ki+1,proj);
+	      char file2[40];
+	      sprintf(file2,"upd_el%d_proj_%d_%d.g2",deg1,ki+1,proj);
+	      char file3[40];
+	      sprintf(file3,"upd_coef%d_proj_%d_%d.g2",deg1,ki+1,proj);
+	      std::ofstream ofc1(file1);
+	      std::ofstream ofc1_el(file2);
+	      std::ofstream ofc1_coef(file3);
+	      srf_->writeStandardHeader(ofc1);
+	      srf_->write(ofc1);
+	      ofc1 << std::endl;
+	      LineCloud lines3 = srf_->getElementBds();
+	      lines3.writeStandardHeader(ofc1_el);
+	      lines3.write(ofc1_el);
+	      ofc1_coef << "400 1 0 4 100 0 155 255" << std::endl;
+	      ofc1_coef << srf_->numBasisFunctions() << std::endl;
+	      LRSplineSurface::BSplineMap::const_iterator it1 = 
+		srf_->basisFunctionsBegin();
+	      for (; it1 != srf_->basisFunctionsEnd(); ++it1)
+		{
+		  Point coef = it1->second->Coef();
+		  if (srf_->dimension() == 1)
+		    {
+		      Point greville = it1->second->getGrevilleParameter();
+		      ofc1_coef << greville << " " << coef << std::endl;
+		    }
+		  else
+		    ofc1_coef << coef << std::endl;
+		}
+	      
+  	      srf_ = shared_ptr<LRSplineSurface>(curr_srf->clone());
+	      if (points_.size() > 0)
+		LRSplineUtils::distributeDataPoints(srf_.get(), points_, true, 
+						    LRSplineUtils::REGULAR_POINTS, 
+						    outlier_detection_);
+	    }
+
+	  if (omp_for_elements)
+	    computeAccuracy_omp(ghost_elems);
+	  else
+	    computeAccuracy(ghost_elems);
+	  runMBAUpdate(false);
+	  if (omp_for_elements)
+	    computeAccuracy_omp(ghost_elems);
+	  else
+	    computeAccuracy(ghost_elems);
+
+	  ofc0 << "MBA" << std::endl;
+	  ofc0 << "Maximum distance: " << maxdist_;
+	  ofc0 << ", average distance: " << avdist_all_ << std::endl;
+	  ofc0 << "Number of points outside tolerance: " << outsideeps_;
+	  ofc0 << ", average distance in outside points: " << avdist_ << std::endl << std::endl;
+	  
+	  char file1[40];
+	  sprintf(file1,"upd_sf%d_mba_%d.g2",deg1,ki+1);
+	  char file2[40];
+	  sprintf(file2,"upd_el%d_mba_%d.g2",deg1,ki+1);
+	  char file3[40];
+	  sprintf(file3,"upd_coef%d_mba_%d.g2",deg1,ki+1);
+	  std::ofstream ofc2(file1);
+	  std::ofstream ofc2_el(file2);
+	  std::ofstream ofc2_coef(file3);
+	  srf_->writeStandardHeader(ofc2);
+	  srf_->write(ofc2);
+	  ofc2 << std::endl;
+	  LineCloud lines3 = srf_->getElementBds();
+	  lines3.writeStandardHeader(ofc2_el);
+	  lines3.write(ofc2_el);
+	  ofc2_coef << "400 1 0 4 100 0 155 255" << std::endl;
+	  ofc2_coef << srf_->numBasisFunctions() << std::endl;
+	  LRSplineSurface::BSplineMap::const_iterator it1 = 
+	    srf_->basisFunctionsBegin();
+	  for (; it1 != srf_->basisFunctionsEnd(); ++it1)
+	    {
+	      Point coef = it1->second->Coef();
+	      if (srf_->dimension() == 1)
+		{
+		  Point greville = it1->second->getGrevilleParameter();
+		  ofc2_coef << greville << " " << coef << std::endl;
+		}
+	      else
+		ofc2_coef << coef << std::endl;
+	    }
+	}
+      else if (proj_type_ >= 102 && proj_type_ <= 108)
+	{
+	  // Compare number of points in projection
+	  shared_ptr<LRSplineSurface> curr_srf(srf_->clone());
+	  ofn0 << std::endl << "Number of coefficients: " << srf_->numBasisFunctions() << std::endl;
+	  ofn0 << "Iteration number: " << ki+1 << std::endl << std::endl;
+	  
+	  int proj = proj_type_ - 100;
+	  int num_points = 20;
+	  int num_del = 10;
+	  for (size_t kr=0; kr<20; ++kr, num_points+=num_del)
+	    {
+	      runProjection(proj, ki+1, num_points);
+	      if (omp_for_elements)
+		computeAccuracy_omp(ghost_elems);
+	      else
+		computeAccuracy(ghost_elems);
+
+	      ofn0 << "Number of points " << num_points << std::endl;
+	      ofn0 << "Maximum distance: " << maxdist_;
+	      ofn0 << ", average distance: " << avdist_all_ << std::endl;
+	      ofn0 << "Number of points outside tolerance: " << outsideeps_;
+	      ofn0 << ", average distance in outside points: " << avdist_ << std::endl << std::endl;
+	      
+  	      srf_ = shared_ptr<LRSplineSurface>(curr_srf->clone());
+	      if (points_.size() > 0)
+		LRSplineUtils::distributeDataPoints(srf_.get(), points_, true, 
+						    LRSplineUtils::REGULAR_POINTS, 
+						    outlier_detection_);
+	    }
+	  if (omp_for_elements)
+	    computeAccuracy_omp(ghost_elems);
+	  else
+	    computeAccuracy(ghost_elems);
+	  runMBAUpdate(false);
+	  if (omp_for_elements)
+	    computeAccuracy_omp(ghost_elems);
+	  else
+	    computeAccuracy(ghost_elems);
+
+	  ofn0 << "MBA" << std::endl;
+	  ofn0 << "Maximum distance: " << maxdist_;
+	  ofn0 << ", average distance: " << avdist_all_ << std::endl;
+	  ofn0 << "Number of points outside tolerance: " << outsideeps_;
+	  ofn0 << ", average distance in outside points: " << avdist_ << std::endl << std::endl;
+	  
+	}
+      else if (proj_type_ > 0)
 	{
 	  // if (ki == max_iter-1)
 	  //   apply_smooth_proj_ = false;
@@ -2676,12 +2862,13 @@ void  LRSurfApprox::runMBAUpdate(bool computed_accuracy)
  }
 
 //==============================================================================
-void  LRSurfApprox::runProjection(int proj_type, int level)
+void  LRSurfApprox::runProjection(int proj_type, int level, int num_points)
 //==============================================================================
 {
   // Compute by nesting level
   int max_level = 10;  // Should always be enough
-  double dlim = (level > 0) ? 2.0*maxdist_ : 50.0*aepsge_;
+  double dlim = 1.0e5; //(level > 0) ? 10.0*maxdist_ : 1.0e5; //50.0*aepsge_;
+  std::cout << "dlim: " << dlim << std::endl;
   int proj_IDW = 2;
   int proj_quad = 4;
  for (int level=0; level<max_level; ++level)
@@ -2701,19 +2888,20 @@ void  LRSurfApprox::runProjection(int proj_type, int level)
 	  Point coef;
 	  double rad = LRProjection::computeCoef(srf_.get(),
 						 bspl->second.get(), proj_type,
-						 apply_smooth_proj_, dlim, coef);
+						 apply_smooth_proj_, dlim, coef, num_points);
 
 	  if (blevel > 0)
 	    {
 	      // Update coefficient with respect to lower nesting level coefficients
 	      bool OK = bspl->second->adaptProjCoef(coef);
+	      std::cout << "Level: " << blevel << ", stat: " << OK << std::endl;
 	      if (!OK)
 		{
 		  // Recompute
 		  rad = LRProjection::computeCoef(srf_.get(),
-							 bspl->second.get(),
+						  bspl->second.get(),
 						  proj_type, apply_smooth_proj_,
-						  dlim, coef);
+						  dlim, coef, num_points);
 		  OK = bspl->second->adaptProjCoef(coef); // Should be OK now
 		}
 	      int stop_break = 1;
@@ -2727,13 +2915,13 @@ void  LRSurfApprox::runProjection(int proj_type, int level)
 	  double dist1 = coef.dist(coef2);
 	  if (dist1 > dlim)
 	    {
-#ifdef DEBUG_PROJ
-	      std::cout << "Dist: " << dist1 << ", coef2: " << coef2 << std::endl;
-#endif
+	      //#ifdef DEBUG_PROJ
+	      std::cout << "Dist: " << dist1 << ", lim: " << dlim << ", coef2: " << coef2 << std::endl;
+	      //#endif
 	      Point coef3;
 	      rad = LRProjection::computeCoef(srf_.get(), bspl->second.get(),
 					      (proj_type > proj_quad) ? proj_quad : proj_IDW,
-					      apply_smooth_proj_, dlim, coef3);
+					      apply_smooth_proj_, dlim, coef3, num_points);
 	      if (blevel > 0)
 		{
 		  // Update coefficient with respect to lower nesting level coefficients
@@ -2743,7 +2931,7 @@ void  LRSurfApprox::runProjection(int proj_type, int level)
 		      // Recompute
 		      rad = LRProjection::computeCoef(srf_.get(), bspl->second.get(),
 						      proj_IDW, apply_smooth_proj_,
-						      dlim, coef3);
+						      dlim, coef3, num_points);
 		      OK = bspl->second->adaptProjCoef(coef3); // Should be OK now
 		    }
 
@@ -5162,7 +5350,7 @@ void LRSurfApprox::makeInitSurf(int dim, int ncoef_u, int order_u, int ncoef_v,
   int nmb = (int)points_.size()/(dim+2);
   int nmb2 = (int)sign_points_.size()/(dim+2);
   shared_ptr<SplineSurface> result_surf;
-  if (!initMBA_)
+  if (!initMBA_ && proj_type_ == 0)
     {
       try {
 	result_surf = createSurf(&points_[0], nmb, 
@@ -5178,7 +5366,7 @@ void LRSurfApprox::makeInitSurf(int dim, int ncoef_u, int order_u, int ncoef_v,
 	}
     }
 
-  if (initMBA_)
+  if (initMBA_ || proj_type_ > 0)
     {
       vector<double> coefs(ncoef_u*ncoef_v*dim, initMBA_coef_);
       result_surf = shared_ptr<SplineSurface>(new SplineSurface(ncoef_u, ncoef_v, 

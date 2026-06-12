@@ -92,6 +92,10 @@ namespace Go
     bool PolynomialProject(int degree, int tot_degree, LRBSpline2D *bspl,
 			   std::vector<double>& data, int del, double rad, 
 			   Point& coef, bool apply_smooth);
+
+    Point Polynomial2Coef(std::vector<double>& pol, int degree1, int degree2,
+			  int tot_degree, double u1, double u2, double v1, double v2,
+			  LRBSpline2D *bspl);
     
   }; // end namespace LRProjection
 

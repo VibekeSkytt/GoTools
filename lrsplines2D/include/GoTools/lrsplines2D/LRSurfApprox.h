@@ -709,7 +709,7 @@ private:
 
     void runMBAUpdate(bool computed_accuracy);
 
-  void runProjection(int proj_type, int level);
+  void runProjection(int proj_type, int level, int num_points=-1);
   
     int defineOutlierPts(Element2D* element, 
 			 std::vector<double>& prev_dist, double lim,
