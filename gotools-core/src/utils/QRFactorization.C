@@ -71,7 +71,8 @@ void QRFactorization::QRDecomp(vector<double>& A, int n, int m,
       for (size_t i=0; i<v0.size(); ++i)
 	normv0 += v0[i]*v0[i];
       normv0 = sqrt(normv0);
-      double sgn = (v0[0] >= 0.0) ? -1.0 : 1.0; //1.0 : -1.0;
+      //double sgn = (v0[0] >= 0.0) ? 1.0 : -1.0;
+      double sgn = (fabs(v0[0]-normv0) < 0.1*normv0) ? 1.0 : -1.0;
 
       vector<double> v(v0.begin(), v0.end());
       v[0] += sgn*normv0;
@@ -131,8 +132,12 @@ void QRFactorization::QRSolve(vector<double>& Q, vector<double>& R, int n, int m
 	    val += R[kr*n+ki]*x[kb*n+ki];
 	  x[kb*n+kr] -= val;
 	  if (fabs(R[kr*n+kr]) < 1.0e-18)
-	    THROW("QRFactorization::QRSolve: Division with zero");
-	  x[kb*n+kr] /= R[kr*n+kr];
+	    {
+	      MESSAGE("QRFactorization::QRSolve: Division with zero");
+	      x[kb*n+kr] = 0.0;
+	    }
+	  else
+	    x[kb*n+kr] /= R[kr*n+kr];
 	}
     }
 }

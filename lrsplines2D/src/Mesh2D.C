@@ -607,6 +607,30 @@ int Mesh2D::minMultInLine(Direction2D d, int ix) const
 }
 
 // =============================================================================
+double Mesh2D::maxKnotInterval(Direction2D d) const
+// =============================================================================
+{
+  double knotint = 0.0;
+  const double *st = (d == XFIXED) ? &knotvals_x_[0] : &knotvals_y_[0];
+  int nmb = (d == XFIXED) ? (int)knotvals_x_.size() : (int)knotvals_y_.size();
+  for (int ka=1; ka<nmb; ++ka)
+    knotint = std::max(knotint, st[ka]-st[ka-1]);
+  return knotint;
+}
+
+// =============================================================================
+double Mesh2D::minKnotInterval(Direction2D d) const
+// =============================================================================
+{
+  const double *st = (d == XFIXED) ? &knotvals_x_[0] : &knotvals_y_[0];
+  int nmb = (d == XFIXED) ? (int)knotvals_x_.size() : (int)knotvals_y_.size();
+  double knotint = st[nmb-1] - st[0];
+  for (int ka=1; ka<nmb; ++ka)
+    knotint = std::min(knotint, st[ka]-st[ka-1]);
+  return knotint;
+}
+
+// =============================================================================
   int Mesh2D::knotIntervalFuzzy(Direction2D d, double& par, double eps) const
 // =============================================================================
 {
@@ -625,6 +649,19 @@ int Mesh2D::minMultInLine(Direction2D d, int ix) const
   return ix;
 }
 
+// =============================================================================
+  double Mesh2D::closestKnotval(Direction2D d, double par) const
+// =============================================================================
+{
+  int ix = Mesh2DUtils::last_nonlarger_knotvalue_ix(*this, d, par);
+  const double *st = (d == XFIXED) ? &knotvals_x_[0] : &knotvals_y_[0];
+  int nmb = (d == XFIXED) ? (int)knotvals_x_.size() : (int)knotvals_y_.size();
+  if (ix == nmb-1)
+    return st[ix];
+  else
+    return (st[ix+1]-par < par-st[ix]) ? st[ix+1] : st[ix];
+}
+  
 // =============================================================================
   int Mesh2D::getKnotIdx(Direction2D d, double& par, double eps) const
 // =============================================================================

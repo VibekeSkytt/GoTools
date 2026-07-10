@@ -235,7 +235,8 @@ namespace Go
   // ------- READ AND WRITE FUNCTIONALITY ---------------
   // ----------------------------------------------------
   virtual void  read(std::istream& is);
-  virtual void write(std::ostream& os) const; 
+  virtual void write(std::ostream& os) const;
+  void writeSpecHeader(std::ostream& os, int r, int g, int b, int d, int id) const;
 
   // ----------------------------------------------------
   // Inherited from GeomObject

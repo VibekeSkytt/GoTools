@@ -323,7 +323,10 @@ int main(int argc, char *argv[])
 	  else if (mm == 1)
 	    mba = 1;
 	  else if (mm < 0)
-	    initmba = 1;
+	    {
+	      initmba = 1;
+	      mba = 1;
+	    }
 	  else
 	    tomba = mm;
 	}
@@ -333,6 +336,8 @@ int main(int argc, char *argv[])
 				       nmb_par, par_read);
 	  if (stat < 0)
 	    return 1;
+	  if (projection >= 100 && projection <= 108)
+	    initmba = 1;
 	}
       else if (arg == "-degree")
 	{

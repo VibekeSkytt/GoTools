@@ -293,3 +293,34 @@ void DefineRefs2D::appendRef(vector<LRSplineSurface::Refinement2D>& refs,
     refs.push_back(curr_ref);
 }
 
+//==============================================================================
+//  Full span refinement given parameter at which to refine
+//
+void DefineRefs2D::refineFullSpan(const LRSplineSurface& surf,
+				  double upar, double vpar, Direction2D fixdir,
+				  int mult,
+				  LRSplineSurface::Refinement2D& refs)
+//==============================================================================
+{
+
+  Element2D *elem = surf.coveringElement(upar, vpar);
+  double pmin = (fixdir == XFIXED) ? elem->vmin() : elem->umin();
+  double pmax = (fixdir == XFIXED) ? elem->vmax() : elem->umax();
+
+  const vector<LRBSpline2D*>& bsplines = elem->getSupport();
+  size_t nmb = bsplines.size();
+  
+  // All overlapping B-splines
+  for (size_t ki=0; ki<nmb; ++ki)
+    {
+      double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
+	bsplines[ki]->umin();
+      double bmax = (fixdir == XFIXED) ? bsplines[ki]->vmax() :
+	bsplines[ki]->umax();
+      pmin = std::min(pmin, bmin);
+      pmax = std::max(pmax, bmax);
+    }
+
+  refs.setVal((fixdir == XFIXED) ? upar : vpar, pmin, pmax, fixdir, mult);
+}
+ 

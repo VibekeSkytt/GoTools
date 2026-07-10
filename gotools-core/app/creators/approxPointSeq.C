@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 
     ApproxCurve approx(points, param, 3, tol, num_coef, degree+1);
     double maxdist, avdist;
-    int max_iter = 5;
+    int max_iter = 8;
     shared_ptr<SplineCurve> crv = approx.getApproxCurve(maxdist, avdist, max_iter);
     std::cout << "Maxdist: " << maxdist << ", avdist: " << avdist << std::endl;
 

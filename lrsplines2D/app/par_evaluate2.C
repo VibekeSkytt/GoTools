@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
       exit(-1);
     }
 
-  pointout.precision(15);
+  pointout.precision(18);
   
   num_terms = std::min(num_terms, 16);
   vector<double> pol(num_terms);

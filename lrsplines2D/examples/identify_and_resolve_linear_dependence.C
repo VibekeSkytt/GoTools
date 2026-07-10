@@ -77,6 +77,11 @@ int main(int argc, char *argv[])
   // Read LR B-spline surface from file
   std::string infile("../../gotools-data/lrsplines2D/examples/data/lrsurf_lindep.g2");
   std::ifstream input(infile.c_str());
+  if (argc > 1)
+    {
+      std::ifstream input2(argv[1]);
+      std::swap(input, input2);
+    }
 
     // Read header specifying the type of geometry entity
   ObjectHeader header;

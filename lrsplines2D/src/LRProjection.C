@@ -53,9 +53,10 @@
 #include <fstream>
 
 //#define DEBUG
-#define DEBUG2
+//#define DEBUG2
 
 using std::vector;
+using std::pair;
 using std::set;
 using std::map;
 using std::array;
@@ -138,7 +139,7 @@ double LRProjection::computeCoef(LRSplineSurface *srf,
   else if (proj_type == 3)
     {
       // Linear approximation
-      int nmb_points = (num_points > 0) ? num_points : 8;
+      int nmb_points = (num_points > 0) ? num_points : 15; //8;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
@@ -148,7 +149,7 @@ double LRProjection::computeCoef(LRSplineSurface *srf,
   else if (proj_type == 4)
     {
       // Bilinear approximation
-      int nmb_points = (num_points > 0) ? num_points : 8;
+      int nmb_points = (num_points > 0) ? num_points : 15; //8;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
@@ -158,7 +159,7 @@ double LRProjection::computeCoef(LRSplineSurface *srf,
   else if (proj_type == 5)
     {
       // Quadratic approximation
-      int nmb_points = (num_points > 0) ? num_points : 15; //20; //30;
+      int nmb_points = (num_points > 0) ? num_points : 30; //15; //20; //30;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
@@ -168,7 +169,7 @@ double LRProjection::computeCoef(LRSplineSurface *srf,
   else if (proj_type == 6)
     {
       // Biquadratic approximation
-      int nmb_points = (num_points > 0) ? num_points : 25; //15; 
+      int nmb_points = (num_points > 0) ? num_points : 50; //25; //15; 
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
@@ -178,7 +179,7 @@ double LRProjection::computeCoef(LRSplineSurface *srf,
   else if (proj_type == 7)
     {
       // Cubic approximation
-      int nmb_points = (num_points > 0) ? num_points : 25; //40;
+      int nmb_points = (num_points > 0) ? num_points : 50;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
@@ -189,7 +190,7 @@ double LRProjection::computeCoef(LRSplineSurface *srf,
   else if (proj_type == 8)
     {
       // Cubic approximation
-      int nmb_points = (num_points > 0) ? num_points : 35;
+      int nmb_points = (num_points > 0) ? num_points : 60;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
@@ -197,10 +198,15 @@ double LRProjection::computeCoef(LRSplineSurface *srf,
       proj_OK = BiCubicProject(bspl, data, del, rad, coef, apply_smooth);
     }
 
-  if (!proj_OK)
+  while (!proj_OK)
     {
-      std::cout << "Failure, applying idf" << std::endl;
-      computeCoef(srf, bspl, 2, apply_smooth, dlim, coef, num_points);
+      proj_type--;
+      if (proj_type <= 1)
+	proj_type = 2;
+      //#ifdef DEBUG2
+      std::cout << "Failure. Applying projection type " << proj_type << std::endl;
+      //#endif
+      proj_OK = computeCoef(srf, bspl, proj_type, apply_smooth, dlim, coef, num_points);
     }
 
   return rad;
@@ -264,7 +270,8 @@ void LRProjection::RDataSet(LRSplineSurface *srf, LRBSpline2D *bspl, int nmb_pts
 	    }
 
 
-	  rad = uv_dist[uv_dist.size()-1];
+	  if (uv_dist.size() > 0)
+	    rad = uv_dist[uv_dist.size()-1];
 	  for (size_t kj=start_el; kj<elems.size(); ++kj)
 	    {
 	      for (auto b2=elems[kj]->supportBegin(); b2!=elems[kj]->supportEnd(); ++b2)
@@ -564,6 +571,9 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
 				     bool apply_smooth)
 //==============================================================================
 {
+  bool stat = true;
+  double out_fac = 10.0;
+  double out_rad = 1.25*rad;
   Point par = bspl->getGrevilleParameter();
   double u, v;
   int dim = bspl->dimension();
@@ -580,12 +590,28 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
   // reflect the geometry
   vector<Point> data_pts;
   int num_pt = 0;
+  int num_test = 5;
+  int num_id = 0;
+  vector<pair<int, double> > distant_pts(num_test);
   for (int ka=0; ka<nmbd; ++ka)
     {
       double dist = sqrt(Utils::distance_squared(par.begin(), par.end(),
 						 &data[ka*del]));
       if (dist > rad)
-	continue;
+	{
+	  if (num_id < num_test)
+	    distant_pts[num_id++] = std::make_pair(ka, dist);
+	  else
+	    {
+	      for (int kb=0; kb<num_test; ++kb)
+		if (fabs(distant_pts[kb].second-out_rad) > (dist-out_rad))
+		  {
+		    distant_pts[kb] = std::make_pair(ka, dist);
+		    break;
+		  }
+	    }
+	  continue;
+	}
 
       ++num_pt;
       
@@ -653,18 +679,45 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
 	  coef[kb] += x[kb*num_terms+kc]*tmp[kc];
     }
   else
-    {
-      coef = Polynomial2Coef(x, degree, degree, tot_degree, u1, u2, v1, v2, bspl);
+    coef = Polynomial2Coef(x, degree, degree, tot_degree, u1, u2, v1, v2, bspl);
       
-      //#ifdef DEBUG2
-      double maxdist = 0.0, avdist = 0.0;
-      int num = 0;
-      for (int ka=0; ka<nmbd; ++ka)
+  //#ifdef DEBUG2
+  double maxdist = 0.0, avdist = 0.0;
+  int num = 0;
+  for (int ka=0; ka<nmbd; ++ka)
+    {
+      double dist = sqrt(Utils::distance_squared(par.begin(), par.end(),
+						 &data[ka*del]));
+      if (dist > rad)
+	continue;
+      u = data[ka*del];
+      v = data[ka*del+1];
+      
+      Point pos(dim);
+      pos.setValue(0.0);
+      polynomialTerms(u, v, degree, degree, tot_degree, tmp);
+ 
+      for (int kb=0; kb<dim; ++kb)
+	for (int kc=0; kc<num_terms; ++kc)
+	  pos[kb] += x[kb*num_terms+kc]*tmp[kc];
+      double dd = sqrt(Utils::distance_squared(pos.begin(), pos.end(),
+					       &data[ka*del+2]));
+      maxdist = std::max(maxdist, dd);
+      avdist += dd;
+      num++;
+    }
+  avdist /= (double)num;
+  Point coef2 = bspl->Coef();
+  double coef_dist = coef.dist(coef2);
+
+  if (num_id > 0)
+    {
+      double maxdist2 = 0.0, avdist2 = 0.0;
+      double maxrad = rad;
+      for (int kb=0; kb<num_id; ++kb)
 	{
-	  double dist = sqrt(Utils::distance_squared(par.begin(), par.end(),
-						     &data[ka*del]));
-	  if (dist > rad)
-	    continue;
+	  maxrad = std::max(maxrad, distant_pts[kb].second);
+	  int ka = distant_pts[kb].first;
 	  u = data[ka*del];
 	  v = data[ka*del+1];
       
@@ -677,14 +730,15 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
 	      pos[kb] += x[kb*num_terms+kc]*tmp[kc];
 	  double dd = sqrt(Utils::distance_squared(pos.begin(), pos.end(),
 						   &data[ka*del+2]));
-	  maxdist = std::max(maxdist, dd);
-	  avdist += dd;
-	  num++;
+	  maxdist2 = std::max(maxdist, dd);
+	  avdist2 += dd;
 	}
-      avdist /= (double)num;
-      Point coef2 = bspl->Coef();
-      double coef_dist = coef.dist(coef2);
+      avdist2 /= (double)num_id;
 #ifdef DEBUG2
+      std::cout << "maxdist: " << maxdist << ", avdist: " << avdist << std::endl;
+      std::cout << "maxdist2: " << maxdist << ", avdist2: " << avdist << std::endl;
+#endif
+#ifdef DEBUG3
       std::cout << "del u: " << bspl->umax()-bspl->umin() << ", del v: " << bspl->vmax()-bspl->vmin() << std::endl;
       std::cout << "nmb: " << num << ", rad: " << rad <<", maxdist: " << maxdist << ", avdist: " << avdist << ", coef_dist: " << coef_dist << std::endl << std::endl;
       if (coef_dist > 0.1)
@@ -696,8 +750,13 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
 	  std::cout << std::endl;
 	}
 #endif
+      double facrad = maxrad/rad;
+      double fac = out_fac*facrad*facrad;
+      if (avdist2 > fac*avdist && maxdist2 > fac*maxdist)
+	stat = false;
+      //stat = true;
     }
-  return true;
+  return stat;
 }
 
 //==============================================================================

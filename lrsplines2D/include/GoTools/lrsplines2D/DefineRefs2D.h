@@ -76,6 +76,11 @@ namespace Go
     void appendRef(std::vector<LRSplineSurface::Refinement2D>& refs,
 		   LRSplineSurface::Refinement2D& curr_ref, double tol);
 
+    void refineFullSpan(const LRSplineSurface& surf,
+			double upar, double vpar, Direction2D fixdir,
+			int mult,
+			LRSplineSurface::Refinement2D& refs);
+
     
   } // end namespace DefineRefs2D
 } // end namespace Go

@@ -424,6 +424,15 @@ void LRSplineSurface::write(ostream& os) const
 }
 
 //==============================================================================
+void LRSplineSurface::writeSpecHeader(std::ostream& os, int r, int g, int b, int d, int id) const
+//==============================================================================
+{
+  os << this->instanceType() << ' ' << MAJOR_VERSION << ' '
+     << MINOR_VERSION << " " << 5 << " " << r << " " << g << " " << b
+     << " " << d << " " << id << " \n";
+}
+
+//==============================================================================
 SplineSurface* LRSplineSurface::asSplineSurface() 
 //==============================================================================
 {

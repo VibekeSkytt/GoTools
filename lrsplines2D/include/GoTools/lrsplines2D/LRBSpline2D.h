@@ -339,6 +339,18 @@ class LRBSpline2D : public Streamable
       bspline_u_->coversPar(u_ix) && bspline_v_->coversPar(v_ix);
   }
 
+  int isInDomain(const Point& par, double eps)
+  {
+    if (par[0] < umin()+eps && par[0] < umax()-eps &&
+	par[1] > vmin()+eps && par[1] < vmax()-eps)
+      return 1;
+    else if (par[0] > umax()+eps || par[0] < umin()-eps ||
+	     par[1] > vmax()+eps || par[1] < vmin()-eps)
+      return 0;
+    else
+      return 2;
+  }
+    
   /// Return greville parameter in the two parameter directions
   Point getGrevilleParameter() const;
   /// Return greville parameter in the specified parameter direction

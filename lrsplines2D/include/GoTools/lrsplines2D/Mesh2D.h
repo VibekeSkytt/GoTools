@@ -171,12 +171,20 @@ public:
   /// Find the minimum multiplicity of any of the meshrectangles on a given row or column.
   /// \param d   determine whether to look at a row (YFIXED) or column (XFIXED)
   /// \param ix  index of the row/column to examine.
-  int minMultInLine(Direction2D d, int ix) const; 
+  int minMultInLine(Direction2D d, int ix) const;
+
+  /// The length of the maximum knot interval (zero multiplicity defined as a knot)
+  double maxKnotInterval(Direction2D d) const;
+
+  /// The length of the smalles knot interval (zero multiplicity defined as a knot)
+  double minKnotInterval(Direction2D d) const;
 
   /// Fetch index of knot interval and modify parameter value if it is
   /// very close to an existing knot (distance less than eps)
   int knotIntervalFuzzy(Direction2D d, double& par, double eps) const;
 
+  double closestKnotval(Direction2D d, double par) const;
+  
   // Fetch the index of a knot. The function returns -1 if no knot can be
   // found within an epsilon interval
   int getKnotIdx(Direction2D d, double& par, double eps) const;
