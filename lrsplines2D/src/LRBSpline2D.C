@@ -789,6 +789,7 @@ bool LRBSpline2D::adaptProjCoef(Point& coef)
       tmp += weight*gamma;
     }
   double tmp2 = (1.0 - tmp)/gamma_;
+  std::cout << "Projection coefficient adaption, nesting depth: " << nest_level_ << ", error: " << 1.0-tmp2 << std::endl;
   if (fabs(tmp2-1.0) > 1.0e-4)
     {
       std::cout << "Invariant: " << tmp2 << std::endl;

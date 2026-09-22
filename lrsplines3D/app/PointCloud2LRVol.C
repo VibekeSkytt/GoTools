@@ -76,7 +76,11 @@ void print_help_text()
   std::cout << "-info <filename> : Write accuracy information to file \n";
   std::cout << "-initmba <0/1>: 0 = initiate with least squares method \n";
   std::cout << "                1 = apply only multilevel B-spline approximation (MBA) (Default) \n";
+    std::cout << "-proj <0/1-8>: 0 = not projection (default) \n";
+    std::cout << "               1 - 8: projection \n";
   std::cout << "-degree <2/3> : degree of polynomial segments, default = 2\n";
+  std::cout << "-nmb_coef <initial value> : Initial number of coefficients in each parameter direction \n";
+  std::cout << "-distributecf <0/1> : Modify initial number of coefficients according to relative size of parameter domain \n";
   std::cout << "-minsize <length>: Minimum element size (all directions) \n";
   std::cout << "-tolfile: File specifying domains with specific tolerances, global tolerance apply outside domains. PointCloud2LR -tolfile for file format \n";
   std::cout << "-toldoc: Documentation on file format for tolerance domains. \n";
@@ -189,6 +193,7 @@ int main (int argc, char *argv[]) {
   double epsge;
   int levels;
   int initMBA = 1;
+  int projection = 0;
   int del = 4;
   int degree = 2;
   int verbose = 0;
@@ -197,6 +202,9 @@ int main (int argc, char *argv[]) {
   int ncell1=0, ncell2=0, ncell3=0;
   bool features = false;
   vector<int> feature_levels;
+
+  int ncoef = 6; //6; //8; //6
+  int distribute_ncoef = 0;
 
   int ki, kj;
   vector<bool> par_read(argc-1, false);
@@ -244,6 +252,13 @@ int main (int argc, char *argv[]) {
 	  if (stat < 0)
 	    return 1;
 	}
+      else if (arg == "-proj")
+	{
+	  int stat = fetchIntParameter(argc, argv, ki, projection, 
+				       nmb_par, par_read);
+	  if (stat < 0)
+	    return 1;
+	}
       else if (arg == "-degree")
 	{
 	  int stat = fetchIntParameter(argc, argv, ki, degree, 
@@ -251,7 +266,21 @@ int main (int argc, char *argv[]) {
 	  if (stat < 0)
 	    return 1;
 	}
-      else if (arg == "-minsize")
+      else if (arg == "-nmb_coef")
+	{
+	  int stat = fetchIntParameter(argc, argv, ki, ncoef, 
+				       nmb_par, par_read);
+	  if (stat < 0)
+	    return 1;
+	}
+      else if (arg == "-distributecf")
+	{
+	  int stat = fetchIntParameter(argc, argv, ki, distribute_ncoef, 
+				       nmb_par, par_read);
+	  if (stat < 0)
+	    return 1;
+	}
+        else if (arg == "-minsize")
 	{
 	  int stat = fetchDoubleParameter(argc, argv, ki, minsize, 
 					  nmb_par, par_read);
@@ -448,7 +477,6 @@ int main (int argc, char *argv[]) {
   std::cout << "," << domain[3] << "]x[" << domain[4] << "," << domain[5] << "]" << std::endl;
   std::cout << "Range: [" << minval << "," << maxval << "]" << std::endl;
   int dim = 1;
-  int ncoef = 6; //6; //8; //6
   int order = degree + 1;
   int nm = ncoef*ncoef*ncoef;
   double dom = (domain[1]-domain[0])*(domain[3]-domain[2])*(domain[5]-domain[4]);
@@ -462,29 +490,47 @@ int main (int argc, char *argv[]) {
 	++nc[kj];
       nc[kj] = std::max(nc[kj], order);
     }
-  //std::cout << "Number of coefficients: " << nc[0] << ", " << nc[1] << ", " << nc[2] << std::endl;
-  // LRVolApprox vol_approx(nc[0], order, nc[1], order, nc[2], order,
-  // 			 pc4d, dim, domain, epsge, mba_level);
-  std::cout << "Number of coefficients: " << ncoef << ", " << ncoef << ", " << ncoef << std::endl;
-  LRVolApprox vol_approx(ncoef, order, ncoef, order, ncoef, order,
-  			 pc4d, dim, domain, epsge, mba_level);
-  vol_approx.setInitMBA(initMBA);
-  if (tolerances.size() > 0)
-    vol_approx.setVarTolBox(tolerances);
-  if (minsize > 0.0)
-    vol_approx.setMinimumElementSize(minsize, minsize, minsize);
-  if (outfrac > 0.0)
-    vol_approx.setOutFraction(outfrac);
-  if (verbose)
-    vol_approx.setVerbose(true);
+
+  bool smoothproj = false;
+  shared_ptr<LRVolApprox> vol_approx;
+  if (distribute_ncoef)
+    {
+      std::cout << "Number of coefficients: " << nc[0] << ", " << nc[1] << ", " << nc[2] << std::endl;
+      vol_approx = shared_ptr<LRVolApprox>(new LRVolApprox(nc[0], order, nc[1],
+							   order, nc[2], order,
+							   pc4d, dim, domain,
+							   epsge, mba_level,
+							   projection));
+    }
   else
-    vol_approx.setVerbose(false);
+    {
+      std::cout << "Number of coefficients: " << ncoef << ", " << ncoef << ", " << ncoef << std::endl;
+
+      vol_approx = shared_ptr<LRVolApprox>(new LRVolApprox(ncoef, order, ncoef,
+							   order, ncoef, order,
+							   pc4d, dim, domain,
+							   epsge, mba_level,
+							   projection));
+    }
+  vol_approx->setInitMBA(initMBA);
+  if (tolerances.size() > 0)
+    vol_approx->setVarTolBox(tolerances);
+  if (minsize > 0.0)
+    vol_approx->setMinimumElementSize(minsize, minsize, minsize);
+  if (outfrac > 0.0)
+    vol_approx->setOutFraction(outfrac);
+  if (smoothproj)
+    vol_approx->setSmoothProjection(true);
+  if (verbose)
+    vol_approx->setVerbose(true);
+  else
+    vol_approx->setVerbose(false);
 
   // Feature output
   if (features)
     {
-      vol_approx.setFeatureOut(ncell1, ncell2, ncell3);
-      vol_approx.setFeatureLevel(feature_levels);
+      vol_approx->setFeatureOut(ncell1, ncell2, ncell3);
+      vol_approx->setFeatureLevel(feature_levels);
     }
 
   double max, average, av_all;
@@ -492,9 +538,9 @@ int main (int argc, char *argv[]) {
   int num_out;
   cout << "Starting approximation..." << endl;
 
-  shared_ptr<LRSplineVolume> result = vol_approx.getApproxVol(max,av_all,average,num_out,levels);
+  shared_ptr<LRSplineVolume> result = vol_approx->getApproxVol(max,av_all,average,num_out,levels);
 
-  vol_approx.fetchOutsideTolInfo(maxout, avout);
+  vol_approx->fetchOutsideTolInfo(maxout, avout);
 
   auto nanoseconds = boost::chrono::nanoseconds(t.elapsed().user + t.elapsed().system);
   duration = duration = 1.0e-09*nanoseconds.count();//t.elapsed();

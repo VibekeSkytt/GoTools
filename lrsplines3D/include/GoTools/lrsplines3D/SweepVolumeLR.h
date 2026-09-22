@@ -37,32 +37,24 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _LRSPLINEPLOTUTILS3D_H
-#define _LRSPLINEPLOTUTILS3D_H
+#ifndef __SWEEPVOLUMELR_H
+#define __SWEEPVOLUMELR_H
 
-
+#include "GoTools/utils/Point.h"
+#include "GoTools/geometry/SplineCurve.h"
+#include "GoTools/lrsplines2D/LRSplineSurface.h"
 #include "GoTools/lrsplines3D/LRSplineVolume.h"
-#include <iostream>
-
 
 namespace Go
 {
 
-    // Write to file all element grid lines, in the parameter domain.
-    void writeElementLineCloud(Go::LRSplineVolume& lr_spline_vol, std::ostream &out);
-
-    // Write to file, on PostScript-format, the parametric mesh.
-    void writePostscriptMesh(Go::LRSplineVolume& lr_spline_vol, std::ostream &out);
-
-  // Extract information from a current LR spline volume in order to
-  // visualize the structure of the parameter domain
-  // mid - Mid parameters of each element (xmid, ymid, zmid) 
-  // bd - The element corners orginized as corner curves 
-  void extractElementMidAndBoundary(shared_ptr<LRSplineVolume>& vol,
-				    std::vector<double>& mid,
-				    std::vector<double>& bd);
-}; // End namespace Go
-
-
-#endif // _LRSPLINEPLOTUTILS3D_H
+  /// Namespace for sweeping methods to create LR spline volume
+  namespace SweepVolumeLR
+  {
+    LRSplineVolume* linearSweptVolume(const LRSplineSurface &surface,
+				      const SplineCurve &curve,
+				      const Point &pt);
+  };
+}
+#endif
 

@@ -50,6 +50,15 @@ namespace Go
   /// (or Element2D?), prepare input for LRSplineSurface::refine
 
   class LRBSpline2D;
+
+  enum RefineStrategy
+    {
+      fullSpan = 1,
+      minSpanSize = 2,
+      minSpanError = 3,
+      minSpanCombined = 4,
+      structuredMesh = 5
+    };
   
   namespace DefineRefs2D
   {
@@ -80,6 +89,11 @@ namespace Go
 			double upar, double vpar, Direction2D fixdir,
 			int mult,
 			LRSplineSurface::Refinement2D& refs);
+
+    void refineFromElement(const LRSplineSurface& surf,
+			   Element2D *elem, Direction2D fixdir,
+			   RefineStrategy strategy, int mult,
+			   LRSplineSurface::Refinement2D& refs);
 
     
   } // end namespace DefineRefs2D

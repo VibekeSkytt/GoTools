@@ -102,8 +102,18 @@ int main(int argc, char *argv[])
       std::cerr << "Input file contains no spline surface" << std::endl;
       exit(-1);
     }
-    
-  
+
+  double dom1[4];
+  dom1[0] = lrsf->startparam_u();
+  dom1[1] = lrsf->endparam_u();
+  dom1[2] = lrsf->startparam_v();
+  dom1[3] = lrsf->endparam_v();
+
+  double dom2[4];
+  filein2 >> dom2[0] >> dom2[1] >> dom2[2] >> dom2[3];
+
+  double fac1 = (dom1[1] - dom1[0])/(dom2[1] - dom2[0]);
+  double fac2 = (dom1[3] - dom1[2])/(dom2[3] - dom2[2]);
   
   int nmb_refs;
   filein2 >> nmb_refs;
@@ -112,13 +122,21 @@ int main(int argc, char *argv[])
       double parval, start, end;
       int dir;
       int mult;
+      filein2 >> parval >> start >> end >> dir >> mult;
 
-      filein2 >> parval;
-      filein2 >> start;
-      filein2 >> end;
-      filein2 >> dir;
-      filein2 >> mult;
-      //lrsf->refine((dir==0) ? XFIXED : YFIXED, parval, start, end, mult);
+      if (dir == 0)
+	{
+	  parval = dom1[0] + (parval - dom2[0])*fac1;
+	  start = dom1[2] + (start - dom2[2])*fac2;
+	  end = dom1[2] + (end - dom2[2])*fac2;
+	}
+      else
+	{
+	  parval = dom1[2] + (parval - dom2[2])*fac2;
+	  start = dom1[0] + (start - dom2[0])*fac1;
+	  end = dom1[0] + (end - dom2[0])*fac1;
+	}
+	
       std::cout << "Iteration no. " << ki << std::endl;
       lrsf->refine((dir==0) ? XFIXED : YFIXED, parval, start, end, mult, true);
 

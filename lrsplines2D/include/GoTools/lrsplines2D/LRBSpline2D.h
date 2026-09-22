@@ -439,7 +439,6 @@ class LRBSpline2D : public Streamable
     return overload_;
   }
 
-  bool adaptProjCoef(Point& coef);
   
   bool checkOverload();
   void eraseOverload()
@@ -447,6 +446,8 @@ class LRBSpline2D : public Streamable
     overload_ = false;
   }
 
+  bool adaptProjCoef(Point& coef);
+  
   bool visited()
   {
     return visited_;
@@ -539,7 +540,7 @@ class LRBSpline2D : public Streamable
   BSplineUniLR *bspline_v_;
   std::vector<Element2D*> support_;  // Elements lying in the support of this LRB-spline
 
-  int nest_level_; // Nesting level. Tells about complete inclusion of the
+  int nest_level_; // Nesting depth. Tells about complete inclusion of the
   // domain in the domain of another B-spline
   
   // Used in least squares approximation with smoothing

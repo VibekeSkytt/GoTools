@@ -260,6 +260,11 @@ class BSplineUniLR : public Streamable
     return count_;
   }
 
+  void setCount(int count) const
+  {
+    count_ = count;
+  }
+
     private:
   int pardir_;
   std::vector<int> kvec_;

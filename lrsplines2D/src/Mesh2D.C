@@ -56,6 +56,7 @@
 
 using std::vector;
 using std::pair;
+using std::tuple;
 using std::find_if;
 using std::max_element;
 using std::min_element;
@@ -524,6 +525,33 @@ int Mesh2D::removeUnusedLines(Direction2D d)
 }
 
 // =============================================================================
+vector<tuple<int, int, int> > Mesh2D::segments_mult(Direction2D d, int ix) const
+// =============================================================================
+{
+  int threshold = 1;
+  const auto& mvec = select_meshvec_(d, ix);
+  vector<tuple<int, int, int> > result;
+  const int BLANK = -1; // use this flag to indicate uninitialized value
+  int start = BLANK;
+  int mult = 0;
+  for (auto i = mvec.begin(); i != mvec.end(); ++i)
+    if (i->mult >= threshold && start == BLANK)
+      {
+	start = i->ix;
+	mult = i->mult;
+      }
+    else if (i->mult < threshold && start != BLANK) {
+      result.emplace_back(tuple<int, int, int>(start, i->ix-1, mult));
+      start = (i->mult < threshold) ? i->ix-1 : BLANK;
+    }
+
+  if (start != BLANK) 
+    result.emplace_back(tuple<int, int, int>(start, numDistinctKnots(flip(d)) - 1, mult));
+
+  return result;
+}
+
+// =============================================================================
 vector<pair<int, int> > Mesh2D::segments(Direction2D d, int ix, int threshold) const
 // =============================================================================
 {
@@ -534,8 +562,8 @@ vector<pair<int, int> > Mesh2D::segments(Direction2D d, int ix, int threshold) c
   for (auto i = mvec.begin(); i != mvec.end(); ++i)
     if (i->mult >= threshold && start == BLANK) start = i->ix;
     else if (i->mult < threshold && start != BLANK) {
-      result.emplace_back(pair<int, int>(start, i->ix));
-      start = BLANK;
+      result.emplace_back(pair<int, int>(start, i->ix-1));
+      start = (i->mult < threshold) ? i->ix-1 : BLANK;
     }
 
   if (start != BLANK) 

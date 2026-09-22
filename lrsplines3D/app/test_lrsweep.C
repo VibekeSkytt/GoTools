@@ -37,32 +37,52 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _LRSPLINEPLOTUTILS3D_H
-#define _LRSPLINEPLOTUTILS3D_H
-
-
-#include "GoTools/lrsplines3D/LRSplineVolume.h"
 #include <iostream>
+#include <fstream>
+#include "GoTools/geometry/SplineCurve.h"
+#include "GoTools/lrsplines2D/LRSplineSurface.h"
+#include "GoTools/lrsplines3D/LRSplineVolume.h"
+#include "GoTools/lrsplines3D/SweepVolumeLR.h"
+#include "GoTools/geometry/ObjectHeader.h"
+
+using namespace std;
+using namespace Go;
 
 
-namespace Go
+int main(int argc, char* argv[] )
 {
 
-    // Write to file all element grid lines, in the parameter domain.
-    void writeElementLineCloud(Go::LRSplineVolume& lr_spline_vol, std::ostream &out);
+    ALWAYS_ERROR_IF(argc < 5, "Usage: " << argv[0]
+		    << " surfaceinfile curveinfile volumeoutfile dimension point" << endl);
 
-    // Write to file, on PostScript-format, the parametric mesh.
-    void writePostscriptMesh(Go::LRSplineVolume& lr_spline_vol, std::ostream &out);
+    // Open input surface file
+    ifstream is_surf(argv[1]);
+    ALWAYS_ERROR_IF(is_surf.bad(), "Bad or no surface input filename");
 
-  // Extract information from a current LR spline volume in order to
-  // visualize the structure of the parameter domain
-  // mid - Mid parameters of each element (xmid, ymid, zmid) 
-  // bd - The element corners orginized as corner curves 
-  void extractElementMidAndBoundary(shared_ptr<LRSplineVolume>& vol,
-				    std::vector<double>& mid,
-				    std::vector<double>& bd);
-}; // End namespace Go
+    // Open input curve file
+    ifstream is_crv(argv[2]);
+    ALWAYS_ERROR_IF(is_crv.bad(), "Bad or no curve input filename");
 
+    // Open output volume file
+    ofstream os(argv[3]);
+    ALWAYS_ERROR_IF(os.bad(), "Bad output filename");
 
-#endif // _LRSPLINEPLOTUTILS3D_H
+    int dim = atoi(argv[4]);
+    Point pt(dim);
+    for (int ki=0; ki<dim; ++ki)
+      pt[ki] = atof(argv[5+ki]);
 
+    // Read surface from file
+    LRSplineSurface surf;
+    ObjectHeader head;
+    is_surf >> head >> surf;
+
+    // Read curve from file
+    SplineCurve curve;
+    is_crv >> head >> curve;
+
+    LRSplineVolume* vol = SweepVolumeLR::linearSweptVolume(surf, curve, pt);
+
+    vol->writeStandardHeader(os);
+    vol->write(os);
+}

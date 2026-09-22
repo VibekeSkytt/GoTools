@@ -324,3 +324,185 @@ void DefineRefs2D::refineFullSpan(const LRSplineSurface& surf,
   refs.setVal((fixdir == XFIXED) ? upar : vpar, pmin, pmax, fixdir, mult);
 }
  
+//==============================================================================
+//  Element based refinement 
+//  strategies: fullSpan, minSpanSize (minimum span based on B-spline support),
+//  minSpanEror (minimum span based on error in associated data points),
+//  minSpanCombined (minimum span based on combination fof size and error)
+void DefineRefs2D::refineFromElement(const LRSplineSurface& surf,
+				     Element2D *elem, Direction2D fixdir,
+				     RefineStrategy strategy, int mult,
+				     LRSplineSurface::Refinement2D& refs)
+//==============================================================================
+{
+  // Fetch B-splines
+  const vector<LRBSpline2D*>& bsplines = elem->getSupport();
+  size_t nmb = bsplines.size();
+
+  double ppar = (fixdir == XFIXED) ? 0.5*(elem->umin() + elem->umax()) :
+    0.5*(elem->vmin() + elem->vmax());
+  double pmin = (fixdir == XFIXED) ? elem->vmin() : elem->umin();
+  double pmax = (fixdir == XFIXED) ? elem->vmax() : elem->umax();
+  double par2 = 0.5*(pmin + pmax); 
+  if (strategy == fullSpan)
+    {
+      // All overlapping B-splines
+      for (size_t ki=0; ki<nmb; ++ki)
+	{
+	  double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
+	    bsplines[ki]->umin();
+	  double bmax = (fixdir == XFIXED) ? bsplines[ki]->vmax() :
+	    bsplines[ki]->umax();
+	  pmin = std::min(pmin, bmin);
+	  pmax = std::max(pmax, bmax);
+	}
+    }
+  else if (strategy == minSpanSize)
+    {
+      // Largest overlapping B-spline
+      double tol = surf.getKnotTol();
+      double max_size = 0.0;
+      double min_frac = 0.0;
+      int ix = -1;
+      for (size_t ki=0; ki<nmb; ++ki)
+	{
+	  // Compute size of B-spline
+	  double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
+	    bsplines[ki]->umin();
+	  double bmax = (fixdir == XFIXED) ? bsplines[ki]->vmax() :
+	    bsplines[ki]->umax();
+	  double bsize = bmax - bmin;
+	  double bdel1 = par2 - bmin;
+	  double bdel2 = bmax - par2;
+	  double frac = std::min(bdel1, bdel2)/std::max(bdel1,bdel2);
+	  if ((fabs(max_size-bsize) < tol && frac < min_frac) ||
+	      bsize > max_size)
+	    {
+	      max_size = bsize;
+	      min_frac = frac;
+	      ix = (int)ki;
+	    }
+	}
+      pmin = (fixdir == XFIXED) ? bsplines[ix]->vmin() :
+	bsplines[ix]->umin();
+      pmax = (fixdir == XFIXED) ? bsplines[ix]->vmax() :
+	bsplines[ix]->umax();
+    }
+  else if (strategy == minSpanError)
+    {
+      // "Best" overlapping B-spline
+      double tol = 0.1;
+      double max_wgt = 0.0;
+      double min_frac = 0.0;
+      int ix = -1;
+     for (size_t ki=0; ki<nmb; ++ki)
+	{
+	  // Count the number of elements with large error affected
+	  double curr_wgt = 0.0;
+	  const vector<Element2D*>& curr_el = bsplines[ki]->supportedElements();
+	  for (size_t kj=0; kj<curr_el.size(); ++kj)
+	    {
+	      double emin = (fixdir == XFIXED) ?
+		curr_el[kj]->umin() : curr_el[kj]->vmin();
+	      double emax = (fixdir == XFIXED) ?
+		curr_el[kj]->umax() : curr_el[kj]->vmax();
+	      if (emax < ppar || emin > ppar)
+		continue;  // Element not affected
+
+	      // Compute weight for importance of refinement
+	      double max_err, av_err;
+	      int nmb_outside, nmb_out_sign;
+	      curr_el[kj]->getAccuracyInfo(av_err, max_err, nmb_outside, 
+					   nmb_out_sign);
+	      int nmb_pts = curr_el[kj]->nmbDataPoints();
+	      if (nmb_pts > 0)
+		{
+		  double wgt = av_err*(double)nmb_outside/(double)nmb_pts;
+		  curr_wgt += wgt;
+		}
+	    }
+
+	  double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
+	    bsplines[ki]->umin();
+	  double bmax = (fixdir == XFIXED) ? bsplines[ki]->vmax() :
+	    bsplines[ki]->umax();
+	  double bdel1 = par2 - bmin;
+	  double bdel2 = bmax - par2;
+	  double frac = std::min(bdel1, bdel2)/std::max(bdel1,bdel2);
+	  if ((fabs(max_wgt-curr_wgt) < tol && frac < min_frac) ||
+	      curr_wgt > max_wgt)
+	    {
+	      max_wgt = curr_wgt;
+	      min_frac = frac;
+	      ix = (int)ki;
+	    }
+	}
+      pmin = (fixdir == XFIXED) ? bsplines[ix]->vmin() :
+	bsplines[ix]->umin();
+      pmax = (fixdir == XFIXED) ? bsplines[ix]->vmax() :
+	bsplines[ix]->umax();
+    }
+  else  if (strategy == minSpanCombined)
+    {
+      // Combination of size and error
+      double tol = 0.1;
+      double max_wgt = 0.0;
+      double max_size = 0.0;
+      double min_frac = 0.0;
+      double maxfrac_combined = 0.0;
+      int ix = -1;
+      for (size_t ki=0; ki<nmb; ++ki)
+	{
+	  // Count the number of elements with large error affected
+	  double curr_wgt = 0.0;
+	  const vector<Element2D*>& curr_el = bsplines[ki]->supportedElements();
+	  for (size_t kj=0; kj<curr_el.size(); ++kj)
+	    {
+	      double emin = (fixdir == XFIXED) ?
+		curr_el[kj]->umin() : curr_el[kj]->vmin();
+	      double emax = (fixdir == XFIXED) ?
+		curr_el[kj]->umax() : curr_el[kj]->vmax();
+	      if (emax < ppar || emin > ppar)
+		continue;  // Element not affected
+
+	      // Compute weight for importance of refinement
+	      double max_err, av_err;
+	      int nmb_outside, nmb_out_sign;
+	      curr_el[kj]->getAccuracyInfo(av_err, max_err, nmb_outside, 
+					   nmb_out_sign);
+	      int nmb_pts = curr_el[kj]->nmbDataPoints();
+	      if (nmb_pts > 0)
+		{
+		  double wgt = av_err*(double)nmb_outside/(double)nmb_pts;
+		  curr_wgt += wgt;
+		}
+	    }
+
+	  double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
+	    bsplines[ki]->umin();
+	  double bmax = (fixdir == XFIXED) ? bsplines[ki]->vmax() :
+	    bsplines[ki]->umax();
+	  double bsize = bmax - bmin;
+	  double bdel1 = par2 - bmin;
+	  double bdel2 = bmax - par2;
+	  double frac = std::min(bdel1, bdel2)/std::max(bdel1,bdel2);
+	  double frac_combined = (ix < 0) ? 1.0 : curr_wgt/max_wgt + bsize/max_size;
+	  if ((fabs(maxfrac_combined-frac_combined) < tol && frac < min_frac) ||
+	      frac_combined > maxfrac_combined)
+	    {
+	      maxfrac_combined = frac_combined;
+	      max_wgt = curr_wgt;
+	      max_size = bsize;
+	      min_frac = frac;
+	      ix = (int)ki;
+	    }
+	}
+      
+      pmin = (fixdir == XFIXED) ? bsplines[ix]->vmin() :
+	bsplines[ix]->umin();
+      pmax = (fixdir == XFIXED) ? bsplines[ix]->vmax() :
+	bsplines[ix]->umax();
+   }
+  
+  refs.setVal(ppar, pmin, pmax, fixdir, mult);
+}

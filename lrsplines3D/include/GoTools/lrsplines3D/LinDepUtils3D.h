@@ -37,32 +37,44 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _LRSPLINEPLOTUTILS3D_H
-#define _LRSPLINEPLOTUTILS3D_H
-
+#ifndef LINDEP_UTILS_H
+#define LINDEP_UTILS_H
 
 #include "GoTools/lrsplines3D/LRSplineVolume.h"
-#include <iostream>
 
-
+//==============================================================================
 namespace Go
+//==============================================================================
 {
+  /// Utilities for checking an LR B-spline volume for potential linear
+  /// dependency
+  namespace LinDepUtils
+  {
+  //============================================================================
+  /// Tests for potential linear dependence among the LR B-splines of a
+  /// given LR spline volume. To be more precise: Tests whether a given LR
+  /// spline is peelable. We say an LR spline is peelable if
+  ///  ALL the overloaded LR B-splines are peelable,
+  /// cf. [Dokken, Lyche & Pettersen, 2012]. The LR spline PEELABILITY
+  /// is a SUFFICIENT condition for linear INDEPENDENCE of the LR
+  /// B-splines, or equivalently, the LR spline UNPEELABILITY is a
+  /// NECESSARY condition for linear DEPENDENCE of the LR B-splines. If
+  /// an LR spline IS peelable, the LR B-splines are linearly
+  /// INdependent. If the LR spline is NOT peelable, the LR B-splines
+  /// MAY be linearly dependent, and further investigations are
+  /// required to determine whether some of the LR B-splines are
+  /// ACTUALLY part of a linear dependence relation.
+  //============================================================================
 
-    // Write to file all element grid lines, in the parameter domain.
-    void writeElementLineCloud(Go::LRSplineVolume& lr_spline_vol, std::ostream &out);
+  
+  std::vector<LRBSpline3D*> fetchUnpeelable( const LRSplineVolume& vol,
+					     int minnmb);
 
-    // Write to file, on PostScript-format, the parametric mesh.
-    void writePostscriptMesh(Go::LRSplineVolume& lr_spline_vol, std::ostream &out);
+  void checkOverloaded(int minNmb, std::vector<LRBSpline3D*>& funs,
+		       std::vector<std::vector<LRBSpline3D*> >& lindep);
+  
+  } // end namespace LinDepUtils3D
 
-  // Extract information from a current LR spline volume in order to
-  // visualize the structure of the parameter domain
-  // mid - Mid parameters of each element (xmid, ymid, zmid) 
-  // bd - The element corners orginized as corner curves 
-  void extractElementMidAndBoundary(shared_ptr<LRSplineVolume>& vol,
-				    std::vector<double>& mid,
-				    std::vector<double>& bd);
-}; // End namespace Go
+} // end namespace Go
 
-
-#endif // _LRSPLINEPLOTUTILS3D_H
-
+#endif

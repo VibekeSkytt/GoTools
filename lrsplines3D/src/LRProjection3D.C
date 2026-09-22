@@ -37,19 +37,19 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#include "GoTools/lrsplines2D/LRProjection.h"
-#include "GoTools/lrsplines2D/LRSplineSurface.h"
-#include "GoTools/lrsplines2D/LRBSpline2D.h"
+#include "GoTools/lrsplines3D/LRProjection3D.h"
+#include "GoTools/lrsplines3D/LRSplineVolume.h"
+#include "GoTools/lrsplines3D/LRBSpline3D.h"
 #include "GoTools/lrsplines2D/BSplineUniLR.h"
-#include "GoTools/lrsplines2D/Element2D.h"
+#include "GoTools/lrsplines3D/Element3D.h"
 #include "GoTools/geometry/SplineSurface.h"
 //#include "GoTools/geometry/SplineInterpolator.h"
 #include "GoTools/geometry/Utils.h"
-#include "GoTools/creators/SmoothSurf.h"
+#include "GoTools/trivariate/SmoothVolume.h"
+#include "GoTools/trivariate/VolumeInterpolator.h"
 #include "GoTools/utils/QRFactorization.h"
 #include "sislP.h"
 #include <cmath>
-#include <numeric>
 #include <iostream>
 #include <fstream>
 
@@ -66,15 +66,15 @@ using std::endl;
 using namespace Go;
 
 //==============================================================================
-double LRProjection::computeCoef(LRSplineSurface *srf, 
-				 LRBSpline2D *bspl,
-				 int proj_type, bool apply_smooth, double dlim,
-				 Point& coef, int num_points)
+double LRProjection3D::computeCoef(LRSplineVolume *vol,
+				   LRBSpline3D *bspl,
+				   int proj_type, bool apply_smooth, double dlim,
+				   Point& coef, int num_points)
 //==============================================================================
 {
   int del = (*bspl->supportedElementBegin())->getNmbValPrPoint();
   if (del == 0)
-    del = srf->dimension() + 3;  // Parameter pair, point and distance
+    del = vol->dimension() + 3;  // Parameter pair, point and distance
 
   dlim *= 10.0;
 
@@ -101,10 +101,11 @@ double LRProjection::computeCoef(LRSplineSurface *srf,
       av_dist /= (double)nmb;
   
 
-      int deg1 = bspl->degree(XFIXED);
-      int deg2 = bspl->degree(YFIXED);
+      int deg1 = bspl->degree(XDIR);
+      int deg2 = bspl->degree(YDIR);
+      int deg3 = bspl->degree(ZDIR);
       Point coef2 = bspl->Coef();
-      if (nmb < deg1*deg2)
+      if (nmb < deg1*deg2*deg3)
 	{
 	  coef = coef2;
 	  proj_OK = false;
@@ -130,73 +131,73 @@ double LRProjection::computeCoef(LRSplineSurface *srf,
   else if (proj_type == 2)
     {
       // Radial basis functions with IDW
-      int nmb_points = (num_points > 0) ? num_points : 15; //30;
+      int nmb_points = (num_points > 0) ? num_points : 50; //15; //30;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
-      RDataSet(srf, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
+      RDataSet(vol, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
       IDWproject(bspl, rad, data, del, coef);
     }
   else if (proj_type == 3)
     {
       // Linear approximation
-      int nmb_points = (num_points > 0) ? num_points : 15; //8;
+      int nmb_points = (num_points > 0) ? num_points : 50; //15; //8;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
-      RDataSet(srf, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
+      RDataSet(vol, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
       proj_OK = LinProject(bspl, data, del, rad, coef, apply_smooth);
     }
   else if (proj_type == 4)
     {
-      // Bilinear approximation
-      int nmb_points = (num_points > 0) ? num_points : 15; //8;
+      // Trilinear approximation
+      int nmb_points = (num_points > 0) ? num_points : 70; //15; //8;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
-      RDataSet(srf, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
-      proj_OK = BiLinProject(bspl, data, del, rad, coef, apply_smooth);
+      RDataSet(vol, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
+      proj_OK = TriLinProject(bspl, data, del, rad, coef, apply_smooth);
     }
   else if (proj_type == 5)
     {
       // Quadratic approximation
-      int nmb_points = (num_points > 0) ? num_points : 30; //15; //20; //30;
+      int nmb_points = (num_points > 0) ? num_points : 80; //30; //15; //20; //30;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
-      RDataSet(srf, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
+      RDataSet(vol, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
       proj_OK = QuadProject(bspl, data, del, rad, coef, apply_smooth);
     }
   else if (proj_type == 6)
     {
-      // Biquadratic approximation
-      int nmb_points = (num_points > 0) ? num_points : 50; //25; //15; 
+      // Triquadratic approximation
+      int nmb_points = (num_points > 0) ? num_points : 90; //25; //15; 
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
-      RDataSet(srf, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
-      proj_OK = BiQuadProject(bspl, data, del, rad, coef, apply_smooth);
+      RDataSet(vol, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
+      proj_OK = TriQuadProject(bspl, data, del, rad, coef, apply_smooth);
     }
   else if (proj_type == 7)
     {
       // Cubic approximation
-      int nmb_points = (num_points > 0) ? num_points : 50;
+      int nmb_points = (num_points > 0) ? num_points : 100; //50;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
-      RDataSet(srf, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
+      RDataSet(vol, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
       proj_OK = CubicProject(bspl, data, del, rad, coef, apply_smooth);
     }
 
   else if (proj_type == 8)
     {
       // Cubic approximation
-      int nmb_points = (num_points > 0) ? num_points : 60;
+      int nmb_points = (num_points > 0) ? num_points : 150; //60;
       vector<double> data;
       int nmb_out = 0, nmb = 0;
       double av_dist = 0.0, max_dist = 0.0;
-      RDataSet(srf, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
-      proj_OK = BiCubicProject(bspl, data, del, rad, coef, apply_smooth);
+      RDataSet(vol, bspl, nmb_points, rad, data, del, nmb, nmb_out, max_dist, av_dist);
+      proj_OK = TriCubicProject(bspl, data, del, rad, coef, apply_smooth);
     }
 
   while (!proj_OK)
@@ -207,30 +208,33 @@ double LRProjection::computeCoef(LRSplineSurface *srf,
       //#ifdef DEBUG2
       std::cout << "Failure. Applying projection type " << proj_type << std::endl;
       //#endif
-      proj_OK = computeCoef(srf, bspl, proj_type, apply_smooth, dlim, coef, num_points);
+      proj_OK = computeCoef(vol, bspl, proj_type, apply_smooth, dlim, coef, num_points);
     }
 
   return rad;
 }
 
 //==============================================================================
-void LRProjection::RDataSet(LRSplineSurface *srf, LRBSpline2D *bspl, int nmb_pts,
+void LRProjection3D::RDataSet(LRSplineVolume *vol, LRBSpline3D *bspl, int nmb_pts,
 			    double& rad, vector<double>& data,
 			    int del, int& nmb, int& nmb_out,
 			    double& max_dist, double& av_dist)
 //==============================================================================
 {
   rad = -1.0;
-  Point uv0 = bspl->getGrevilleParameter();
-  vector<Element2D*> elems;
-  vector<LRBSpline2D*> bsplines;
+  Point uvw0 = bspl->getGrevilleParameter();
+  vector<Element3D*> elems;
+  vector<LRBSpline3D*> bsplines;
   bsplines.push_back(bspl);
-  vector<double>  uv_dist;
-  double umin = uv0[0], umax = uv0[0], vmin = uv0[1], vmax = uv0[1];
-  double sf_umin = srf->startparam_u();
-  double sf_umax = srf->endparam_u();
-  double sf_vmin = srf->startparam_v();
-  double sf_vmax = srf->endparam_v();
+  vector<double>  uvw_dist;
+  double umin = uvw0[0], umax = uvw0[0], vmin = uvw0[1], vmax = uvw0[1];
+  double wmin = uvw0[2], wmax = uvw0[2];
+  double sf_umin = vol->startparam_u();
+  double sf_umax = vol->endparam_u();
+  double sf_vmin = vol->startparam_v();
+  double sf_vmax = vol->endparam_v();
+  double sf_wmin = vol->startparam_w();
+  double sf_wmax = vol->endparam_w();
   size_t start_el = 0;
   int nmb_found = 0;
   for (size_t ki=0; ki<bsplines.size(); ++ki)
@@ -249,30 +253,34 @@ void LRProjection::RDataSet(LRSplineSurface *srf, LRBSpline2D *bspl, int nmb_pts
 	  int nd = (int)elem_data.size()/del;
 	  for (int ka=0; ka<nd; ++ka)
 	    {
-	      double dist = Utils::distance_squared(uv0.begin(), uv0.end(),
+	      double dist = Utils::distance_squared(uvw0.begin(), uvw0.end(),
 						    &elem_data[ka*del]);
-	      uv_dist.push_back(sqrt(dist));
+	      uvw_dist.push_back(sqrt(dist));
 	    }
 	  umin = std::min(umin, elems[kj]->umin()); 
 	  umax = std::max(umax, elems[kj]->umax()); 
 	  vmin = std::min(vmin, elems[kj]->vmin()); 
 	  vmax = std::max(vmax, elems[kj]->vmax()); 
+	  wmin = std::min(wmin, elems[kj]->wmin()); 
+	  wmax = std::max(wmax, elems[kj]->wmax()); 
 	}
 
-	  std::sort(uv_dist.begin(), uv_dist.end());
-	  if ((int)uv_dist.size() > nmb_pts)
+	  std::sort(uvw_dist.begin(), uvw_dist.end());
+	  if ((int)uvw_dist.size() > nmb_pts)
 	    {
-	      rad = uv_dist[nmb_pts];
-	      if ((umin <= uv0[0]-rad || umin == sf_umin) &&
-		  (umax >= uv0[0]+rad || umax == sf_umax) &&
-		  (vmin <= uv0[1]-rad || vmin == sf_vmin) &&
-		  (vmax >= uv0[1]+rad || vmax == sf_vmax))
+	      rad = uvw_dist[nmb_pts];
+	      if ((umin <= uvw0[0]-rad || umin == sf_umin) &&
+		  (umax >= uvw0[0]+rad || umax == sf_umax) &&
+		  (vmin <= uvw0[1]-rad || vmin == sf_vmin) &&
+		  (vmax >= uvw0[1]+rad || vmax == sf_vmax) &&
+		  (wmin <= uvw0[2]-rad || wmin == sf_wmin) &&
+		  (wmax >= uvw0[2]+rad || wmax == sf_wmax))
 		break;
 	    }
 
 
-	  if (uv_dist.size() > 0)
-	    rad = uv_dist[uv_dist.size()-1];
+	  if (uvw_dist.size() > 0)
+	    rad = uvw_dist[uvw_dist.size()-1];
 	  for (size_t kj=start_el; kj<elems.size(); ++kj)
 	    {
 	      for (auto b2=elems[kj]->supportBegin(); b2!=elems[kj]->supportEnd(); ++b2)
@@ -299,7 +307,7 @@ void LRProjection::RDataSet(LRSplineSurface *srf, LRBSpline2D *bspl, int nmb_pts
 }
 
 //==============================================================================
-bool LRProjection::TPproject(LRBSpline2D *bspl,
+bool LRProjection3D::TPproject(LRBSpline3D *bspl,
 			     vector<double>& data,
 			     int del,
 			     double smoothwgt,
@@ -307,18 +315,23 @@ bool LRProjection::TPproject(LRBSpline2D *bspl,
 //==============================================================================
 {
   // Fetch knot vectors of B-spline
-  BSplineUniLR* uni_u = bspl->getUnivariate(XFIXED);
-  BSplineUniLR* uni_v = bspl->getUnivariate(YFIXED);
+  BSplineUniLR* uni_u = bspl->getUnivariate(XDIR);
+  BSplineUniLR* uni_v = bspl->getUnivariate(YDIR);
+  BSplineUniLR* uni_w = bspl->getUnivariate(ZDIR);
   vector<double> knots1 = uni_u->getKnots();
   vector<double> knots2 = uni_v->getKnots();
+  vector<double> knots3 = uni_w->getKnots();
 
   int startmult1 = uni_u->endmult(true);
   int endmult1 = uni_u->endmult(false);
   int startmult2 = uni_v->endmult(true);
   int endmult2 = uni_v->endmult(false);
+  int startmult3 = uni_w->endmult(true);
+  int endmult3 = uni_w->endmult(false);
 
   int order1 = uni_u->degree() + 1;
   int order2 = uni_v->degree() + 1;
+  int order3 = uni_w->degree() + 1;
 
   // Extend knot vectors to full multiplicity in endpoints
   double start1 = knots1[0];
@@ -337,40 +350,47 @@ bool LRProjection::TPproject(LRBSpline2D *bspl,
   for (int ka=endmult2; ka<order2; ++ka)
     knots2.push_back(end2);
 
+  double start3 = knots3[0];
+  double end3 = knots3[knots3.size()-1];
+  for (int ka=startmult3; ka<order3; ++ka)
+    knots3.insert(knots3.begin(), start3);
+
+  for (int ka=endmult3; ka<order3; ++ka)
+    knots3.push_back(end3);
+
   // Extract point and parameter data
   int num_points = (int)data.size()/del;
   int dim = bspl->dimension();
   vector<double> param, points;
-  param.reserve(2*num_points);
+  param.reserve(3*num_points);
   points.reserve(dim*num_points);
   for (int ka=0; ka<(int)data.size(); ka+=del)
     {
-      for (int kb=0; kb<2; ++kb)
+      for (int kb=0; kb<3; ++kb)
 	param.push_back(data[ka+kb]);
       for (int kb=0; kb<dim; ++kb)
-	points.push_back(data[ka+kb+2]);
+	points.push_back(data[ka+kb+3]);
     }
 
   // Define initial spline surface
   int in1 = (int)knots1.size() - order1;
   int in2 = (int)knots2.size() - order2;
-  vector<double> init_coefs(in1*in2*dim, 0.0);
-  shared_ptr<SplineSurface> init_surf(new SplineSurface(in1, in2, order1, order2,
-							&knots1[0], &knots2[0],
-							&init_coefs[0], dim));
+  int in3 = (int)knots3.size() - order3;
+  vector<double> init_coefs(in1*in2*in3*dim, 0.0);
+  shared_ptr<SplineVolume> init_vol(new SplineVolume(in1, in2, in3,
+						      order1, order2, order2,
+						      &knots1[0], &knots2[0],
+						      &knots3[0],
+						      &init_coefs[0], dim));
 
-  // if (num_points > in1*in2)
-  //   smoothwgt *= 0.01;
-  
   // Approximation
-  SmoothSurf approx;
-  int seem[2];
-  seem[0] = seem[1] = 0;
-  vector<int> coef_known(in1*in2, 0);
-  approx.attach(init_surf, seem, &coef_known[0]);
+  SmoothVolume approx;
+  vector<CoefStatus> coef_known(in1*in2*in3, CoefFree);
+  approx.attach(init_vol, coef_known);
 
   double wgt1 = 0.0;
-  double wgt3 = (std::min(order1,order2) < 4) ? 0.0 : 0.5*smoothwgt;
+  double wgt3 = (std::min(order1,std::min(order2,order3)) < 4) ? 0.0 :
+    0.5*smoothwgt;
   double wgt2 = smoothwgt - wgt3 - wgt1;
   approx.setOptimize(wgt1, wgt2, wgt3);
 
@@ -378,9 +398,9 @@ bool LRProjection::TPproject(LRBSpline2D *bspl,
   vector<double> pnt_wgt(num_points, 1.0);
   approx.setLeastSquares(points, param, pnt_wgt, approx_wgt);
 
-  shared_ptr<SplineSurface> approx_surf;
+  shared_ptr<SplineVolume> approx_vol;
   try {
-  approx.equationSolve(approx_surf);
+  approx.equationSolve(approx_vol);
   }
   catch (...)
     {
@@ -391,14 +411,15 @@ bool LRProjection::TPproject(LRBSpline2D *bspl,
   // Fetch coefficient corresponding to input B-spline
   int k1 = order1 - startmult1;
   int k2 = order2 - startmult2;
-  int kk = k2*in1 + k1;
-  coef = Point(approx_surf->coefs_begin()+kk*dim, approx_surf->coefs_begin()+(kk+1)*dim);
+  int k3 = order3 - startmult3;
+  int kk = (k3*in2 + k2)*in1 + k1;
+  coef = Point(approx_vol->coefs_begin()+kk*dim, approx_vol->coefs_begin()+(kk+1)*dim);
 
   return true;
 }
 
 //==============================================================================
-void LRProjection::IDWproject(LRBSpline2D *bspl, double rad,
+void LRProjection3D::IDWproject(LRBSpline3D *bspl, double rad,
 			      vector<double>& data, int del, Point& coef)
 //==============================================================================
 {
@@ -412,7 +433,7 @@ void LRProjection::IDWproject(LRBSpline2D *bspl, double rad,
   int nmbd = (int)data.size()/del;
   for (int ka=0; ka<nmbd; ++ka)
     {
-      Point curr(&data[ka*del+2], &data[ka*del+2+dim]);
+      Point curr(&data[ka*del+3], &data[ka*del+3+dim]);
       double tmp = sqrt(Utils::distance_squared(greville.begin(), greville.end(),
 						&data[ka*del]));
       if (tmp < eps)
@@ -433,160 +454,161 @@ void LRProjection::IDWproject(LRBSpline2D *bspl, double rad,
 
 
 //==============================================================================
-bool LRProjection::BiLinProject(LRBSpline2D *bspl, vector<double>& data, int del,
+bool LRProjection3D::TriLinProject(LRBSpline3D *bspl, vector<double>& data, int del,
 			       double rad, Point& coef, bool apply_smooth)
 //==============================================================================
 {
   int degree = 1, tot_degree = 2;
-  return PolynomialProject(degree, tot_degree, bspl, data, del, rad,
-			   coef, apply_smooth);
+  return PolynomialProject(degree, degree, degree, tot_degree, bspl, data,
+			   del, rad, coef, apply_smooth);
 }
 
 //==============================================================================
-bool LRProjection::LinProject(LRBSpline2D *bspl, vector<double>& data, int del,
+bool LRProjection3D::LinProject(LRBSpline3D *bspl, vector<double>& data, int del,
 			       double rad, Point& coef, bool apply_smooth)
 //==============================================================================
 {
   int degree = 1, tot_degree = 1;
-  return PolynomialProject(degree, tot_degree, bspl, data, del, rad,
-			   coef, true);
+  return PolynomialProject(degree, degree, degree,  tot_degree, bspl, data, 
+			   del, rad, coef, true);
 }
 
 //==============================================================================
-bool LRProjection::BiQuadProject(LRBSpline2D *bspl, vector<double>& data, int del,
+bool LRProjection3D::TriQuadProject(LRBSpline3D *bspl, vector<double>& data, int del,
 			       double rad, Point& coef, bool apply_smooth)
 //==============================================================================
 {
   int degree = 2, tot_degree = 4;
-  return PolynomialProject(degree, tot_degree, bspl, data, del, rad,
-			   coef, apply_smooth);
+  return PolynomialProject(degree, degree, degree, tot_degree, bspl, data, 
+			   del, rad, coef, apply_smooth);
 }
 
 //==============================================================================
-bool LRProjection::QuadProject(LRBSpline2D *bspl, vector<double>& data, int del,
+bool LRProjection3D::QuadProject(LRBSpline3D *bspl, vector<double>& data, int del,
 			       double rad, Point& coef, bool apply_smooth)
 //==============================================================================
 {
   int degree = 2, tot_degree = 2;
-  return PolynomialProject(degree, tot_degree, bspl, data, del, rad,
-			   coef, apply_smooth);
+  return PolynomialProject(degree, degree, degree, tot_degree, bspl, data, 
+			   del, rad, coef, apply_smooth);
 }
 
 //==============================================================================
-bool LRProjection::BiCubicProject(LRBSpline2D *bspl, vector<double>& data, int del,
+bool LRProjection3D::TriCubicProject(LRBSpline3D *bspl, vector<double>& data, int del,
 			       double rad, Point& coef, bool apply_smooth)
 //==============================================================================
 {
   int degree = 3, tot_degree = 6;
-  return PolynomialProject(degree, tot_degree, bspl, data, del, rad,
-			   coef, apply_smooth);
+  return PolynomialProject(degree, degree, degree, tot_degree, bspl, data, 
+			   del, rad, coef, apply_smooth);
 }
 
 //==============================================================================
-bool LRProjection::CubicProject(LRBSpline2D *bspl, vector<double>& data, int del,
+bool LRProjection3D::CubicProject(LRBSpline3D *bspl, vector<double>& data, int del,
 			       double rad, Point& coef, bool apply_smooth)
 //==============================================================================
 {
   int degree = 3, tot_degree = 3;
-  return PolynomialProject(degree, tot_degree, bspl, data, del, rad,
-			   coef, apply_smooth);
+  return PolynomialProject(degree, degree, degree, tot_degree, bspl, data, 
+			   del, rad, coef, apply_smooth);
 }
 
-SISLSurf* interpolateSample(double *points, int dim, double *parvals1,
-			    double *parvals2, int order1, int order2,
-			    double *knots1, double *knots2)
+void interpolateSample(vector<double>& points, int dim, vector<double>& parvals1,
+		       vector<double>& parvals2, vector<double>& parvals3,
+		       int order1, int order2, int order3,
+		       vector<double>& knots1, vector<double>& knots2,
+		       vector<double>& knots3, shared_ptr<SplineVolume>& Bvol)
 {
-  int kstat = 0;
-  vector<int> type2(order2, 0);
-  double *coef2 = NULL;
-  int knlr = 0, knrc = 0;  // Open surface
-  int kn1_2 = 0, kn2_2 = 0;
-  s1891(parvals2, points, order1*dim, order2, 1, &type2[0],
-	1, knots2, &coef2, &kn2_2, order2, knlr, knrc, &kstat);
-  if (kstat < 0)
-    return NULL;
-
-  vector<double> coef2_2(dim*order1*order2);
-  s6chpar(coef2, order1, order2, dim, &coef2_2[0]);
-  vector<int> type1(order1, 0);
-  double *coef1 = NULL;
-  s1891(parvals1, &coef2_2[0], order2*dim, order1, 1, &type1[0],
-	1, knots1, &coef1, &kn1_2, order1, knlr, knrc, &kstat);
-  if (coef2 != NULL)
-    free(coef2);
-  if (kstat < 0)
-    return NULL;
-  vector<double> coef1_2(dim*order1*order2);
-  s6chpar(coef1, order2, order1, dim, &coef1_2[0]);
-  SISLSurf *sislsrf = newSurf(order1, order2, order1, order2, knots1,
-			      knots2, &coef1_2[0], 1, dim, 1);
-  if (coef1 != NULL)
-    free(coef1);
-
-#ifdef DEBUG3
-  if (sislsrf != NULL)
-    {
-      int left1 = 0, left2 = 0;
-      for (int kb=0; kb<order2; ++kb)
-	{
-	  for (int ka=0; ka<order1; ++ka)
-	    {
-	      double epar[2];
-	      epar[0] = parvals1[ka];
-	      epar[1] = parvals2[kb];
-	      vector<double> der(dim);
-	      s1424(sislsrf, 0, 0, epar, &left1, &left2, &der[0], &kstat);
-	      double dd = s6dist(&der[0], &points[dim*(kb*order1+ka)], dim);
-	      std::cout << "epar: " << epar[0] << " " << epar[1] << ", dd: " << dd << std::endl;
-	    }
-	}
-    }
-#endif	
-  return sislsrf;
+  BsplineBasis basis_u(order1, order1, &knots1[0]);
+  BsplineBasis basis_v(order2, order2, &knots2[0]);
+  BsplineBasis basis_w(order3, order3, &knots3[0]);
+  vector<double> wgt(order1*order2*order3, 1.0);
+  Bvol =
+    shared_ptr<SplineVolume>(VolumeInterpolator::regularInterpolation(basis_u,
+								      basis_v,
+								      basis_w,
+								      parvals1,
+								      parvals2,
+								      parvals3,
+								      points,
+								      dim,
+								      false,
+								      wgt));
 }
 
 
-void polynomialTerms(double u, double v, int num1, int num2, int max_num,
-		     vector<double>& terms)
+void polynomialTerms(double u, double v, double w, int num1, int num2,
+		     int num3, int max_num, vector<double>& terms)
 {
-  vector<double> u_terms(num1+1), v_terms(num2+1);
-  u_terms[0] = v_terms[0] = 1.0;
+  vector<double> u_terms(num1+1), v_terms(num2+1), w_terms(num3+1);
+  u_terms[0] = v_terms[0] = w_terms[0] = 1.0;
 
   for (int ki=1; ki<=num1; ++ki)
     u_terms[ki] = u_terms[ki-1]*u;
   for (int ki=1; ki<=num2; ++ki)
      v_terms[ki] = v_terms[ki-1]*v;
+  for (int ki=1; ki<=num3; ++ki)
+     w_terms[ki] = w_terms[ki-1]*w;
 
-  for (int kj=0, kr=0; kj<=num2; ++kj)
-    for (int ki=0; ki<=num1; ++ki)
-      {
-	if (ki+kj <= max_num)
-	  terms[kr++] = u_terms[ki]*v_terms[kj];
-      }
+  for (int kh=0, kr=0; kh<=num3; ++kh)
+    for (int kj=0; kj<=num2; ++kj)
+      for (int ki=0; ki<=num1; ++ki)
+	{
+	  if (ki+kj+kh <= max_num)
+	    terms[kr++] = u_terms[ki]*v_terms[kj]*w_terms[kh];
+	}
+}
+
+int binom(int n, int r)
+{
+  if (n >= r && r >= 0)
+    {
+      int nom = 1;
+      for (int ki=2; ki<=n; ++ki)
+	nom *= ki;
+      int den1 = 1, den2 = 1;
+      for (int ki=2; ki<=r; ++ki)
+	den1 *= ki;
+      for (int ki=2; ki<=n-r; ++ki)
+	den2 *= ki;
+      return nom/(den1*den2);
+    }
+  else
+    return 0;
 }
 
 //==============================================================================
-bool LRProjection::PolynomialProject(int degree, int tot_degree, 
-				     LRBSpline2D *bspl, vector<double>& data, 
-				     int del, double rad, Point& coef,
-				     bool apply_smooth)
+bool LRProjection3D::PolynomialProject(int degree1, int degree2, int degree3,
+				       int tot_degree, LRBSpline3D *bspl,
+				       vector<double>& data, int del,
+				       double rad, Point& coef,
+				       bool apply_smooth)
 //==============================================================================
 {
   bool stat = true;
-  shared_ptr<ParamSurface> dummy;
   double out_fac = 10.0;
   double out_rad = 1.25*rad;
   Point par = bspl->getGrevilleParameter();
-  double u, v;
+  double u, v, w;
   int dim = bspl->dimension();
-  int num_terms = (tot_degree == degree) ? (degree+1)*(degree+2)/2 :
-    (degree+1)*(degree+1);
+  int maxdeg = std::max(degree1, std::max(degree2, degree3));
+  int num_terms;
+  if (tot_degree > maxdeg)
+    num_terms = (degree1+1)*(degree2+1)*(degree3+1);
+  else if (degree1 == degree2 && degree1 == degree3)
+    num_terms = (degree1+1)*(degree1+2)*(degree1+3)/6;
+  else
+    {
+      double d1 = (degree1 == maxdeg) ? maxdeg - degree2 : maxdeg - degree1;
+      double d2 = (degree3 == maxdeg) ? maxdeg - degree2 : maxdeg - degree3;
+      num_terms = binom(maxdeg+3,3) - binom(maxdeg-d1+2,3) -
+	binom(maxdeg-d2+2,3) - binom(maxdeg-d1-d2+1,3);
+    }
   vector<double> tmp(num_terms);
   int nmbd = (int)data.size()/del;
-  double u1 = std::numeric_limits<double>::max();
-  double u2 = std::numeric_limits<double>::lowest();
-  double v1 = std::numeric_limits<double>::max();
-  double v2 = std::numeric_limits<double>::lowest();
+  double range[6];
+  range[0] = range[2] = range[4] = std::numeric_limits<double>::max();
+  range[1] = range[3] = range[5] = std::numeric_limits<double>::lowest();
   
   // Compute eparameterization factor to let the parameter domain
   // reflect the geometry
@@ -616,28 +638,12 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
 	}
 
       ++num_pt;
-      
-      u = data[ka*del];
-      v = data[ka*del+1];
-      u1 = std::min(u1, u);
-      u2 = std::max(u2, u);
-      v1 = std::min(v1, v);
-      v2 = std::max(v2, v);
 
-      Point pt(3);
-      if (dim == 3)
-	pt.setValue(&data[ka*del+2]);
-      else
-	pt.setValue(&data[ka*del]);
-      data_pts.push_back(pt);
+      for (int kb=0; kb<3; ++kb)
+	range[2*kb] = std::min(range[2*kb], data[ka*del+kb]); 
+      for (int kb=0; kb<3; ++kb)
+	range[2*kb+1] = std::max(range[2*kb+1], data[ka*del+kb]); 
     }
-#ifdef DEBUG2
-  std::ofstream of("pol_data.g2");
-  of << "400 1 0 4 255 0 0 255" << std::endl;
-  of << data_pts.size() << std::endl;
-  for (size_t ki=0; ki<data_pts.size(); ++ki)
-    of << data_pts[ki] << std::endl;
-#endif
 
   // Compute quadratic polynomial approximating the input points with a
   // distance to the B-spline coefficient less than the specified radius,
@@ -648,19 +654,20 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
     {
       double dist = sqrt(Utils::distance_squared(par.begin(), par.end(),
 						 &data[ka*del]));
+      u = data[ka*del];
+      v = data[ka*del+1];
+      w = data[ka*del+2];
+
       if (dist > rad)
 	continue;
 
-      u = data[ka*del];
-      v = data[ka*del+1];
-
-      polynomialTerms(u, v, degree, degree, tot_degree, tmp);
+      polynomialTerms(u, v, w, degree1, degree2, degree3, tot_degree, tmp);
 
       for (int kb=0; kb<num_terms; ++kb)
 	A[kr*num_terms+kb] = tmp[kb];
       
       for (int kb=0; kb<dim; ++kb)
-	b[kb*num_pt+kr] = data[ka*del+2+kb];
+	b[kb*num_pt+kr] = data[ka*del+3+kb];
       ++kr;
     }
 
@@ -674,15 +681,15 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
       // point
       coef = Point(dim);
       coef.setValue(0.0);
-      polynomialTerms(par[0], par[1], degree, degree, tot_degree, tmp);
+      polynomialTerms(par[0], par[1], par[2], degree1, degree2, degree3,
+		      tot_degree, tmp);
  
       for (int kb=0; kb<dim; ++kb)
 	for (int kc=0; kc<num_terms; ++kc)
 	  coef[kb] += x[kb*num_terms+kc]*tmp[kc];
     }
   else
-    coef = Polynomial2Coef(x, degree, degree, tot_degree, u1, u2, v1, v2,
-			   bspl, dummy);
+    coef = Polynomial2Coef(x, degree1, degree2, degree3, tot_degree, range, bspl);
       
   //#ifdef DEBUG2
   double maxdist = 0.0, avdist = 0.0;
@@ -695,10 +702,11 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
 	continue;
       u = data[ka*del];
       v = data[ka*del+1];
+      w = data[ka*del+2];
       
       Point pos(dim);
       pos.setValue(0.0);
-      polynomialTerms(u, v, degree, degree, tot_degree, tmp);
+      polynomialTerms(u, v, w, degree1, degree2, degree3, tot_degree, tmp);
  
       for (int kb=0; kb<dim; ++kb)
 	for (int kc=0; kc<num_terms; ++kc)
@@ -723,10 +731,11 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
 	  int ka = distant_pts[kb].first;
 	  u = data[ka*del];
 	  v = data[ka*del+1];
+	  w = data[ka*del+2];
       
 	  Point pos(dim);
 	  pos.setValue(0.0);
-	  polynomialTerms(u, v, degree, degree, tot_degree, tmp);
+	  polynomialTerms(u, v, w, degree1, degree2, degree3, tot_degree, tmp);
  
 	  for (int kb=0; kb<dim; ++kb)
 	    for (int kc=0; kc<num_terms; ++kc)
@@ -763,254 +772,120 @@ bool LRProjection::PolynomialProject(int degree, int tot_degree,
 }
 
 //==============================================================================
-Point LRProjection::Polynomial2Coef(vector<double>& pol, int degree1, int degree2,
-				    int tot_degree,
-				    double u1, double u2, double v1,
-				    double v2, LRBSpline2D *bspl,
-				    shared_ptr<ParamSurface> psurf)
+Point
+LRProjection3D::Polynomial2Coef(vector<double>& pol, int degree1, int degree2,
+				int degree3, int tot_degree, double range[],
+				LRBSpline3D *bspl)
 //==============================================================================
 {
   Point coef;
 
-  int maxdeg = std::max(degree1,degree2);
-  int mindeg = std::min(degree1,degree2);
-  int num_terms = (tot_degree == maxdeg) ?
-    maxdeg*(mindeg+1) - mindeg*(mindeg-1)/2 + 1 : (degree1+1)*(degree2+1);
+  int maxdeg = std::max(degree1, std::max(degree2, degree3));
+  int num_terms;
+  if (tot_degree > maxdeg)
+    num_terms = (degree1+1)*(degree2+1)*(degree3+1);
+  else if (degree1 == degree2 && degree1 == degree3)
+    num_terms = (degree1+1)*(degree1+2)*(degree1+3)/6;
+  else
+    {
+      double d1 = (degree1 == maxdeg) ? maxdeg - degree2 : maxdeg - degree1;
+      double d2 = (degree3 == maxdeg) ? maxdeg - degree2 : maxdeg - degree3;
+      num_terms = binom(maxdeg+3,3) - binom(maxdeg-d1+2,3) -
+	binom(maxdeg-d2+2,3) - binom(maxdeg-d1-d2+1,3);
+    }
   vector<double> tmp(num_terms);
 
   // Represent the polynomial by a Bezier surface
   // Identify inner knots
-  BSplineUniLR* uni_u = bspl->getUnivariate(XFIXED);
-  BSplineUniLR* uni_v = bspl->getUnivariate(YFIXED);
-  double u, v;
+  double u, v, w;
   int dim = bspl->dimension();
-  int startmult1 = bspl->endmult_u(true);
-  int endmult1 = bspl->endmult_u(false);
-  int startmult2 = bspl->endmult_v(true);
-  int endmult2 = bspl->endmult_v(false);
-  int order1 = uni_u->degree() + 1;
-  int order2 = uni_v->degree() + 1;
-  vector<double> kval1 = uni_u->getKnots();
-  int kn1 = order1-startmult1-endmult1+1;
-  vector<double> knots1(kn1);
-  vector<double> kval2 = uni_v->getKnots();
-  int kn2 = order2-startmult2-endmult2+1;
-  vector<double> knots2(kn2);
-  for (int ka=0; ka<kn1; ++ka)
+  Direction3D dir[3];
+  dir[0] = XDIR;
+  dir[1] = YDIR;
+  dir[2] = ZDIR;
+  int order[3];
+  int startmult[3];
+  double Brange[6], pdel[3];
+  vector<vector<double> > knots(3);
+  vector<vector<double> > knots2(3);
+  for (int ka=0; ka<3; ++ka)
     {
-      knots1[ka] = kval1[ka+startmult1];
-    }
-  for (int ka=0; ka<kn2; ++ka)
-    {
-      knots2[ka] = kval2[ka+startmult2];
-    }
+      BSplineUniLR* uni = bspl->getUnivariate(dir[ka]);
+      startmult[ka] = bspl->endmult(dir[ka], true);
+      int endmult = bspl->endmult(dir[ka], false);
+      order[ka] = bspl->degree(dir[ka]) + 1;
 
-  // Define spline space for B-spline surface interpolating the polynomial
-  double u1_2 = bspl->umin();
-  double u2_2 = bspl->umax();
-  double v1_2 = bspl->vmin();
-  double v2_2 = bspl->vmax();
-  vector<double> knots1_0(2*order1);
-  vector<double> knots2_0(2*order2);
-  for (int ka=0; ka<order1; ++ka)
-    {
-      knots1_0[ka] = u1_2;
-      knots1_0[order1+ka] = u2_2;
-    }
-  for (int ka=0; ka<order2; ++ka)
-    {
-      knots2_0[ka] = v1_2;
-      knots2_0[order2+ka] = v2_2;
-    }
+      vector<double> kval = uni->getKnots();
+      int kn = order[ka] - startmult[ka] - endmult + 1;
+      knots[ka].resize(kn);
+      for (int kb=0; kb<kn; ++kb)
+	{
+	  knots[ka][kb] = kval[kb+startmult[ka]];
+	}
+
+      // Define spline space for B-spline surface interpolating the polynomial
+      Brange[2*ka] = uni->min();
+      Brange[2*ka+1] = uni->max();
+
+      knots2[ka].resize(2*order[ka]);
+      for (int kb=0; kb<order[ka]; ++kb)
+	{
+	  knots2[ka][kb] = Brange[2*ka];
+	  knots2[ka][order[ka]+kb] = Brange[2*ka+1];
+	}
+
+      Brange[2*ka] = std::max(Brange[2*ka],range[2*ka]);
+      Brange[2*ka+1] = std::max(Brange[2*ka],range[2*ka+1]);
+      pdel[ka] = (Brange[2*ka+1] - Brange[2*ka])/(double)(order[ka]-1);
+   }
+
 
   // Sample polynomial
-  double u3 = std::max(u1, u1_2);
-  double u4 = std::min(u2, u2_2);
-  double v3 = std::max(v1, v1_2);
-  double v4 = std::min(v2, v2_2);
-  vector<double> points(order1*order2*dim, 0.0);
-  vector<double> parvals1(order1), parvals2(order2);
-  double udel = (u4 - u3)/(double)(order1-1);
-  double vdel = (v4 - v3)/(double)(order2-1);
-  int ka, kb, kc, kd;
-  for (kb=0, v=v3; kb<order2; ++kb, v+=vdel)
+  vector<double> points(order[0]*order[1]*order[2]*dim, 0.0);
+  vector<double> parvals1(order[0]), parvals2(order[1]), parvals3(order[2]);
+  int ka, kb, kc, kd, kf;
+  for (kc=0, w=Brange[4]; kc<order[2]; ++kc, w+=pdel[2])
     {
-      parvals2[kb] = v;
-      for (ka=0, u=u3; ka<order1; ++ka, u+=udel)
+      parvals3[kc] = w;
+      for (kb=0, v=Brange[2]; kb<order[1]; ++kb, v+=pdel[1])
 	{
-	  parvals1[ka] = u;
-	  polynomialTerms(u, v, degree1, degree2, tot_degree, tmp);
-
-	  if (psurf.get())
+	  parvals2[kb] = v;
+	  for (ka=0, u=Brange[0]; ka<order[0]; ++ka, u+=pdel[0])
 	    {
-	      Point pos = psurf->point(u, v);
+	      parvals1[ka] = u;
+	      polynomialTerms(u, v, w, degree1, degree2, degree3,
+			      tot_degree, tmp);
+ 
 	      for (kd=0; kd<dim; ++kd)
-		points[dim*(kb*order1+ka)+kd] = pos[kd];
-	    }
-	  else
-	    {
-	      for (kd=0; kd<dim; ++kd)
-		for (kc=0; kc<num_terms; ++kc)
-		  points[dim*(kb*order1+ka)+kd] += pol[kd*num_terms+kc]*tmp[kc];
+		for (kf=0; kf<num_terms; ++kf)
+		  points[dim*((kc*order[2]+kb)*order[0]+ka)+kd] +=
+		    pol[kd*num_terms+kf]*tmp[kf];
 	    }
 	}
     }
 
   // Interpolate
-  SISLSurf *sislsrf = interpolateSample(&points[0], dim, &parvals1[0],
-					&parvals2[0], order1, order2,
-					&knots1_0[0], &knots2_0[0]);
-  if (sislsrf == NULL)
-    return coef;
+  shared_ptr<SplineVolume> Bvol;
+  interpolateSample(points, dim, parvals1, parvals2,
+		    parvals3, order[0],  order[1], order[2],
+		    knots2[0], knots2[1], knots2[2], Bvol);
 
   // Insert inner knots
-  if (knots1.size() > 0 || knots2.size() > 0)
-    {
-      int kstat = 0;
-      SISLSurf *sislsrf2 = NULL;
-      s1025(sislsrf, &knots1[0], (int)knots1.size(),
-	    &knots2[0], (int)knots2.size(), &sislsrf2, &kstat);
-      if (sislsrf)
-	freeSurf(sislsrf);
-      if (kstat < 0)
-	return coef;
-      sislsrf = sislsrf2;
-    }
-  
+  for (int ka=0; ka<3; ++ka)
+    if (knots[ka].size() > 0)
+	Bvol->insertKnot(ka, knots[ka]);
+
   // Fetch coefficient
-  int k1 = order1 - startmult1;
-  int k2 = order2 - startmult2;
-  int kk = k2*sislsrf->in1 + k1;
-  coef = Point(sislsrf->ecoef+kk*dim, sislsrf->ecoef+(kk+1)*dim);
+  int k1 = order[0] - startmult[0];
+  int k2 = order[1] - startmult[1];
+  int k3 = order[2] - startmult[2];
+  int kk = (k3*Bvol->numCoefs(1)+k2)*Bvol->numCoefs(0) + k1;
+  coef = Point(Bvol->ctrl_begin()+kk*dim, Bvol->ctrl_begin()+(kk+1)*dim);
 
 #ifdef DEBUG2
   std::cout << "Coef: " << coef << std::endl;
 #endif
-  // Free surface
-  if (sislsrf != NULL)
-    freeSurf(sislsrf);
   
   return coef;
-}
-
-bool next_combination(std::vector<size_t>& indices, size_t m) {
-    size_t n = indices.size();
-    for (int i = static_cast<int>(n) - 1; i >= 0; --i) {
-        if (indices[i] < m - n + static_cast<size_t>(i)) {
-            ++indices[i];
-            for (size_t j = i + 1; j < n; ++j) {
-                indices[j] = indices[j - 1] + 1;
-            }
-            return true;
-        }
-    }
-    return false;
-}
-
-//==============================================================================
-Point LRProjection::Polynomial2Coef2(vector<double>& pol, int degree1, int degree2,
-				     int tot_degree, LRBSpline2D *bspl,
-				     shared_ptr<ParamSurface> psurf)
-//==============================================================================
-{
-  int dim = bspl->dimension();
-  BSplineUniLR* uni_u = bspl->getUnivariate(XFIXED);
-  BSplineUniLR* uni_v = bspl->getUnivariate(YFIXED);
-  vector<double> kval1 = uni_u->getKnots();
-  vector<double> kval2 = uni_v->getKnots();
-  int deg1 = bspl->degree(XFIXED);
-  int deg2 = bspl->degree(YFIXED);
-
-  Point L(dim);
-  L.setValue(0.0);
-
-  int ki, kj;
-  vector<int> k_ix1(deg1), k_ix2(deg2);
-  int db1 = 1, db2 = 1;
-  for (int ki=1; ki<=deg1; ++ki)
-    {
-      db1 *= ki;
-      k_ix1[ki-1] = ki;
-    }
-  for (int kj=1; kj<=deg2; ++kj)
-    {
-      db2 *= kj;
-      k_ix2[kj-1] = kj;
-    }
-   
-  int maxdeg = std::max(degree1,degree2);
-  int mindeg = std::min(degree1,degree2);
-  int num_terms = (tot_degree == maxdeg) ?
-    maxdeg*(mindeg+1) - mindeg*(mindeg-1)/2 + 1 : (degree1+1)*(deg2+1);
-  vector<double> tmp(num_terms);
-  for (ki=1; ki<=deg1; ++ki)
-    {
-      vector<vector<int> > knot_ix1;
-      vector<size_t> ind1(ki);
-      std::iota(ind1.begin(), ind1.end(), 0);
-      do {
-	vector<int> curr_ix(ki);
-	for (size_t kr=0; kr<ind1.size(); ++kr) 
-	  curr_ix[kr] = k_ix1[ind1[kr]];
-	knot_ix1.push_back(curr_ix);
-      } while (next_combination(ind1, deg1));
-      
-      int kd1 = 1;
-      for (int kc=0; kc<deg1; ++kc)
-	kd1 *= ki;
-      for (kj=1; kj<=deg2; ++kj)
-	{
-	  vector<vector<int> > knot_ix2;
-	  vector<size_t> ind2(kj);
-	  std::iota(ind2.begin(), ind2.end(), 0);
-	  do {
-	    vector<int> curr_ix(kj);
-	    for (size_t kr=0; kr<ind2.size(); ++kr) 
-	      curr_ix[kr] = k_ix2[ind2[kr]];
-	    knot_ix2.push_back(curr_ix);
-	  } while (next_combination(ind2, deg2));
-	      
-	  int kd2 = 1;
-	  for (int kc=0; kc<deg2; ++kc)
-	    kd2 *= kj;
-	  int ie = deg1-ki+deg2-kj;
-	  int sgn = (ie % 2 == 0) ? 1 : -1;
-	  double fac2 = (double)(sgn*kd1*kd2)/(double)(db1*db2);
-	  Point L2(dim);
-	  L2.setValue(0.0);
-	  for (size_t ka=0; ka<knot_ix1.size(); ++ka)
-	    {
-	      double t1 = 0.0;
-	      for (size_t kc=0; kc<knot_ix1[ka].size(); ++kc)
-		t1 += kval1[knot_ix1[ka][kc]];
-	      t1 /= (double)knot_ix1[ka].size();
-	      for (size_t kb=0; kb<knot_ix2.size(); ++kb)
-		{
-		  double t2 = 0.0;
-		  for (size_t kc=0; kc<knot_ix2[kb].size(); ++kc)
-		    t2 += kval2[knot_ix2[kb][kc]];
-		  t2 /= (double)knot_ix2[kb].size();
-
-		  Point val(dim);
-		  if (psurf.get())
-		    val = psurf->point(t1, t2);
-		  else
-		    {
-		      polynomialTerms(t1, t2, degree1, degree2,
-				      tot_degree, tmp);
-		      val.setValue(0.0);
-		      for (int kd=0; kd<dim; ++kd)
-			for (int kc=0; kc<num_terms; ++kc)
-			  val[kd] += pol[kd*num_terms+kc]*tmp[kc];
-		    }
-		    L2 += val;
-		}
-	    }
-	  L2 *= fac2;
-	  L += L2;
-	}
-    }
-  
-  return L;
 }
 

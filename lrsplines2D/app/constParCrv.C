@@ -37,32 +37,55 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _LRSPLINEPLOTUTILS3D_H
-#define _LRSPLINEPLOTUTILS3D_H
+#include "GoTools/lrsplines2D/LRSplineSurface.h"
+#include "GoTools/geometry/SplineCurve.h"
+#include "GoTools/geometry/SplineDebugUtils.h"
+#include "GoTools/geometry/ObjectHeader.h"
+#include <memory>
+#include <fstream>
 
+using namespace Go;
+using std::ifstream;
+using std::ofstream;
+using std::vector;
+using std::cout;
+using std::endl;
 
-#include "GoTools/lrsplines3D/LRSplineVolume.h"
-#include <iostream>
-
-
-namespace Go
+int main(int argc, char** argv)
 {
 
-    // Write to file all element grid lines, in the parameter domain.
-    void writeElementLineCloud(Go::LRSplineVolume& lr_spline_vol, std::ostream &out);
+  if (argc != 5)
+    {
+      cout << "Usage: " << argv[0] << " surfaceinfile curvesoutfile parval pardir" << endl;
+      exit(-1);
+    }
 
-    // Write to file, on PostScript-format, the parametric mesh.
-    void writePostscriptMesh(Go::LRSplineVolume& lr_spline_vol, std::ostream &out);
+  ifstream filein(argv[1]);
+  ALWAYS_ERROR_IF(filein.bad(), "Bad or no surface input filename");
+  ObjectHeader head;
+  filein >> head;
+  if (head.classType() != LRSplineSurface::classType()) {
+    THROW("Not a spline surface");
+  }
+  LRSplineSurface ss;
+  filein >> ss;
 
-  // Extract information from a current LR spline volume in order to
-  // visualize the structure of the parameter domain
-  // mid - Mid parameters of each element (xmid, ymid, zmid) 
-  // bd - The element corners orginized as corner curves 
-  void extractElementMidAndBoundary(shared_ptr<LRSplineVolume>& vol,
-				    std::vector<double>& mid,
-				    std::vector<double>& bd);
-}; // End namespace Go
+  ofstream fileout(argv[2]);
+  ALWAYS_ERROR_IF(fileout.bad(), "Bad curves output filename");
 
+  double par = atof(argv[3]);
+  int dir = atoi(argv[4]);
 
-#endif // _LRSPLINEPLOTUTILS3D_H
+  shared_ptr<SplineCurve> crv(ss.constParamCurve(par, dir==0));
 
+  if (crv->dimension() == 1)
+    {
+      SplineDebugUtils::writeSpace1DCurve(*crv, fileout);
+    }
+  else
+    {
+      crv->writeStandardHeader(fileout);
+      crv->write(fileout);
+    }
+								      
+}

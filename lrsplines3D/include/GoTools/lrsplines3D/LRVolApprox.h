@@ -92,7 +92,7 @@ class LRVolApprox
   ///                     parameter value
   /// \param repar Perform reparameterization during iterations
   LRVolApprox(std::vector<double>& points, int dim, double epsge, 
-              double mba_level = 0.0,
+              double mba_level = 0.0, int proj_type = 0,
               bool closest_dist=true, 
               bool repar=false);
 
@@ -151,7 +151,7 @@ class LRVolApprox
               std::vector<double>& points, 
               int dim, double domain[], double epsge, 
               //bool init_mba=false, 
-              double mba_level = 0.0,
+              double mba_level = 0.0, int proj_type = 0,
               bool closest_dist=true, bool repar=false);
 
   /// Constructor given a parameterized point set and an initial
@@ -282,6 +282,31 @@ class LRVolApprox
       initMBA_ = initMBA;
     }
 
+  void setProjectionType(int proj_type)
+  {
+    proj_type_ = proj_type;
+  }
+
+  void unsetProjection()
+  {
+    proj_type_ = 0;
+  }
+
+  int getProjectionType()
+  {
+    return proj_type_;
+  }
+
+  void setSmoothProjection(bool apply_smooth)
+  {
+    apply_smooth_proj_ = apply_smooth;
+  }
+
+  bool getSmoothProjection()
+  {
+    return apply_smooth_proj_;
+  }
+  
     /// Add lower constraint. Only functional (1D volume)
     void addLowerConstraint(double minval)
     {
@@ -404,6 +429,8 @@ private:
     //int toMBA_;         // Start with LR-MBA at the given iteration step
     bool initMBA_;      // The initial volume is made using LR-MBA
     double initMBA_coef_; // Initial height of constant volume
+  int proj_type_;  // Type of quasi interpolation. 0=do not use quasi interpolation
+  bool apply_smooth_proj_;
 
     int face_derivs_[6];
     double maxdist_;
@@ -473,6 +500,9 @@ private:
     void computeAccuracyElement_omp(std::vector<double>& points,
                                    int nmb, int del, const Element3D* elem);
 
+  void runMBAUpdate(double mineps, double delta);
+  void runProjection(int proj_type, int it_level, int num_points=-1);
+  
     /// Refine volume
     int refineVol(double threshold);
     void refineVol2();

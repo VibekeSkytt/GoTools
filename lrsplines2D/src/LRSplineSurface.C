@@ -399,7 +399,8 @@ void  LRSplineSurface::read(istream& is)
 void LRSplineSurface::write(ostream& os) const
 //==============================================================================
 {
-  std::streamsize prev = os.precision(15);
+  //std::streamsize prev = os.precision(15);
+  std::streamsize prev = os.precision(20);
 
   int rat = (rational_) ? 1 : 0;
   object_to_stream(os, rat);

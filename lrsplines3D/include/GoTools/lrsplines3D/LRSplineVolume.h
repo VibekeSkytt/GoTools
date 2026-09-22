@@ -255,6 +255,14 @@ class LRSplineVolume : public ParamVolume
   /// Construct a LRSplineVolume based on a spline volume
   LRSplineVolume(SplineVolume *surf, double knot_tol);
 
+  /// Define LRSplineVolume given mesh and univariate and trivariate
+  /// bsplines
+  LRSplineVolume(Mesh3D& mesh, std::vector<std::unique_ptr<BSplineUniLR> >& uni1,
+		 std::vector<std::unique_ptr<BSplineUniLR> >& uni2,
+		 std::vector<std::unique_ptr<BSplineUniLR> >& uni3,
+		 std::vector<std::unique_ptr<LRBSpline3D> >& bspl,
+		 double knot_tol);
+  
   /// construct empty, invalid spline
   LRSplineVolume() {} 
 
@@ -756,6 +764,8 @@ class LRSplineVolume : public ParamVolume
   /// not self intersecting, and has linearly independent derivatives
   /// at the centre.
   bool isLeftHanded();
+
+  void setNestLevel();
 
 
 private:

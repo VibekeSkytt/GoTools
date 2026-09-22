@@ -137,7 +137,109 @@ LRSplineVolume::LRSplineVolume(SplineVolume *vol, double knot_tol)
   }
 
   emap_ = construct_element_map_(mesh_, bsplines_);
+  setNestLevel();
 }
+
+//==============================================================================
+  LRSplineVolume::LRSplineVolume(Mesh3D& mesh,
+				 std::vector<std::unique_ptr<BSplineUniLR> >& uni1,
+				 std::vector<std::unique_ptr<BSplineUniLR> >& uni2,
+				 std::vector<std::unique_ptr<BSplineUniLR> >& uni3,
+				 std::vector<std::unique_ptr<LRBSpline3D> >& bspl,
+				 double knot_tol)
+    : rational_(false), knot_tol_(knot_tol)
+//==============================================================================
+  {
+    std::cout << "Define swept volume" << std::endl;
+    mesh_.swap(mesh);
+
+    bsplinesuni1_.resize(uni1.size());
+    size_t ki;
+    for (ki=0; ki<uni1.size(); ++ki)
+      {
+	unique_ptr<BSplineUniLR> b(new BSplineUniLR(*uni1[ki]));
+
+	// Update mesh pointer
+	b->setMesh(&mesh_);
+	bsplinesuni1_[ki] = std::move(b);
+      }
+  
+    bsplinesuni2_.resize(uni2.size());
+    for (ki=0; ki<uni2.size(); ++ki)
+      {
+	unique_ptr<BSplineUniLR> b(new BSplineUniLR(*uni2[ki]));
+
+	// Update mesh pointer
+	b->setMesh(&mesh_);
+	bsplinesuni2_[ki] = std::move(b);
+      }
+
+    bsplinesuni3_.resize(uni3.size());
+    for (ki=0; ki<uni3.size(); ++ki)
+      {
+	unique_ptr<BSplineUniLR> b(new BSplineUniLR(*uni3[ki]));
+
+	// Update mesh pointer
+	b->setMesh(&mesh_);
+	bsplinesuni3_[ki] = std::move(b);
+      }
+
+    // Update LR B-splines
+    int left1 = 0, left2 = 0, left3 = 0;
+    for (ki=0; ki<bspl.size(); ++ki)
+      {
+        //unique_ptr<LRBSpline3D> b(new LRBSpline3D(*bspl[ki]));
+ 
+	const BSplineUniLR *uni_1 = bspl[ki]->getUnivariate(XDIR);
+	bool found1 = BSplineUniUtils::identify_bsplineuni(uni_1, bsplinesuni1_, left1);
+	if (!found1)
+	  THROW("Univariate B-spline not found");
+	bspl[ki]->setUnivariate(XDIR, bsplinesuni1_[left1].get());
+
+	const BSplineUniLR *uni_2 = bspl[ki]->getUnivariate(YDIR);
+	bool found2 = BSplineUniUtils::identify_bsplineuni(uni_2, bsplinesuni2_, left2);
+	if (!found2)
+	  THROW("Univariate B-spline not found");
+	bspl[ki]->setUnivariate(YDIR, bsplinesuni2_[left2].get());
+
+	const BSplineUniLR *uni_3 = bspl[ki]->getUnivariate(ZDIR);
+	bool found3 = BSplineUniUtils::identify_bsplineuni(uni_3, bsplinesuni3_, left3);
+	if (!found3)
+	  THROW("Univariate B-spline not found");
+	bspl[ki]->setUnivariate(ZDIR, bsplinesuni3_[left3].get());
+
+       LRSplineVolume::BSKey bs_key = generate_key(*bspl[ki], mesh_);
+        bsplines_.insert(std::pair<LRSplineVolume::BSKey, unique_ptr<LRBSpline3D> >(bs_key, std::move(bspl[ki])));
+      }
+
+    std::cout << "Construct element map" << std::endl;
+    // The ElementMap has to be generated and cannot be copied directly, since it
+    // contains raw pointers.
+    emap_ = construct_element_map_(mesh_, bsplines_);
+   // std::swap(bsplinesuni1_, uni1);
+   //  std::swap(bsplinesuni2_, uni2);
+   //  std::swap(bsplinesuni3_, uni3);
+
+   //  for (size_t ki=0; ki<bspl.size(); ++ki)
+   //    {
+   // 	bspl[ki]->setMesh(&mesh_);
+   // 	BSKey key = generate_key(*bspl[ki], mesh_);
+   // 	bsplines_.insert(std::pair<LRSplineVolume::BSKey, unique_ptr<LRBSpline3D> >(key,std::move(bspl[ki])));
+   //    }
+
+   //  // Constructing element map
+   //  emap_ = construct_element_map_(mesh_, bsplines_);
+
+   //  auto it = bsplines_.begin();
+   //  while (it != bsplines_.end())
+   //    {
+   // 	it->second->setMesh(&mesh_);
+   // 	++it;
+   //    }
+    
+    curr_element_ = NULL;
+    setNestLevel();
+  }
 
   // Copy constructor
 //==============================================================================
@@ -223,6 +325,8 @@ LRSplineVolume::LRSplineVolume(SplineVolume *vol, double knot_tol)
     // The ElementMap has to be generated and cannot be copied directly, since it
     // contains raw pointers.
     emap_ = construct_element_map_(mesh_, bsplines_);
+
+  setNestLevel();
 }
 
 //==============================================================================
@@ -287,6 +391,7 @@ LRSplineVolume::LRSplineVolume(SplineVolume *vol, double knot_tol)
     int stop_break = 1;
   }
 #endif
+  setNestLevel();
 }
 
 //==============================================================================
@@ -2119,6 +2224,42 @@ void LRSplineVolume::evalGrid(int num_u, int num_v, int num_w,
 }
 
 //==============================================================================
+  void LRSplineVolume::setNestLevel()
+//==============================================================================
+  {
+  int max_level = 10;  // Should always be enough
+  for (int level=0; level<max_level; ++level)
+    {
+      bool finished = true;
+      for (auto bspl=bsplines_.begin(); bspl!=bsplines_.end(); ++bspl)
+	{
+	  int blevel = bspl->second->getNestLevel();
+	  if (blevel != -1)
+	    continue;  // Already set
+
+	  finished = false;
+	  vector<LRBSpline3D*> cand;
+	  bspl->second->getOverlapping(cand);
+
+	  int max_level = -1;
+	  size_t kr;
+	  for (kr=0; kr<cand.size(); ++kr)
+	    {
+	      int clevel = cand[kr]->getNestLevel();
+	      if (clevel < 0)
+		break;
+	      max_level = std::max(max_level, clevel);
+	    }
+	  if (kr < cand.size() || max_level > level-1)
+	    continue;
+	  bspl->second->setNestLevel(level);
+	}
+      if (finished)
+	break;
+    }
+  }
+
+//==============================================================================
   void LRSplineVolume::refine(Direction3D d, double fixed_val,
 			      double start1, double end1,
 			      double start2, double end2,
@@ -2460,6 +2601,11 @@ void LRSplineVolume::evalGrid(int num_u, int num_v, int num_w,
   //   }
 
   curr_element_ = NULL;  // TESTING
+
+  // Finally, ensure that all bsplines has got a generation count.
+  // If the flag is set, no action is taken
+  for (auto bsp=bsplines_.begin(); bsp!=bsplines_.end(); ++bsp)
+    bsp->second->computeNestLevel();
 }
 
 

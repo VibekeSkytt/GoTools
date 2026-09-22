@@ -71,6 +71,7 @@ namespace Go
 								     m.kval(YDIR, (*mit)[1]),
 								     m.kval(ZDIR, (*mit)[2]));
 	emap.insert(std::make_pair(e_key, std::move(elem)));
+	int stop_break = 1;
       }
 
     return emap;

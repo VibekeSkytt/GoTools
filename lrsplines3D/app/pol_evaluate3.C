@@ -47,28 +47,32 @@
 using namespace Go;
 using std::vector;
 
-void polynomialTerms(double u, double v, int num1, int num2, int max_num,
+void polynomialTerms(double u, double v, double w,
+		     int num1, int num2, int num3, int max_num,
 		     vector<double>& terms)
 {
-  vector<double> u_terms(num1+1), v_terms(num2+1);
-  u_terms[0] = v_terms[0] = 1.0;
+  vector<double> u_terms(num1+1), v_terms(num2+1), w_terms(num3+1);
+  u_terms[0] = v_terms[0] = w_terms[0] = 1.0;
 
   for (int ki=1; ki<=num1; ++ki)
     u_terms[ki] = u_terms[ki-1]*u;
   for (int ki=1; ki<=num2; ++ki)
      v_terms[ki] = v_terms[ki-1]*v;
+  for (int ki=1; ki<=num3; ++ki)
+     w_terms[ki] = w_terms[ki-1]*w;
 
-  for (int kj=0, kr=0; kj<=num2; ++kj)
-    for (int ki=0; ki<=num1; ++ki)
-      {
-	if (ki+kj <= max_num)
-	  terms[kr++] = u_terms[ki]*v_terms[kj];
-      }
+  for (int kh=0, kr=0; kh<=num3; ++kh)
+    for (int kj=0; kj<=num2; ++kj)
+      for (int ki=0; ki<=num1; ++ki)
+	{
+	  if (ki+kj+kh <= max_num)
+	    terms[kr++] = u_terms[ki]*v_terms[kj]*w_terms[kh];
+	}
 }
 
-void Chebyshev(int degree1, int degree2, vector<double>& pol)
+void Chebyshev(int degree1, int degree2, int degree3, vector<double>& pol)
 {
-  int ki, kj, kr;
+  int ki, kj, kh, kr;
   vector<vector<double> > Tc(6);
   Tc[0].push_back(1.0);
   Tc[1].insert(Tc[1].end(), {0.0, 1.0});
@@ -76,32 +80,47 @@ void Chebyshev(int degree1, int degree2, vector<double>& pol)
   Tc[3].insert(Tc[3].end(), {0.0, -3.0, 0.0, 4.0});
   Tc[4].insert(Tc[4].end(), {1.0, 0.0, -8.0, 0.0, 8.0});
   Tc[5].insert(Tc[5].end(), {0.0, 5.0, 0.0, -20.0, 0.0, 16.0});
-  int deg1 = std::min(degree1, 6);
-  int deg2 = std::min(degree2, 6);
-  for (kj=0, kr=0; kj<=deg2; ++kj)
-    for (ki=0; ki<=deg1; ++ki)
-      {
-	pol[kr++] = Tc[deg1][ki]*Tc[deg2][kj];
-      }
+  int deg1 = std::min(degree1, 5);
+  int deg2 = std::min(degree2, 5);
+  int deg3 = std::min(degree3, 5);
+  for (kh=0, kr=0; kh<=deg3; ++kh)
+    for (kj=0; kj<=deg2; ++kj)
+      for (ki=0; ki<=deg1; ++ki)
+	{
+	  pol[kr++] = Tc[deg1][ki]*Tc[deg2][kj]*Tc[deg3][kh];
+	}
+}
+
+int countTerms(int deg1, int deg2, int deg3, int tot)
+{
+  int num = 0;
+  for (int kh=0, kr=0; kh<=deg3; ++kh)
+    for (int kj=0; kj<=deg2; ++kj)
+      for (int ki=0; ki<=deg1; ++ki)
+	{
+	  if (ki+kj+kh <= tot)
+	    ++num;
+	}
+  return num;
 }
 
 int main(int argc, char *argv[])
 {
   if (argc < 7) {
-    std::cout << "Parameters : Input points (.txt), no. of regular points, output points (.txt), extended total degree (0/1/2 (Chebyshev polynomial)), degree1, degree2, polynomial factors"  << std::endl;
+    std::cout << "Parameters : No. of regular points, output points (.txt), extended total degree (0/1/2 (Chebyshev polynomial)), degree1, degree2, degree3, polynomial factors"  << std::endl;
     exit(-1);
   }
-  std::string pointfile(argv[1]);
-  int num = atoi(argv[2]);
-  std::ofstream pointout(argv[3]);
-  int total = atoi(argv[4]);
-  int degree1 = atoi(argv[5]);
-  int degree2 = atoi(argv[6]);
-  int maxdeg = std::max(degree1,degree2);
-  int mindeg = std::min(degree1,degree2);
-  int tot_degree = (total) ? degree1*degree2 : maxdeg;
+  int num = atoi(argv[1]);
+  std::ofstream pointout(argv[2]);
+  int total = atoi(argv[3]);
+  int degree1 = atoi(argv[4]);
+  int degree2 = atoi(argv[5]);
+  int degree3 = atoi(argv[6]);
+  int maxdeg = std::max(degree1,std::max(degree2,degree3));
+  int mindeg = std::min(degree1,std::min(degree2,degree3));
+  int tot_degree = (total) ? degree1*degree2*degree3 : maxdeg;
   int num_terms = (tot_degree == maxdeg) ?
-    maxdeg*(mindeg+1) - mindeg*(mindeg-1)/2 + 1 : (degree1+1)*(degree2+1);
+    countTerms(degree1, degree2, degree3, maxdeg) : (degree1+1)*(degree2+1)*(degree3+1);
   if (total != 2 && argc != num_terms + 7)
     {
       std::cout << "Expecting " << num_terms << " polynomial factors" << std::endl;
@@ -112,7 +131,7 @@ int main(int argc, char *argv[])
   
   vector<double> pol(num_terms, 0.0);
   if (total == 2)
-    Chebyshev(degree1, degree2, pol);
+    Chebyshev(degree1, degree2, degree3, pol);
   else
     {
       for (int ka=0; ka<num_terms; ++ka)
@@ -120,54 +139,30 @@ int main(int argc, char *argv[])
     }
 
 		   
-  // Read parameter values (and points)
-  int del = 5;
-  int nmb_pts = 0;
-  vector<double> data;
-  vector<double> extent(2*del, 0.0);   // Limits for points in all coordinates
-  if (pointfile != "no")
-    {
-      std::ifstream is(pointfile.c_str());
-      FileUtils::readTxtPointFile(is, del, data, nmb_pts, extent);
-    }
-  vector<double> range(4);
-  range[0] = range[2] = -1;
-  range[1] = range[3] = 1;
+  vector<double> range(6);
+  range[0] = range[2] = range[4] = -1;
+  range[1] = range[3] = range[5] = 1;
   
   vector<double> term(num_terms, 0.0);
   
   // Evaluate
-  if (nmb_pts > 0)
-    {
-      double facu = (range[1] - range[0])/(extent[1] - extent[0]);
-      double facv = (range[3] - range[2])/(extent[3] - extent[2]);
-      for (int ki=0; ki<nmb_pts; ++ki)
-	{
-	  double u = range[0] + (data[ki*del] - extent[0])*facu;
-	  double v = range[2] + (data[ki*del+1] - extent[2])*facv;
-	  polynomialTerms(u, v, degree1, degree2, tot_degree, term);
-	  double val = 0.0;
-	  for (int ka=0; ka<num_terms; ++ka)
-	    val += pol[ka]*term[ka];
-	  pointout << u << " " <<  v << " " << val << std::endl;
-	}
-    }
-  
   if (num > 1)
     {
       double udel = (range[1] - range[0])/(double)(num - 1);
       double vdel = (range[3] - range[2])/(double)(num - 1);
+      double wdel = (range[5] - range[4])/(double)(num - 1);
 
-      double u=range[0], v=range[2];
-      int ka, kb;
-      for (kb=0; kb<num; ++kb, v+=vdel)
-	for (ka=0, u=range[0]; ka<num; ++ka, u+=udel)
+      double u=range[0], v=range[2], w=range[4];
+      int ka, kb, kc, kd;
+      for (kc=0; kc<num; ++kc, w+=wdel)
+	for (kb=0, v=range[2]; kb<num; ++kb, v+=vdel)
+	  for (ka=0, u=range[0]; ka<num; ++ka, u+=udel)
 	  {
-	    polynomialTerms(u, v, degree1, degree2, tot_degree, term);
+	    polynomialTerms(u, v, w, degree1, degree2, degree3, tot_degree, term);
 	    double val = 0.0;
-	    for (int ka=0; ka<num_terms; ++ka)
-	      val += pol[ka]*term[ka];
-	    pointout << u << " " << v << " " << val << std::endl;
+	    for (kd=0; kd<num_terms; ++kd)
+	      val += pol[kd]*term[kd];
+	    pointout << u << " " << v << " " << w << " " << val << std::endl;
 	  }
     }
 }

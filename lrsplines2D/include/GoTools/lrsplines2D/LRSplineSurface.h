@@ -582,6 +582,30 @@ namespace Go
   /// Total number of elements (mesh cells)
   int numElements() const {return (int)emap_.size();}
 
+  /// Number of univariate B-splines used in the construction of the
+  /// bivariate B-splines
+  int numUnivariateBSplines(Direction2D d) const
+  {
+    if (d == XFIXED)
+      return (int)bsplinesuni1_.size();
+    else if (d == YFIXED)
+      return (int)bsplinesuni2_.size();
+    else
+      return 0;
+  }
+
+  /// Fetch pointer to a specified univariate B-spline
+  /// Note: Must not be put into a shared pointer or unique pointer
+  BSplineUniLR* getUnivariateBSpline(Direction2D d, int ix) const
+  {
+    if (d == XFIXED && ix >= 0 && ix < (int)bsplinesuni1_.size())
+      return bsplinesuni1_[ix].get();
+    else if (d == YFIXED && ix >= 0 && ix < (int)bsplinesuni2_.size())
+      return bsplinesuni2_[ix].get();
+    else
+      return 0;
+  }
+
 #if 0
   // @@@ VSK. This functionality interface is fetched from the Trondheim code
   // We need a storage for last element evaluated. Index or reference?
@@ -795,10 +819,10 @@ namespace Go
 
   Mesh2D mesh_;           // Represents mesh topology, multiplicites, as well as knot values.
 
-  // Map of individual univariate b-spline basis functions, 1. par. dir.  
+  // Vector of individual univariate b-spline basis functions, 1. par. dir.  
   std::vector<std::unique_ptr<BSplineUniLR> > bsplinesuni1_;  // To be kept sorted   
 
-  // Map of individual univariate b-spline basis functions, 2. par. dir.  
+  // Vector of individual univariate b-spline basis functions, 2. par. dir.  
   std::vector<std::unique_ptr<BSplineUniLR> > bsplinesuni2_;   
 
   BSplineMap bsplines_;   // Map of individual b-spline basis functions.  

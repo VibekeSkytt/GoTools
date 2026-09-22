@@ -42,6 +42,7 @@
 //#include "GoTools/lrsplines3D/LinDepUtils.h"
 #include "GoTools/lrsplines3D/Mesh3D.h"
 #include "GoTools/lrsplines3D/LRSpline3DMBA.h"
+#include "GoTools/lrsplines3D/LRProjection3D.h"
 #include "GoTools/lrsplines3D/LRSpline3DUtils.h"
 #include "GoTools/lrsplines3D/LRFeature3DUtils.h"
 //#include "GoTools/creators/SmoothSurf.h"
@@ -67,10 +68,10 @@ using namespace Go;
 //==============================================================================
 LRVolApprox::LRVolApprox(vector<double>& points, 
                          int dim, double epsge,  
-                         double mba_level,
+                         double mba_level, int proj_type,
                          bool closest_dist, bool repar)
   : nmb_pts_((int)points.size()/(3+dim)), points_(points), useMBA_(true), 
-    initMBA_(true), initMBA_coef_(mba_level), 
+    initMBA_(true), initMBA_coef_(mba_level), proj_type_(proj_type), 
     maxdist_(-10000.0), maxdist_prev_(-10000.0), 
     avdist_(0.0), avdist_all_(0), avdist_all_prev_(0), 
     outsideeps_(0), outsideeps_prev_(0), maxout_(-10000.0), avout_(0.0),
@@ -288,11 +289,11 @@ LRVolApprox::LRVolApprox(int ncoef_u, int order_u, int ncoef_v, int order_v,
 			 int ncoef_w, int order_w,
 			 vector<double>& points, int dim, 
 			 double domain[], double epsge, //bool init_mba, 
-			 double mba_level,
+			 double mba_level, int proj_type,
 			 bool closest_dist, bool repar)
   //==============================================================================
   : nmb_pts_((int)points.size()/(3+dim)), points_(points), useMBA_(false),
-    initMBA_(true), initMBA_coef_(mba_level), 
+    initMBA_(true), initMBA_coef_(mba_level), proj_type_(proj_type), 
     maxdist_(-10000.0), maxdist_prev_(-10000.0), avdist_(0.0), 
     avdist_all_(0.0), avdist_all_prev_(0), outsideeps_(0), outsideeps_prev_(0),
     maxout_(-10000.0), avout_(0.0), aepsge_(epsge), 
@@ -380,14 +381,14 @@ shared_ptr<LRSplineVolume> LRVolApprox::getApproxVol(double& maxdist,
     // for switching the OpenMP level.
     const double pts_per_elem = num_pts/num_elem;
     const bool omp_for_elements = true; //false; //(num_elem > pts_per_elem); // As opposed to element points.
-    const bool omp_for_mba_update = true;
+    //const bool omp_for_mba_update = true;
 #ifndef NDEBUG
     std::cout << "num_elem: " << num_elem << ", pts_per_elem: " << pts_per_elem << ", openmp_for_elements: " <<
 	omp_for_elements << std::endl;
 #endif
 #else
     const bool omp_for_elements = false; // 201503 The omp version seems to be faster even when run sequentially.
-    const bool omp_for_mba_update = false;
+    //const bool omp_for_mba_update = false;
 #endif
 
 #ifdef DEBUG
@@ -467,42 +468,46 @@ shared_ptr<LRSplineVolume> LRVolApprox::getApproxVol(double& maxdist,
   //if (fix_boundary_)
   //  setFixBoundary(true);
 
-  // Initial approximation of LR B-spline surface
-  if (omp_for_mba_update && vol_->dimension() == 1)
-    {
-      // double delta = (avdist_ < mineps) ? 0.0 : 0.001;
-      // delta = 0.005;
-      LRSpline3DMBA::MBADistAndUpdate_omp(vol_.get(), mineps, delta);
-    }
+  // Initial approximation of LR B-spline volume
+  if (proj_type_ > 0)
+    runProjection(proj_type_, 0);
   else
-    {
-      LRSpline3DMBA::MBADistAndUpdate(vol_.get());
-    }
-  //if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
-  //  {
-  //    adaptSurfaceToConstraints();
-  //  }
-  int m_itermax = 2; //3; //4;
-  for (int m_iter=1; m_iter<m_itermax; ++m_iter)
-    {
-#ifdef DEBUG
-  cout << "Running MBA a second time... " << endl;
-#endif
-  if (omp_for_mba_update && vol_->dimension() == 1)
-    {
-      // double delta = (avdist_ < mineps) ? 0.0 : 0.001;
-      // delta = 0.005;
-      LRSpline3DMBA::MBADistAndUpdate_omp(vol_.get(), mineps, delta);
-    }
-  else
-    {
-      LRSpline3DMBA::MBADistAndUpdate(vol_.get());
-    }
-    }
-  // if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
-  //  {
-  //    adaptSurfaceToConstraints();
-  //  }
+    runMBAUpdate(mineps, delta);
+//   if (omp_for_mba_update && vol_->dimension() == 1)
+//     {
+//       // double delta = (avdist_ < mineps) ? 0.0 : 0.001;
+//       // delta = 0.005;
+//       LRSpline3DMBA::MBADistAndUpdate_omp(vol_.get(), mineps, delta);
+//     }
+//   else
+//     {
+//       LRSpline3DMBA::MBADistAndUpdate(vol_.get());
+//     }
+//   //if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
+//   //  {
+//   //    adaptSurfaceToConstraints();
+//   //  }
+//   int m_itermax = 2; //3; //4;
+//   for (int m_iter=1; m_iter<m_itermax; ++m_iter)
+//     {
+// #ifdef DEBUG
+//   cout << "Running MBA a second time... " << endl;
+// #endif
+//   if (omp_for_mba_update && vol_->dimension() == 1)
+//     {
+//       // double delta = (avdist_ < mineps) ? 0.0 : 0.001;
+//       // delta = 0.005;
+//       LRSpline3DMBA::MBADistAndUpdate_omp(vol_.get(), mineps, delta);
+//     }
+//   else
+//     {
+//       LRSpline3DMBA::MBADistAndUpdate(vol_.get());
+//     }
+//     }
+//   // if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
+//   //  {
+//   //    adaptSurfaceToConstraints();
+//   //  }
   updateCoefKnown();
   
 #ifdef DEBUG
@@ -741,47 +746,53 @@ shared_ptr<LRSplineVolume> LRVolApprox::getApproxVol(double& maxdist,
 	std::cout << "MBA 1" << std::endl;
 #endif
 
-	// Update surface
-	if (vol_->dimension() == 3)
+	// Update volume
+	if (proj_type_ > 0)
 	  {
-	    LRSpline3DMBA::MBADistAndUpdate(vol_.get());
-	  }
-	else if (omp_for_mba_update)
-	  {
-	    // double delta = (avdist_ < mineps) ? 0.0 : 0.001;
-	    // delta = 0.005;
-	    LRSpline3DMBA::MBADistAndUpdate_omp(vol_.get(), mineps,
-						maxout_ < mineps ? 0.0 : delta);
+	    runProjection(proj_type_, level+1);
 	  }
 	else
-	  {
-	    LRSpline3DMBA::MBADistAndUpdate(vol_.get());
-	    //LRSpline3DMBA::MBAUpdate(vol_.get());
-	  }
-	//if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
-	//  adaptSurfaceToConstraints();
-	for (int m_iter=1; m_iter<m_itermax; ++m_iter)
-	  {
-#ifdef DEBUG0
-	    std::cout << "MBA 2" << std::endl;
-#endif
+	  runMBAUpdate(mineps, delta);
+	// 	if (vol_->dimension() == 3)
+// 	  {
+// 	    LRSpline3DMBA::MBADistAndUpdate(vol_.get());
+// 	  }
+// 	else if (omp_for_mba_update)
+// 	  {
+// 	    // double delta = (avdist_ < mineps) ? 0.0 : 0.001;
+// 	    // delta = 0.005;
+// 	    LRSpline3DMBA::MBADistAndUpdate_omp(vol_.get(), mineps,
+// 						maxout_ < mineps ? 0.0 : delta);
+// 	  }
+// 	else
+// 	  {
+// 	    LRSpline3DMBA::MBADistAndUpdate(vol_.get());
+// 	    //LRSpline3DMBA::MBAUpdate(vol_.get());
+// 	  }
+// 	//if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
+// 	//  adaptSurfaceToConstraints();
+// 	for (int m_iter=1; m_iter<m_itermax; ++m_iter)
+// 	  {
+// #ifdef DEBUG0
+// 	    std::cout << "MBA 2" << std::endl;
+// #endif
 
-	    if (omp_for_mba_update && vol_->dimension() == 1)
-	      {
-		// double delta = (avdist_ < mineps) ? 0.0 : 0.001;
-		// delta = 0.005;
-		LRSpline3DMBA::MBADistAndUpdate_omp(vol_.get(), mineps, 
-						maxout_ < mineps ? 0.0 : delta);
-	      }
-	    else
-	      {
-		LRSpline3DMBA::MBADistAndUpdate(vol_.get());
-	      }
-	  }
-	// computeAccuracy();
-	// LRSpline3DMBA::MBAUpdate(vol_.get());
-	//if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
-	//  adaptSurfaceToConstraints();
+// 	    if (omp_for_mba_update && vol_->dimension() == 1)
+// 	      {
+// 		// double delta = (avdist_ < mineps) ? 0.0 : 0.001;
+// 		// delta = 0.005;
+// 		LRSpline3DMBA::MBADistAndUpdate_omp(vol_.get(), mineps, 
+// 						maxout_ < mineps ? 0.0 : delta);
+// 	      }
+// 	    else
+// 	      {
+// 		LRSpline3DMBA::MBADistAndUpdate(vol_.get());
+// 	      }
+// 	  }
+// 	// computeAccuracy();
+// 	// LRSpline3DMBA::MBAUpdate(vol_.get());
+// 	//if (has_min_constraint_ || has_max_constraint_ || has_local_constraint_)
+// 	//  adaptSurfaceToConstraints();
       
       
 	/*#ifdef DEBUG
@@ -1743,7 +1754,145 @@ void LRVolApprox::computeAccuracyElement_omp(vector<double>& points, int nmb, in
   }
 }
 
- 
+ //==============================================================================
+void  LRVolApprox::runMBAUpdate(double mineps, double delta)
+//==============================================================================
+{
+#ifdef _OPENMP
+    const bool omp_for_mba_update = true;
+#else
+    const bool omp_for_mba_update = true;//false; // 201503 The omp version seems to be faster even when run sequentially.
+#endif
+
+
+    if (omp_for_mba_update && vol_->dimension() == 1)
+    {
+      LRSpline3DMBA::MBADistAndUpdate_omp(vol_.get(),  mineps, delta);
+    }
+  else
+    {
+      LRSpline3DMBA::MBADistAndUpdate(vol_.get());
+    }
+  
+  int m_itermax = 2;
+  for (int mba_iter=1; mba_iter<m_itermax; ++mba_iter)
+    {
+      if (omp_for_mba_update && vol_->dimension() == 1)
+	{
+	  LRSpline3DMBA::MBADistAndUpdate_omp(vol_.get(), 
+					      mineps, delta);
+	}
+      else
+	{
+	  LRSpline3DMBA::MBADistAndUpdate(vol_.get());
+	}
+    }
+
+ }
+
+//==============================================================================
+void  LRVolApprox::runProjection(int proj_type, int it_level, int num_points)
+//==============================================================================
+{
+  bool apply_smooth_proj = false;
+  
+  // Compute by nesting level
+  int max_level = 10;  // Should always be enough
+  double dlim = (it_level > 0) ? 100.0*maxdist_ : 1.0e5; //50.0*aepsge_;
+  std::cout << "dlim: " << dlim << std::endl;
+  int proj_IDW = 2;
+  int proj_quad = 4;
+ for (int level=0; level<max_level; ++level)
+    {
+      int num_update = 0;
+      for (auto bspl=vol_->basisFunctionsBegin();
+	   bspl!=vol_->basisFunctionsEnd(); ++bspl)
+	{
+	  if (bspl->second->coefFixed())
+	    continue;
+	  
+	  int blevel = bspl->second->getNestLevel();
+	  if (blevel != level)
+	    continue;
+
+	  // Compute coefficient using projection
+	  Point coef;
+	  double rad = LRProjection3D::computeCoef(vol_.get(),
+						   bspl->second.get(), proj_type,
+						   apply_smooth_proj, dlim, coef,
+						   num_points);
+
+	  if (blevel > 0)
+	    {
+	      // Update coefficient with respect to lower nesting level coefficients
+	      bool OK = bspl->second->adaptProjCoef(coef);
+#ifdef DEBUG_PROJ
+	      std::cout << "Level: " << blevel << ", stat: " << OK << std::endl;
+#endif
+	      if (!OK)
+		{
+		  // Recompute
+		  rad = LRProjection3D::computeCoef(vol_.get(),
+						    bspl->second.get(),
+						    proj_type, apply_smooth_proj,
+						    dlim, coef, num_points);
+		  OK = bspl->second->adaptProjCoef(coef); // Should be OK now
+		}
+	      int stop_break = 1;
+	    }
+
+	  Point coef2 = bspl->second->Coef();
+#ifdef DEBUG_PROJ
+	  if (blevel > 0)
+	    std::cout << "level= " << blevel << ", dist= " << coef.dist(coef2) << std::endl;
+#endif
+	  double dist1 = coef.dist(coef2);
+	  if (dist1 > dlim)
+	    {
+	      //#ifdef DEBUG_PROJ
+	      std::cout << "Dist: " << dist1 << ", lim: " << dlim << ", coef2: " << coef2 << std::endl;
+	      //#endif
+	      Point coef3;
+	      rad = LRProjection3D::computeCoef(vol_.get(), bspl->second.get(),
+						(proj_type > proj_quad) ? proj_quad : proj_IDW,
+						apply_smooth_proj, dlim, coef3, num_points);
+	      if (blevel > 0)
+		{
+		  // Update coefficient with respect to lower nesting level coefficients
+		  bool OK = bspl->second->adaptProjCoef(coef3);
+		  if (!OK)
+		    {
+		      // Recompute
+		      rad = LRProjection3D::computeCoef(vol_.get(), bspl->second.get(),
+							proj_IDW, apply_smooth_proj,
+							dlim, coef3, num_points);
+		      OK = bspl->second->adaptProjCoef(coef3); // Should be OK now
+		    }
+
+		}
+	      double dist2 = coef3.dist(coef2);
+	      if (dist2 < dist1)
+		coef = coef3;
+	      if (dist2 > dlim)
+		{
+		  std::cout << "Dist IDW: " << dist2 << ", coef3: " << coef3 << std::endl;
+		  coef = coef2;
+		  int stop_break = 1;
+		}
+	    }
+	  double gamma = bspl->second->gamma();
+	  vol_->setCoef(coef, bspl->second.get());
+
+	  num_update++;
+	}
+      if (num_update == 0)
+	break;
+    }
+
+}
+
+
+
  
 //==============================================================================
 bool compare_elems(pair<Element3D*,double> el1, pair<Element3D*,double> el2)
@@ -2233,6 +2382,7 @@ int LRVolApprox::refineVol(double threshold)
   std::cout << "Refs x: " << refs_x.size() << ", y: " << refs_y.size();
   std::cout << ", z: " << refs_z.size() << std::endl;
 #endif
+  vol_->setNestLevel();
   return (int)refs_x.size() + refs_y.size() + refs_z.size();
 }
 #if 1 
@@ -3122,8 +3272,8 @@ shared_ptr<SplineVolume> LRVolApprox::createVol(double* points, int nmb_pts,
   
   // Approximate
   stat = avol.equationSolve(result_vol);
-  return result_vol;
   std::cout << "Initial volume: " << stat << std::endl;
+  return result_vol;
 }
  
  /*

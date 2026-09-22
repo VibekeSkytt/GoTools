@@ -42,6 +42,7 @@
 
 #include <iostream>
 #include <vector>
+#include <tuple>
 #include <algorithm>
 #include <assert.h>
 #include "GoTools/geometry/Streamable.h"
@@ -190,6 +191,14 @@ public:
   int getKnotIdx(Direction2D d, double& par, double eps) const;
 
   /// For a given row (or column) find all consecutive segments of meshrectangles with multiplicities
+  /// greater than or equal to a 1. Each found segment is represented as an integer pair,
+  /// representing the start index of the first meshrectangle in the segment, the one-past-end index
+  /// of the last meshrectangle in the segment and the corresponding multiplicity.
+  /// \param d   determine whether to examine a row (YFIXED) or a column (XFIXED)
+  /// \param ix  index of row/column to examine
+  std::vector<std::tuple<int, int, int> > segments_mult(Direction2D d, int ix) const;
+  
+  /// For a given row (or column) find all consecutive segments of meshrectangles with multiplicities
   /// greater than or equal to a given threshold. Each found segment is represented as an integer pair,
   /// representing the start index of the first meshrectangle in the segment and the one-past-end index
   /// of the last meshrectangle in the segment.
@@ -200,7 +209,7 @@ public:
   std::vector<std::pair<int, int> > segments(Direction2D dir, int ix, int threshold = 1) const;
   
   /// For a given row (or column) find all consecutive segments of meshrectangles with multiplicities
-  /// equal to zoer. Each found segment is represented as an integer pair,
+  /// equal to zero. Each found segment is represented as an integer pair,
   /// representing the start index of the first meshrectangle in the segment and the one-past-end index
   /// of the last meshrectangle in the segment.
   /// \param d  determine whether to examine a row (YFIXED) or a column (XFIXED)

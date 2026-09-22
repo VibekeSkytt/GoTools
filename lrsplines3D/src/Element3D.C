@@ -49,8 +49,9 @@ Element3D::Element3D() {
 	stop_u_  =  0;
 	stop_v_  =  0;
 	stop_w_  =  0;
-	overloadCount_ = 0;
+	//overloadCount_ = 0;
 	is_modified_ = false;
+	overload_ = false;
 }
 
 Element3D::Element3D(double start_u, double start_v, double start_w,
@@ -62,9 +63,31 @@ Element3D::Element3D(double start_u, double start_v, double start_w,
     stop_u_  = stop_u ;
     stop_v_  = stop_v ;
     stop_w_  = stop_w ;
-    overloadCount_ = 0;
+    //overloadCount_ = 0;
     is_modified_ = false;
+    overload_ = false;
 }
+
+bool Element3D::resetOverload()
+{
+  int nmb = 0;
+  for (size_t ki=0; ki<support_.size(); ++ki)
+    if (support_[ki]->getOverload())
+      {
+	++nmb;
+	if (nmb == 2)
+	  break;
+      }
+
+  overload_ = (nmb >= 2);
+  if (!overload_)
+    {
+      for (size_t ki=0; ki<support_.size(); ++ki)
+	support_[ki]->eraseOverload();
+    }
+  return overload_;
+}
+
 
 void Element3D::removeSupportFunction(LRBSpline3D *f) {
   for (size_t i=0; i<support_.size(); i++) {
