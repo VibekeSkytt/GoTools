@@ -37,45 +37,60 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _GVAPPLICATIONVOLANDLR_H
-#define _GVAPPLICATIONVOLANDLR_H
+#ifndef _GVLRSURFACEPAINTABLE_H
+#define _GVLRSURFACEPAINTABLE_H
 
+#ifdef _MSC_VER
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+#ifdef __APPLE__
+#include <OpenGL/glu.h>
+#else
+#include <GL/glu.h>
+#endif
+#include "GoTools/viewlib/gvPaintable.h"
+#include "GoTools/tesselator/GenericTriMesh.h"
 
-#include "GoTools/viewlib/gvApplication.h"
-#include "GoTools/tesselator/GeneralMesh.h"
+typedef Go::GenericTriMesh genMesh;
 
+/** gvLRSurfacePaintable: OpenGL calls for a parametric surface.
+*/
 
-class gvApplicationVolAndLR : public gvApplication
+class gvLRSurfacePaintable : public gvPaintable
 {
-
-Q_OBJECT
-
-
 public:
-    gvApplicationVolAndLR(std::auto_ptr<DataHandler> dh,
-			  QWidget * parent=0,
-			  const char * name=0,
-			  Qt::WindowFlags f=0);
+    gvLRSurfacePaintable(genMesh& tri,
+			 const gvColor& ncolor,
+			 const gvColor& scolor,
+			 int id)
+	: gvPaintable(ncolor, scolor, id),
+	  tri_(tri)
+    {}
+    gvLRSurfacePaintable(genMesh& tri,
+			 const gvColor& ncolor,
+			 int id)
+	: gvPaintable(ncolor, id),
+	  tri_(tri)
+    {}
 
-    virtual ~gvApplicationVolAndLR();
+    virtual ~gvLRSurfacePaintable();
 
-public slots:
-    virtual void view_reset();
+    virtual void paint(gvTexture* texture);
 
-    void translate_to_origin(); // All selected objects are translated by the center of their bounding box.
-    void move_vertices_to_origin(); // All selected objects are translated by the center of their bounding box.
 
-    virtual void
-    changeSurfaceResolutions(int new_u_res,
-			     int new_v_res); // Change resolution of
-					     // all selected sfs.
 protected:
-    void buildExtraGUI();
+    genMesh& tri_;
 
-private:
-    Go::GeneralMesh* getMesh(int object_id);
+
+    void createSurface();
+
+    void drawSurface();
 
 };
 
-#endif // _GVAPPLICATIONVOLANDLR_H
+
+#endif // _GVPARAMETRICSURFACEPAINTABLE_H
 

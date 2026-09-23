@@ -37,45 +37,38 @@
  * written agreement between you and SINTEF ICT. 
  */
 
-#ifndef _GVAPPLICATIONVOLANDLR_H
-#define _GVAPPLICATIONVOLANDLR_H
+#include "GoTools/viewlib/vol_and_lr/LRSurfaceTesselator.h"
+#include "GoTools/lrsplines2D/LRSplineSurface.h"
+#include "GoTools/geometry/ObjectHeader.h"
+#include "GoTools/tesselator/GenericTriMesh.h"
+#include <fstream>
 
+using namespace std;
+using namespace Go;
 
-#include "GoTools/viewlib/gvApplication.h"
-#include "GoTools/tesselator/GeneralMesh.h"
-
-
-class gvApplicationVolAndLR : public gvApplication
+int main( int argc, char* argv[] )
 {
+  if (argc != 4) {
+    std::cout << "Input parameters : Input file, n, m"  << std::endl;
+    exit(-1);
+  }
 
-Q_OBJECT
+  // Read input arguments
+  std::ifstream file1(argv[1]);
+  ALWAYS_ERROR_IF(file1.bad(), "Input file not found or file corrupt");
 
+  int n = atoi(argv[2]);
+  int m = atoi(argv[3]);
 
-public:
-    gvApplicationVolAndLR(std::auto_ptr<DataHandler> dh,
-			  QWidget * parent=0,
-			  const char * name=0,
-			  Qt::WindowFlags f=0);
+  // Read lrspline surface
+  ObjectHeader header;
+  header.read(file1);
+  shared_ptr<LRSplineSurface> surf(new LRSplineSurface());
+  surf->read(file1);
 
-    virtual ~gvApplicationVolAndLR();
+  LRSurfaceTesselator tess(*surf);
+  tess.changeRes(n, m);
+  tess.tesselate();
 
-public slots:
-    virtual void view_reset();
-
-    void translate_to_origin(); // All selected objects are translated by the center of their bounding box.
-    void move_vertices_to_origin(); // All selected objects are translated by the center of their bounding box.
-
-    virtual void
-    changeSurfaceResolutions(int new_u_res,
-			     int new_v_res); // Change resolution of
-					     // all selected sfs.
-protected:
-    void buildExtraGUI();
-
-private:
-    Go::GeneralMesh* getMesh(int object_id);
-
-};
-
-#endif // _GVAPPLICATIONVOLANDLR_H
-
+  int stop_break = 1;
+}
