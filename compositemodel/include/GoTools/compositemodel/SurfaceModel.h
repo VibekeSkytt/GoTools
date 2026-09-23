@@ -285,6 +285,21 @@ class GO_API SurfaceModel : public CompositeModel
   			std::vector<Point>& der) const;  // Result
 
 
+  /// Closest point between a given point and the outer boundary/boundaries
+  /// of this surface model
+  /// Returns one point
+  /// \param pnt Input point
+  /// \param clo_pnt Found closest point
+  /// \param idx Index of surface where the closest point is found
+  /// \param clo_par[] Parameter value corresponding to the closest point
+  /// \param dist Distance between input point and found closest point
+    void
+      closestBoundaryPoint(Point& pnt,     // Input point
+			   Point& clo_pnt, // Found closest point
+			   int& idx,          // Index of surface where the closest point is found
+			   double clo_par[],  // Parameter value corresponding to the closest point
+			   double& dist);     // Distance between input point and found closest point
+
   /// Closest point between a given point and this surface model
   /// Returns one point
   /// \param pnt Input point
