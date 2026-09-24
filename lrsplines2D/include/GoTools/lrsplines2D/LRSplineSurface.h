@@ -235,7 +235,8 @@ namespace Go
   // ------- READ AND WRITE FUNCTIONALITY ---------------
   // ----------------------------------------------------
   virtual void  read(std::istream& is);
-  virtual void write(std::ostream& os) const; 
+  virtual void write(std::ostream& os) const;
+  void writeSpecHeader(std::ostream& os, int r, int g, int b, int d, int id) const;
 
   // ----------------------------------------------------
   // Inherited from GeomObject
@@ -581,6 +582,30 @@ namespace Go
   /// Total number of elements (mesh cells)
   int numElements() const {return (int)emap_.size();}
 
+  /// Number of univariate B-splines used in the construction of the
+  /// bivariate B-splines
+  int numUnivariateBSplines(Direction2D d) const
+  {
+    if (d == XFIXED)
+      return (int)bsplinesuni1_.size();
+    else if (d == YFIXED)
+      return (int)bsplinesuni2_.size();
+    else
+      return 0;
+  }
+
+  /// Fetch pointer to a specified univariate B-spline
+  /// Note: Must not be put into a shared pointer or unique pointer
+  BSplineUniLR* getUnivariateBSpline(Direction2D d, int ix) const
+  {
+    if (d == XFIXED && ix >= 0 && ix < (int)bsplinesuni1_.size())
+      return bsplinesuni1_[ix].get();
+    else if (d == YFIXED && ix >= 0 && ix < (int)bsplinesuni2_.size())
+      return bsplinesuni2_[ix].get();
+    else
+      return 0;
+  }
+
 #if 0
   // @@@ VSK. This functionality interface is fetched from the Trondheim code
   // We need a storage for last element evaluated. Index or reference?
@@ -641,6 +666,10 @@ namespace Go
   /// \param atstart specifies if the curve is in the start or end of the
   /// other parameer direction
   std::vector<LRBSpline2D*> getBoundaryBsplines(Direction2D d, bool atstart);
+
+  void getBSplinesAtOpening(Direction2D d, double val,
+			    std::vector<LRBSpline2D*>& bspl_lower,
+			    std::vector<LRBSpline2D*>& bspl_upper);
 
   /// Returns 'true' if the underlying mesh is a regular grid, i.e. 
   /// the surface is a tensor product spline surface.
@@ -751,19 +780,6 @@ namespace Go
     curr_element_ = curr_el;
   }
 
-  // ----------------------------------------------------
-  // --------------- DEBUG FUNCTIONS --------------------
-  // ----------------------------------------------------
-
-  /* // Produce an ASCII image of the underlying mesh.  */
-  /* // NB: requires a wide character stream (wostream). */
-  /* void plotMesh(std::wostream& os) const; */
-
-  /* // Produce a series of ASCII images showing the support of */
-  /* // each basis function and its relation to the mesh. */
-  /* // NB: requires a wide character stream (wostream). */
-  /* void plotBasisFunctionSupports(std::wostream& os) const; */
-
   // For 1D surfaces the endpoints of the lines are given as (u,v,f(u,v))
   LineCloud getElementBds(int num_pts = 5) const;
 
@@ -776,6 +792,19 @@ namespace Go
 		  int first_ixu, int first_ixv);
 
   void setNestLevel();
+
+  // ----------------------------------------------------
+  // --------------- DEBUG FUNCTIONS --------------------
+  // ----------------------------------------------------
+
+  /* // Produce an ASCII image of the underlying mesh.  */
+  /* // NB: requires a wide character stream (wostream). */
+  /* void plotMesh(std::wostream& os) const; */
+
+  /* // Produce a series of ASCII images showing the support of */
+  /* // each basis function and its relation to the mesh. */
+  /* // NB: requires a wide character stream (wostream). */
+  /* void plotBasisFunctionSupports(std::wostream& os) const; */
 
  private:
 
@@ -790,10 +819,10 @@ namespace Go
 
   Mesh2D mesh_;           // Represents mesh topology, multiplicites, as well as knot values.
 
-  // Map of individual univariate b-spline basis functions, 1. par. dir.  
+  // Vector of individual univariate b-spline basis functions, 1. par. dir.  
   std::vector<std::unique_ptr<BSplineUniLR> > bsplinesuni1_;  // To be kept sorted   
 
-  // Map of individual univariate b-spline basis functions, 2. par. dir.  
+  // Vector of individual univariate b-spline basis functions, 2. par. dir.  
   std::vector<std::unique_ptr<BSplineUniLR> > bsplinesuni2_;   
 
   BSplineMap bsplines_;   // Map of individual b-spline basis functions.  

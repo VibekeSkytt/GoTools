@@ -255,8 +255,19 @@ class LRSplineVolume : public ParamVolume
   /// Construct a LRSplineVolume based on a spline volume
   LRSplineVolume(SplineVolume *surf, double knot_tol);
 
+  /// Define LRSplineVolume given mesh and univariate and trivariate
+  /// bsplines
+  LRSplineVolume(Mesh3D& mesh, std::vector<std::unique_ptr<BSplineUniLR> >& uni1,
+		 std::vector<std::unique_ptr<BSplineUniLR> >& uni2,
+		 std::vector<std::unique_ptr<BSplineUniLR> >& uni3,
+		 std::vector<std::unique_ptr<LRBSpline3D> >& bspl,
+		 double knot_tol);
+  
   /// construct empty, invalid spline
-  LRSplineVolume() {} 
+  LRSplineVolume()
+  {
+    curr_element_ = NULL;
+  } 
 
   /// Copy constructor
   LRSplineVolume(const LRSplineVolume& rhs);
@@ -717,19 +728,6 @@ class LRSplineVolume : public ParamVolume
   /// expandToFullTensorProduct().
   virtual SplineVolume* asSplineVolume(); 
 
-  // ----------------------------------------------------
-  // --------------- DEBUG FUNCTIONS --------------------
-  // ----------------------------------------------------
-
-  /* // Produce an ASCII image of the underlying mesh.  */
-  /* // NB: requires a wide character stream (wostream). */
-  /* void plotMesh(std::wostream& os) const; */
-
-  /* // Produce a series of ASCII images showing the support of */
-  /* // each basis function and its relation to the mesh. */
-  /* // NB: requires a wide character stream (wostream). */
-  /* void plotBasisFunctionSupports(std::wostream& os) const; */
-
   /// Set element to be used as first try in point evaluation
   void setCurrentElement(Element3D* curr_el)
   {
@@ -756,6 +754,21 @@ class LRSplineVolume : public ParamVolume
   /// not self intersecting, and has linearly independent derivatives
   /// at the centre.
   bool isLeftHanded();
+
+  void setNestLevel();
+
+  // ----------------------------------------------------
+  // --------------- DEBUG FUNCTIONS --------------------
+  // ----------------------------------------------------
+
+  /* // Produce an ASCII image of the underlying mesh.  */
+  /* // NB: requires a wide character stream (wostream). */
+  /* void plotMesh(std::wostream& os) const; */
+
+  /* // Produce a series of ASCII images showing the support of */
+  /* // each basis function and its relation to the mesh. */
+  /* // NB: requires a wide character stream (wostream). */
+  /* void plotBasisFunctionSupports(std::wostream& os) const; */
 
 
 private:

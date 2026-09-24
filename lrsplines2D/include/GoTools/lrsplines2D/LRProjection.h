@@ -51,7 +51,7 @@ namespace Go
   {
     double computeCoef(LRSplineSurface *srf, 
 		     LRBSpline2D *bspl,
-		     int proj_type, double dlim,
+		       int proj_type, bool apply_smooth, double dlim,
 		     Point& coef, int num_points = -1);
 
     void RDataSet(LRSplineSurface *srf, LRBSpline2D *bspl, int nmb_pts,
@@ -92,6 +92,14 @@ namespace Go
     bool PolynomialProject(int degree, int tot_degree, LRBSpline2D *bspl,
 			   std::vector<double>& data, int del, double rad, 
 			   Point& coef, bool apply_smooth);
+
+    Point Polynomial2Coef(std::vector<double>& pol, int degree1, int degree2,
+			  int tot_degree, double u1, double u2, double v1, double v2,
+			  LRBSpline2D *bspl, shared_ptr<ParamSurface> psurf);
+    
+    Point Polynomial2Coef2(std::vector<double>& pol, int degree1, int degree2,
+			   int tot_degree, LRBSpline2D *bspl,
+			   shared_ptr<ParamSurface> psurf);
     
   }; // end namespace LRProjection
 

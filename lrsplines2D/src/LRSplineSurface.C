@@ -400,6 +400,7 @@ void LRSplineSurface::write(ostream& os) const
 //==============================================================================
 {
   std::streamsize prev = os.precision(15);
+  //std::streamsize prev = os.precision(20);
 
   int rat = (rational_) ? 1 : 0;
   object_to_stream(os, rat);
@@ -421,6 +422,15 @@ void LRSplineSurface::write(ostream& os) const
   // NB: 'emap_' is not saved (contains raw pointers to other data).  
   // Instead, it will be regenerated the LRSplineSurface is read().
     os.precision(prev);   // Reset precision to it's previous value
+}
+
+//==============================================================================
+void LRSplineSurface::writeSpecHeader(std::ostream& os, int r, int g, int b, int d, int id) const
+//==============================================================================
+{
+  os << this->instanceType() << ' ' << MAJOR_VERSION << ' '
+     << MINOR_VERSION << " " << 5 << " " << r << " " << g << " " << b
+     << " " << d << " " << id << " \n";
 }
 
 //==============================================================================
@@ -666,6 +676,31 @@ LRSplineSurface::getBoundaryBsplines(Direction2D d, bool atstart)
     }
   return bsplines;
  }
+
+// =============================================================================
+void LRSplineSurface::getBSplinesAtOpening(Direction2D d, double val,
+					   vector<LRBSpline2D*>& bspl_lower,
+					   vector<LRBSpline2D*>& bspl_upper)
+// =============================================================================
+{
+  Direction2D d2 = (d == XFIXED) ? YFIXED : XFIXED;
+  for (BSplineMap::iterator it=basisFunctionsBeginNonconst(); 
+       it != basisFunctionsEndNonconst(); ++it)
+    {
+      int deg = it->second->degree(d);
+      int mult1 = (d == XFIXED) ? it->second->endmult_u(true) :
+	it->second->endmult_v(true);
+      double bval1 = it->second->getUnivariate(d)->min();
+      int mult2 = (d == XFIXED) ? it->second->endmult_u(false) :
+	it->second->endmult_v(false);
+      double bval2 = it->second->getUnivariate(d)->max();
+      if (mult1 == deg+1 && bval1 == val)
+	bspl_upper.push_back(it->second.get());
+      if (mult2 == deg+1 && bval2 == val)
+	bspl_lower.push_back(it->second.get());
+    }
+}
+
 
 //==============================================================================
 bool LRSplineSurface::isFullTensorProduct() const
@@ -1414,19 +1449,42 @@ void LRSplineSurface::to3D()
     THROW("Cannot convert a 0-degree spline to 3D.");
 
   //LRSplineUtils::insertParameterFunctions(this);
-  for (auto b = bsplines_.begin(); b != bsplines_.end(); ++b) {
-    const double x = LRSplineUtils::compute_greville(b->second->kvec(XFIXED), 
-						     mesh().knotsBegin(XFIXED));
-    const double y = LRSplineUtils::compute_greville(b->second->kvec(YFIXED), 
-						      mesh().knotsBegin(YFIXED));
-    const double z_gamma = b->second->coefTimesGamma()[0];
-    const double gamma = b->second->gamma();
-    b->second->coefTimesGamma() = Point(x*gamma, y*gamma, z_gamma);
-//    b->second->coefTimesGamma() = Point(x, y, z_gamma);
-    //wcout << b.second.coefTimesGamma() << std::endl;
-    // int dim = b->second->coefTimesGamma().size();
-    // double z = z_gamma/gamma;
-    // std::cout << "z: " << z << std::endl;
+  int max_level = 10;  // Should always be enough
+ for (int level=0; level<max_level; ++level)
+    {
+      int num_update = 0;
+      for (auto b = bsplines_.begin(); b != bsplines_.end(); ++b) {
+	int blevel = b->second->getNestLevel();
+	if (blevel != level)
+	  continue;
+	double x = LRSplineUtils::compute_greville(b->second->kvec(XFIXED), 
+							 mesh().knotsBegin(XFIXED));
+	double y = LRSplineUtils::compute_greville(b->second->kvec(YFIXED), 
+							 mesh().knotsBegin(YFIXED));
+	const double z_gamma = b->second->coefTimesGamma()[0];
+	const double gamma = b->second->gamma();
+	if (blevel > 0)
+	  {
+	    Point uv(x, y);
+	    bool OK = b->second->adaptProjCoef(uv);
+	    if (!OK)
+	      {
+		uv = Point(x,y);
+		(void)b->second->adaptProjCoef(uv);
+	      }
+	    x = uv[0];
+	    y = uv[1];
+	  }
+	b->second->coefTimesGamma() = Point(x*gamma, y*gamma, z_gamma);
+	//    b->second->coefTimesGamma() = Point(x, y, z_gamma);
+	//wcout << b.second.coefTimesGamma() << std::endl;
+	// int dim = b->second->coefTimesGamma().size();
+	// double z = z_gamma/gamma;
+	// std::cout << "z: " << z << std::endl;
+	++num_update;
+      }
+      if (num_update == 0)
+	break;
   }
   int dim = dimension();
   // std::cout << "Global dim: " << dim << std::endl;
@@ -1776,8 +1834,8 @@ Point LRSplineSurface::operator()(double u, double v, int u_deriv, int v_deriv) 
       for (auto b = covering_B_functions.begin(); 
 	   b != covering_B_functions.end(); ++b, ++ki) 
 	{
-	  const bool u_on_end = (u == (*b)->umax());
-	  const bool v_on_end = (v == (*b)->vmax());
+	  const bool u_on_end = (u >= (*b)->umax()-eps);
+	  const bool v_on_end = (v >= (*b)->vmax()-eps);
 
 	  // The b-function contains the coefficient.
 	  double basis_val_pos = (*b)->evalBasisFunction(u, 

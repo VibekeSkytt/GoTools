@@ -361,6 +361,16 @@ class LRSurfApprox
   {
     return proj_type_;
   }
+
+  void setSmoothProjection(bool apply_smooth)
+  {
+    apply_smooth_proj_ = apply_smooth;
+  }
+
+  bool getSmoothProjection()
+  {
+    return apply_smooth_proj_;
+  }
   
     /// Add lower constraint. Only functional (1D surface)
     void addLowerConstraint(double minval)
@@ -599,6 +609,7 @@ private:
     bool initMBA_;   // The initial surface is made using LR-MBA
     double initMBA_coef_;  // Initial hight of constant surface
   int proj_type_;  // Type of quasi interpolation. 0=do not use quasi interpolation
+  bool apply_smooth_proj_;
 
     std::vector<double> init_knots_u_; // Initial knots to select for refinement
     std::vector<double> init_knots_v_; // Initial knots to select for refinement
@@ -698,7 +709,7 @@ private:
 
     void runMBAUpdate(bool computed_accuracy);
 
-  void runProjection(int proj_type, int level, int num_points = -1);
+  void runProjection(int proj_type, int level, int num_points=-1);
   
     int defineOutlierPts(Element2D* element, 
 			 std::vector<double>& prev_dist, double lim,
@@ -709,9 +720,11 @@ private:
     int refineSurf(int iter, int& dir, double threshold);
     int refineSurf3(int iter, int& dir, double threshold);
     int refineSurf4(int& dir, double threshold);
+#if 0
     void getRefineExtension(Element2D *elem, Direction2D fixdir,
 			    int strategy, double& ppar, double& pmin, double& pmax,
 			    std::set<std::pair<Element2D*,std::pair<Direction2D,double> > >& unbalanced_elem);
+#endif
 
     /// Create initial LR B-spline surface
     void makeInitSurf(int dim);

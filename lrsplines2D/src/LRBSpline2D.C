@@ -741,6 +741,8 @@ bool LRBSpline2D::adaptProjCoef(Point& coef)
   if (nest_level_ == 0)
     return true;
 
+  int cdim = coef.dimension();
+  
   // Collect ancestors
   set<LRBSpline2D*> ancest0;
   for (auto el=support_.begin(); el!=support_.end(); ++el)
@@ -777,14 +779,24 @@ bool LRBSpline2D::adaptProjCoef(Point& coef)
     {
       double weight = nestingWeight(ancest[ki]);
       Point coefgamma = ancest[ki]->coefTimesGamma();
+      if (coefgamma.dimension() > cdim)
+	{
+	  Point tmp(coefgamma.begin(), coefgamma.begin()+cdim);
+	  coefgamma = tmp;
+	}
       coef -= weight*coefgamma;
       double gamma = ancest[ki]->gamma();
       tmp += weight*gamma;
     }
   double tmp2 = (1.0 - tmp)/gamma_;
+#ifdef DEBUG_PROJ
+  std::cout << "Projection coefficient adaption, nesting depth: " << nest_level_ << ", error: " << 1.0-tmp2 << std::endl;
+#endif
   if (fabs(tmp2-1.0) > 1.0e-4)
     {
+#ifdef DEBUG_PROJ
       std::cout << "Invariant: " << tmp2 << std::endl;
+#endif
       setNestLevel(-1);
       computeNestLevel();
       return false;
@@ -841,10 +853,6 @@ double LRBSpline2D::nestingWeight(LRBSpline2D* other)
   std::cout << "Knots in 2. parameter direction: " << diff2.size() << std::endl;
  #endif
 
-  // vector<double> alpha1, alpha2;
-  // discreteBsplines(XFIXED, degree(XFIXED)+1, kvec_u1, kvec_u2_0, alpha1);
-  // discreteBsplines(YFIXED, degree(YFIXED)+1, kvec_v1, kvec_v2_0, alpha2);
-  
   int k1 = kvec_u1[0]; 
   int k2 = kvec_u1[kvec_u1.size()-1]; 
   for (size_t ki=0; ki<diff1.size(); ++ki)
@@ -967,46 +975,6 @@ double LRBSpline2D::nestingWeight(LRBSpline2D* other)
   return alpha;
 }
 
-//==============================================================================
-void LRBSpline2D::discreteBsplines(Direction2D dir, int ik, vector<int>& kvec1,
-				   vector<int>& kvec2, vector<double>& alfa)
-//==============================================================================
-{
-  const Mesh2D *mesh = getMesh();
-  vector<double> kvec;
-  std::set_union(kvec1.begin(), kvec1.end(), kvec2.begin(), kvec2.end(),
-		 std::back_inserter(kvec));
-  vector<int> diff;
-  std::set_difference(kvec1.begin(), kvec1.end(), kvec2.begin(),
-		      kvec2.end(), std::back_inserter(diff));
-  if (diff.size() == 0)
-    return;
-  vector<double> et1(kvec.size());
-  vector<double> et2(kvec2.size());
-  for (size_t ki=0; ki<kvec.size(); ++ki)
-    et1[ki] = mesh->kval(dir, kvec[ki]);
-  for (size_t ki=0; ki<kvec2.size(); ++ki)
-    et2[ki] = mesh->kval(dir, kvec2[ki]);
-
-  vector<double> alfa1(2*ik);
-  vector<double> alfa2(ik);
-  vector<double> sp(ik);
-
-  int my = 0;
-  int ka;
-  int in = ik + (int)diff.size();
-  for (ka=0, my=0; ka<in; ++ka)
-    {
-      while (et2[my+1] <= et1[ka])
-	++my;
-      
-      int kpl1, kpl2, kfi1, kfi2, kla1, kla2;
-      int kstat = 0;
-      SplineUtils::osloalg(ka, my, ik, in, &kpl1, &kfi1, &kla1, &et1[0], &et2[0], &alfa1[0]);
-      s1701(ka, my, ik, in, &kpl2, &kfi2, &kla2, &et1[0], &et2[0], &sp[0], &alfa2[0], &kstat);
-      int stop_break = 1;
-    }
-}
 
 //==============================================================================
 bool LRBSpline2D::checkOverload()
@@ -1023,6 +991,7 @@ bool LRBSpline2D::checkOverload()
   overload_ = overload;
   return overload;
 }
+
 
 //==============================================================================
 void LRBSpline2D::swapParameterDirection()

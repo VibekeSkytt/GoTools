@@ -98,7 +98,10 @@ class LRBSpline3D : public Streamable
     bspline_u_(bspline_u),
     bspline_v_(bspline_v),
     bspline_w_(bspline_w),
-    coef_fixed_(0)
+    nest_level_(-1),
+    coef_fixed_(0),
+      overload_(false),
+    visited_(false)
     {
       bspline_u_->incrCount();
       bspline_v_->incrCount();
@@ -120,6 +123,7 @@ class LRBSpline3D : public Streamable
     std::swap(bspline_v_, rhs.bspline_v_);
     std::swap(bspline_w_, rhs.bspline_w_);
     std::swap(coef_fixed_,rhs.coef_fixed_);
+    std::swap(overload_,rhs.overload_);
  }
 
   /// Destructor
@@ -424,7 +428,49 @@ class LRBSpline3D : public Streamable
   bool overlaps(Element3D *el) const;
   /// Check if the support of this B-spline overlaps the given domain: umin, umax, vmin, vmax, wmin, wmax.
   bool overlaps(double domain[]) const; // domain: umin, umax, vmin, vmax, wmin, wmax.
+  bool overlaps(LRBSpline3D* bsp) const;
 
+  /// Check if the support of this B-spline cover the given domain: umin, umax, vmin, wmax.
+  bool covers(double domain[]) const;
+  bool covers(LRBSpline3D* bsp) const;
+
+  void getOverlapping(std::vector<LRBSpline3D*>& overlap);
+
+  bool contains(double u, double v, double w)
+  {
+    if (u < umin() || u > umax() || v < vmin() || v > vmax() ||
+	w < wmin() || w > wmax())
+      return false;
+    else
+      return true;
+  }
+  
+  /// Set nesting level. Only for internal use
+  void setNestLevel(int nest_level)
+  {
+    nest_level_ = nest_level;
+  }
+  /// Get nesting level. Used in linear dependence check and projections
+  int getNestLevel()
+  {
+    return nest_level_;
+  }
+
+  /// Check if the nesting level is set
+  bool hasNestLevel()
+  {
+    return (nest_level_ >= 0);
+  }
+
+  /// Set nesting level to unknown
+  void unsetNestLevel()
+  {
+    nest_level_ = -1;
+  }
+
+  /// Compute nesting level
+  void computeNestLevel();
+  
   /// Add element to vector of elements in the support
   bool addSupport(Element3D *el) ;
   /// Remove element from vector of elements in the support
@@ -435,6 +481,30 @@ class LRBSpline3D : public Streamable
     support_.clear();
   }
   
+  bool getOverload()
+  {
+    return overload_;
+  }
+  
+  bool checkOverload();
+  
+  void eraseOverload()
+  {
+    overload_ = false;
+  }
+
+  bool adaptProjCoef(Point& coef);
+  
+  bool visited()
+  {
+    return visited_;
+  }
+
+  void setVisited(bool visited)
+  {
+    visited_ = visited;
+  }
+
   /// Iterator to start of elements in the support
   std::vector<Element3D*>::iterator supportedElementBegin() ;
   /// Iterator to end of elements in the support
@@ -504,9 +574,17 @@ class LRBSpline3D : public Streamable
   BSplineUniLR *bspline_w_;
   std::vector<Element3D*> support_;  // Elements lying in the support of this LRB-spline
   
+  int nest_level_; // Nesting depth. Tells about complete inclusion of the
+  // domain in the domain of another B-spline
+  
   // Used in approximation algorithms
   int coef_fixed_;  // 0=free coefficients, 1=fixed, 2=not affected
 
+  mutable bool overload_;
+  mutable bool visited_;
+  
+  double nestingWeight(LRBSpline3D* other);
+  
 }; // end class LRBSpline3D
 
  inline std::ostream& operator<<(std::ostream& os, const LRBSpline3D& b) {b.write(os); return os;}

@@ -339,6 +339,18 @@ class LRBSpline2D : public Streamable
       bspline_u_->coversPar(u_ix) && bspline_v_->coversPar(v_ix);
   }
 
+  int isInDomain(const Point& par, double eps)
+  {
+    if (par[0] < umin()+eps && par[0] < umax()-eps &&
+	par[1] > vmin()+eps && par[1] < vmax()-eps)
+      return 1;
+    else if (par[0] > umax()+eps || par[0] < umin()-eps ||
+	     par[1] > vmax()+eps || par[1] < vmin()-eps)
+      return 0;
+    else
+      return 2;
+  }
+    
   /// Return greville parameter in the two parameter directions
   Point getGrevilleParameter() const;
   /// Return greville parameter in the specified parameter direction
@@ -427,7 +439,6 @@ class LRBSpline2D : public Streamable
     return overload_;
   }
 
-  bool adaptProjCoef(Point& coef);
   
   bool checkOverload();
   void eraseOverload()
@@ -435,6 +446,8 @@ class LRBSpline2D : public Streamable
     overload_ = false;
   }
 
+  bool adaptProjCoef(Point& coef);
+  
   bool visited()
   {
     return visited_;
@@ -525,7 +538,7 @@ class LRBSpline2D : public Streamable
   BSplineUniLR *bspline_v_;
   std::vector<Element2D*> support_;  // Elements lying in the support of this LRB-spline
 
-  int nest_level_; // Nesting level. Tells about complete inclusion of the
+  int nest_level_; // Nesting depth. Tells about complete inclusion of the
   // domain in the domain of another B-spline
   
   // Used in least squares approximation with smoothing
@@ -545,8 +558,7 @@ class LRBSpline2D : public Streamable
   std::vector<double> unitIntervalBernsteinBasis(double start, double stop, Direction2D d) const;
 
   double nestingWeight(LRBSpline2D* other);
-  void discreteBsplines(Direction2D dir, int ik, std::vector<int>& kvec1,
-			std::vector<int>& kvec2, std::vector<double>& alfa);
+
 
 }; // end class LRBSpline2D
 

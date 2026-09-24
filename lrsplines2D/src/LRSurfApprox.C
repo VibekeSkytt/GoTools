@@ -45,6 +45,7 @@
 #include "GoTools/lrsplines2D/LRProjection.h"
 #include "GoTools/lrsplines2D/LRSplineUtils.h"
 #include "GoTools/lrsplines2D/LRFeatureUtils.h"
+#include "GoTools/lrsplines2D/DefineRefs2D.h"
 #include "GoTools/creators/SmoothSurf.h"
 #include "GoTools/geometry/PointCloud.h"
 #include "GoTools/lrsplines2D/LRSplinePlotUtils.h"
@@ -496,14 +497,14 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
     setFixBoundary(true);
 
   // Initial approximation of LR B-spline surface
-  if (!(initial_surface_) && proj_type_ > 0 && proj_type_ < 10)
+  if (!(initial_surface_) && proj_type_ > 0 && proj_type_ < 20)
     {
       runProjection(proj_type_, 0);
     }
     else if (initMBA_)
     {
       runMBAUpdate(false);
-      if (!initial_surface_)
+      if ((!initial_surface_) && (!useMBA_))
 	{
 	  LSapprox.setInitSf(srf_, coef_known_);
 	  updateCoefKnown();
@@ -549,7 +550,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
       else
 	of1coef << coef << std::endl;
     }
-  #endif
+#endif
 
   // Compute accuracy in data points
   int dim = srf_->dimension();
@@ -667,7 +668,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 
   ghost_elems.clear();
   if (proj_type_ < 100)
-    points_.clear();  // Not used anymore TESTING
+    points_.clear();  // Not used anymore 
   double threshold_prev = -1.0;
   int prevcoef = srf_->numBasisFunctions();
   int prevelem = srf_->numElements();
@@ -943,7 +944,7 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 		ofc2_coef << coef << std::endl;
 	    }
 	}
-      else if (proj_type_ >= 102 && proj_type_ <= 105)
+      else if (proj_type_ >= 102 && proj_type_ <= 108)
 	{
 	  // Compare number of points in projection
 	  shared_ptr<LRSplineSurface> curr_srf(srf_->clone());
@@ -2858,12 +2859,12 @@ void  LRSurfApprox::runMBAUpdate(bool computed_accuracy)
  }
 
 //==============================================================================
-void  LRSurfApprox::runProjection(int proj_type, int level, int num_points)
+void  LRSurfApprox::runProjection(int proj_type, int it_level, int num_points)
 //==============================================================================
 {
   // Compute by nesting level
   int max_level = 10;  // Should always be enough
-  double dlim = (level > 0) ? 10.0*maxdist_ : 50.0*aepsge_;
+  double dlim = (it_level > 0) ? 10.0*maxdist_ : 500.0*aepsge_;
   std::cout << "dlim: " << dlim << std::endl;
   int proj_IDW = 2;
   int proj_quad = 4;
@@ -2884,7 +2885,7 @@ void  LRSurfApprox::runProjection(int proj_type, int level, int num_points)
 	  Point coef;
 	  double rad = LRProjection::computeCoef(srf_.get(),
 						 bspl->second.get(), proj_type,
-						 dlim, coef, num_points);
+						 apply_smooth_proj_, dlim, coef, num_points);
 
 	  if (blevel > 0)
 	    {
@@ -2895,7 +2896,8 @@ void  LRSurfApprox::runProjection(int proj_type, int level, int num_points)
 		  // Recompute
 		  rad = LRProjection::computeCoef(srf_.get(),
 						  bspl->second.get(),
-						  proj_type, dlim, coef, num_points);
+						  proj_type, apply_smooth_proj_,
+						  dlim, coef, num_points);
 		  OK = bspl->second->adaptProjCoef(coef); // Should be OK now
 		}
 	      int stop_break = 1;
@@ -2914,8 +2916,8 @@ void  LRSurfApprox::runProjection(int proj_type, int level, int num_points)
 	      //#endif
 	      Point coef3;
 	      rad = LRProjection::computeCoef(srf_.get(), bspl->second.get(),
-					      /*(proj_type > proj_quad) ? proj_quad :*/ proj_IDW,
-					dlim, coef3, num_points);
+					      (proj_type > proj_quad) ? proj_quad : proj_IDW,
+					      apply_smooth_proj_, dlim, coef3, num_points);
 	      if (blevel > 0)
 		{
 		  // Update coefficient with respect to lower nesting level coefficients
@@ -2924,7 +2926,8 @@ void  LRSurfApprox::runProjection(int proj_type, int level, int num_points)
 		    {
 		      // Recompute
 		      rad = LRProjection::computeCoef(srf_.get(), bspl->second.get(),
-						      proj_IDW, dlim, coef3, num_points);
+						      proj_IDW, apply_smooth_proj_,
+						      dlim, coef3, num_points);
 		      OK = bspl->second->adaptProjCoef(coef3); // Should be OK now
 		    }
 
@@ -3427,6 +3430,7 @@ bool compare_elems(pair<Element2D*,double> el1, pair<Element2D*,double> el2)
   return (el1.second > el2.second);
 }
 
+#if 0
 //==============================================================================
 void LRSurfApprox::getRefineExtension(Element2D *elem, Direction2D fixdir,
 				      int strategy, double& ppar, double& pmin, double& pmax,
@@ -3606,7 +3610,7 @@ void LRSurfApprox::getRefineExtension(Element2D *elem, Direction2D fixdir,
 	    }
 	}
       unbalanced_elem.insert(unbalanced2.begin(), unbalanced2.end());
-#if 0
+
       if (unbalanced2.size() > 0)
 	{
 	  if (fixdir == XFIXED)
@@ -3614,21 +3618,32 @@ void LRSurfApprox::getRefineExtension(Element2D *elem, Direction2D fixdir,
 	  else
 	    ppar = 0.5*(unbalanced2[0].first->vmin() + unbalanced2[0].first->vmax());
 	}
-#endif
+      //#endif
       pmin = (fixdir == XFIXED) ? bsplines[ix]->vmin() :
 	bsplines[ix]->umin();
       pmax = (fixdir == XFIXED) ? bsplines[ix]->vmax() :
 	bsplines[ix]->umax();
    }
 }
+#endif
 
 //==============================================================================
 int LRSurfApprox::refineSurf3(int iter, int& dir, double threshold)
 //==============================================================================
 {
-  // Test
   double tol = srf_->getKnotTol();
 
+  // Prepare for use of DefineRefs2D
+  RefineStrategy strat;
+  if (category1_ == 4)
+    strat = minSpanCombined;
+  else if (category1_ == 3)
+    strat = minSpanError;
+  else if (category1_ == 2)
+    strat = minSpanSize;
+  else
+    strat = fullSpan;
+  
   // Traverse all B-splines and check for elements with outside points
     for (LRSplineSurface::BSplineMap::const_iterator it1=srf_->basisFunctionsBegin();
        it1 != srf_->basisFunctionsEnd(); ++it1)
@@ -3723,7 +3738,6 @@ int LRSurfApprox::refineSurf3(int iter, int& dir, double threshold)
 #ifdef DEBUG_REFINE
   std::cout << "Dir: " << dir2 << ", category: " << category1_ << std::endl;
 #endif
-  set<pair<Element2D*,pair<Direction2D,double> > > unbalanced;
   vector<LRSplineSurface::Refinement2D> refs_x, refs_y;
   for (LRSplineSurface::ElementMap::const_iterator it=srf_->elementsBegin();
        it != srf_->elementsEnd(); ++it)
@@ -3753,84 +3767,26 @@ int LRSurfApprox::refineSurf3(int iter, int& dir, double threshold)
 	  
 	  if ((dir2 == 1 || dir2 == 3) && umax-umin > 2.0*usize_min_)
 	    {
-	      double v1, v2, ppar;
-	      getRefineExtension(it->second.get(), XFIXED, category1_,  ppar, v1, v2, unbalanced);
-	      
 	      LRSplineSurface::Refinement2D curr_ref1;
-	      curr_ref1.setVal(ppar, v1, v2, XFIXED, 1);
-	      // std::cout << "El x: " << umin << " " << umax << " " << vmin << " " << vmax;
-	      // std::cout << ". Bsize: " << bsplines.size();
-	      // std::cout << ". Ref: " << 0.5*(umin+umax) << " " << v1 << " " << v2 << std::endl;
-	      appendRef(refs_x, curr_ref1, tol);
+	      DefineRefs2D::refineFromElement(*srf_, it->second.get(), XFIXED,
+					      strat, 1, curr_ref1);
+	      DefineRefs2D::appendRef(refs_x, curr_ref1, tol);
 	    }
 
 	  if ((dir2 == 2 || dir2 == 3) && vmax-vmin > 2.0*vsize_min_)
 	    {
-	      double u1, u2, ppar;
-	      getRefineExtension(it->second.get(), YFIXED, category1_,  ppar, u1, u2, unbalanced);
-	      
 	      LRSplineSurface::Refinement2D curr_ref2;
-	      curr_ref2.setVal(ppar, u1, u2, YFIXED, 1);
-	      // std::cout << "El y: " << umin << " " << umax << " " << vmin << " " << vmax;
-	      // std::cout << ". Bsize: " << bsplines.size();
-	      // std::cout << ". Ref: " << 0.5*(vmin+vmax) << " " << u1 << " " << u2 << std::endl;
-	      appendRef(refs_y, curr_ref2, tol);
+	      DefineRefs2D::refineFromElement(*srf_, it->second.get(), YFIXED,
+					      strat, 1, curr_ref2);
+	      DefineRefs2D::appendRef(refs_y, curr_ref2, tol);
 	    }
 	}
     }
 
-  // srf_->refine2(refs_x, true);
-  // srf_->refine2(refs_y, true);
 #ifdef DEBUG
   std::cout << "Refs x: " << refs_x.size() << ", refs_y: " << refs_y.size() << std::endl;
 #endif
-#if 0
-  std::cout << "Possible unbalanced: " << unbalanced.size() << std::endl;
-  double fuzzy = 1.0e-10;
-  for (auto it=unbalanced.begin(); it!=unbalanced.end(); )
-    {
-      Direction2D d = (*it).second.first;
-      double par = (*it).second.second;
-      Element2D* elem = (*it).first;
-      double umin = elem->umin();
-      double umax = elem->umax();
-      double vmin = elem->vmin();
-      double vmax = elem->vmax();
-      if (d == XFIXED)
-	{
-	  size_t kr;
-	  for (kr=0; kr<refs_x.size(); ++kr)
-	    {
-	      if (vmin > refs_x[kr].end+fuzzy || vmax < refs_x[kr].start-fuzzy)
-		continue;
-	      if (fabs(par - 0.5*(umin+umax)) < fuzzy)
-		break;
-	    }
-	  if (kr < refs_x.size())
-	    it = unbalanced.erase(it);
-	  else
-	    ++it;
-	}
-      else
-	{
-	  size_t kr;
-	  for (kr=0; kr<refs_y.size(); ++kr)
-	    {
-	      if (vmin > refs_y[kr].end+fuzzy || vmax < refs_y[kr].start-fuzzy)
-		continue;
-	      if (fabs(par - 0.5*(umin+umax)) < fuzzy)
-		break;
-	    }
-	  if (kr < refs_x.size())
-	    it = unbalanced.erase(it);
-	  else
-	    ++it;
-	}
-    }
-#endif
-#ifdef DEBUG
-  std::cout << "Unbalanced: " << unbalanced.size() << std::endl;
-#endif
+
  
   for (kr=0; kr<refs_x.size(); ++kr)
     {
@@ -4684,7 +4640,7 @@ void LRSurfApprox::makeInitSurf(int dim, int ncoef_u, int order_u, int ncoef_v,
   int nmb = (int)points_.size()/(dim+2);
   int nmb2 = (int)sign_points_.size()/(dim+2);
   shared_ptr<SplineSurface> result_surf;
-  if (!initMBA_)
+  if (!initMBA_ && proj_type_ == 0)
     {
       try {
 	result_surf = createSurf(&points_[0], nmb, 
@@ -4700,7 +4656,7 @@ void LRSurfApprox::makeInitSurf(int dim, int ncoef_u, int order_u, int ncoef_v,
 	}
     }
 
-  if (initMBA_)
+  if (initMBA_ || proj_type_ > 0)
     {
       vector<double> coefs(ncoef_u*ncoef_v*dim, initMBA_coef_);
       result_surf = shared_ptr<SplineSurface>(new SplineSurface(ncoef_u, ncoef_v, 
@@ -4906,6 +4862,7 @@ void LRSurfApprox::initDefaultParams()
   has_local_constraint_ = false;
   nmb_mba_iter_ = 2;
   mba_sgn_ = 0;
+  apply_smooth_proj_ = false;
   outlier_detection_ = false;
   has_var_tol_ = false;
   var_fac_pos_ = 0.0;
