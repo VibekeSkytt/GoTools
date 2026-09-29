@@ -45,6 +45,7 @@
 #include "GoTools/lrsplines2D/LRSplineSurface.h"
 #include "GoTools/lrsplines2D/LRSurfApprox.h"
 #include "GoTools/lrsplines2D/LRApproxApp.h"
+#include "GoTools/lrsplines2D/DefineRefs2D.h"
 #include "GoTools/utils/timeutils.h"
 #include <iostream>
 #include <fstream>
@@ -250,7 +251,8 @@ int main(int argc, char *argv[])
   int initncoef = 10;
   int distribute_ncoef = 1;
 
-  int refcat1=1, refcat2=0, threshold1=2, threshold2=-1, alter=1;
+  RefineStrategy refcat1=fullSpan, refcat2=notSet;
+  int threshold1=2, threshold2=-1, alter=1;
   double swap = -100.0;
 
   int ki, kj;
@@ -442,19 +444,19 @@ int main(int argc, char *argv[])
 
 	  string cat(cat0);
 	  if (cat == "F")
-	    refcat1 = 1;
+	    refcat1 = fullSpan;
 	  else if (cat == "Ml")
-	    refcat1 = 2;
+	    refcat1 = minSpanSize;
 	  else if (cat == "Mu")
-	    refcat1 = 3;
+	    refcat1 = minSpanError;
 	  else if (cat == "Mc")
-	    refcat1 = 4;
+	    refcat1 = minSpanCombined;
 	  else if (cat == "S")
-	    refcat1 = 5;
+	    refcat1 = structuredMesh;
 	  else if (cat == "R")
-	    refcat1 = 6;
+	    refcat1 = restrictedMesh;
 	  else if (cat == "RL")
-	    refcat1 = 7;
+	    refcat1 = restrictedMeshElem;
 	  if (refcat2 < 1 || refcat2 > 7)
 	    refcat2 = refcat1;
 	}
@@ -468,19 +470,19 @@ int main(int argc, char *argv[])
 
 	  string cat(cat0);
 	  if (cat == "F")
-	    refcat2 = 1;
+	    refcat2 = fullSpan;
 	  else if (cat == "Ml")
-	    refcat2 = 2;
+	    refcat2 = minSpanSize;
 	  else if (cat == "Mu")
-	    refcat2 = 3;
+	    refcat2 = minSpanError;
 	  else if (cat == "Mc")
-	    refcat2 = 4;
+	    refcat2 = minSpanCombined;
 	  else if (cat == "S")
-	    refcat2 = 5;
+	    refcat2 = structuredMesh;
 	  else if (cat == "R")
-	    refcat2 = 6;
+	    refcat2 = restrictedMesh;
 	  else if (cat == "RL")
-	    refcat2 = 7;
+	    refcat2 = restrictedMeshElem;
 	}
       else if (arg == "-threshold")
 	{

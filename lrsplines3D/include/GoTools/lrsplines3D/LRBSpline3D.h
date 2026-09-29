@@ -342,6 +342,18 @@ class LRBSpline3D : public Streamable
     return bspline_w_->max();
   }
 
+  double pmin(Direction3D d)
+  {
+    return (d == XDIR) ? bspline_u_->min() :
+      ((d == YDIR) ? bspline_v_->min() : bspline_w_->min());
+  }
+  
+  double pmax(Direction3D d)
+  {
+    return (d == XDIR) ? bspline_u_->max() :
+      ((d == YDIR) ? bspline_v_->max() : bspline_w_->max());
+  }
+  
   double knotval(Direction3D d, int kn) const
   {
     return (d == XDIR) ? bspline_u_->knotval(kn) :

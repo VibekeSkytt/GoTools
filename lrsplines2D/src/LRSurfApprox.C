@@ -731,12 +731,12 @@ void LRSurfApprox::getClassifiedPts(vector<double>& outliers, int& nmb_outliers,
 	  std::cout << "Threshold: " << threshold << std::endl;
 #endif
 	  int nmb_refs;
-	  if (category1_ <= 4)
-	    nmb_refs = refineSurf3(ki+1, currdiv, threshold);
-	  else if (category1_ == 5)
+	  if (category1_ <= minSpanCombined)
+	    nmb_refs = refineSurf3(ki+1, currdiv, threshold);  // Element based
+	  else if (category1_ == structuredMesh)
 	    nmb_refs = refineSurf4(currdiv, threshold);
 	  else
-	    nmb_refs = refineSurf(ki+1, currdiv, threshold);
+	    nmb_refs = refineSurf(ki+1, currdiv, threshold);  // restrictedMesh
 	  if (nmb_refs == 0)
 	    {
 #ifdef DEBUG_REFINE	      
@@ -3633,17 +3633,6 @@ int LRSurfApprox::refineSurf3(int iter, int& dir, double threshold)
 {
   double tol = srf_->getKnotTol();
 
-  // Prepare for use of DefineRefs2D
-  RefineStrategy strat;
-  if (category1_ == 4)
-    strat = minSpanCombined;
-  else if (category1_ == 3)
-    strat = minSpanError;
-  else if (category1_ == 2)
-    strat = minSpanSize;
-  else
-    strat = fullSpan;
-  
   // Traverse all B-splines and check for elements with outside points
     for (LRSplineSurface::BSplineMap::const_iterator it1=srf_->basisFunctionsBegin();
        it1 != srf_->basisFunctionsEnd(); ++it1)
@@ -3769,7 +3758,7 @@ int LRSurfApprox::refineSurf3(int iter, int& dir, double threshold)
 	    {
 	      LRSplineSurface::Refinement2D curr_ref1;
 	      DefineRefs2D::refineFromElement(*srf_, it->second.get(), XFIXED,
-					      strat, 1, curr_ref1);
+					      category1_, 1, curr_ref1);
 	      DefineRefs2D::appendRef(refs_x, curr_ref1, tol);
 	    }
 
@@ -3777,7 +3766,7 @@ int LRSurfApprox::refineSurf3(int iter, int& dir, double threshold)
 	    {
 	      LRSplineSurface::Refinement2D curr_ref2;
 	      DefineRefs2D::refineFromElement(*srf_, it->second.get(), YFIXED,
-					      strat, 1, curr_ref2);
+					      category1_, 1, curr_ref2);
 	      DefineRefs2D::appendRef(refs_y, curr_ref2, tol);
 	    }
 	}
@@ -3896,33 +3885,11 @@ int LRSurfApprox::refineSurf4(int& dir, double threshold)
 	  // Refine all knot spans
 	  if (dir2 == 1 || dir2 == 3)
 	    {
-	      const vector<int>& kvec = bspline->kvec(XFIXED);
-	      for (int kj=0; kj<size1; ++kj)
-		{
-		  double u1 = mesh->kval(XFIXED, kvec[kj]);
-		  double u2 = mesh->kval(XFIXED, kvec[kj+1]);
-		  if (u2-u1 <= tol)
-		    continue;
-		  LRSplineSurface::Refinement2D curr_ref;
-		  curr_ref.setVal(0.5*(u1+u2), bspline->vmin(),
-				  bspline->vmax(), XFIXED, 1);
-		  appendRef(refs_x, curr_ref, tol);
-		}
+	      DefineRefs2D::refineStructuredMesh(*srf_, bspline, XFIXED, 1, refs_x);
 	    }
 	  if (dir2 == 2 || dir2 == 3)
 	    {
-	      const vector<int>& kvec = bspline->kvec(YFIXED);
-	      for (int kj=0; kj<size2; ++kj)
-		{
-		  double v1 = mesh->kval(YFIXED, kvec[kj]);
-		  double v2 = mesh->kval(YFIXED, kvec[kj+1]);
-		  if (v2-v1 <= tol)
-		    continue;
-		  LRSplineSurface::Refinement2D curr_ref;
-		  curr_ref.setVal(0.5*(v1+v2), bspline->umin(),
-				  bspline->umax(), YFIXED, 1);
-		  appendRef(refs_y, curr_ref, tol);
-		}
+	      DefineRefs2D::refineStructuredMesh(*srf_, bspline, YFIXED, 1, refs_y);
 	    }
 	}
     }
@@ -4224,7 +4191,7 @@ int LRSurfApprox::refineSurf(int iter, int& dir, double threshold)
        elems.insert(elem_div.begin(), elem_div.end());
     }
   
-  bool elemref = (category1_ == 7);
+  bool elemref = (category1_ == restrictedMeshElem);
   if (elemref)
     {
       // Removing affected elements
@@ -4881,8 +4848,8 @@ void LRSurfApprox::initDefaultParams()
   fix_boundary_ = false; //true;
   make_ghost_points_ = false;
 
-  category1_ = 1;   // Full span
-  category2_ = 0;   // Not applied
+  category1_ = fullSpan;   // Full span
+  category2_ = notSet;   // Not applied
   alter_ = 1;       // Refine in both parameter directions
   threshold1_ = 2;   // No threshold
   threshold2_ = 0;   // No threshold

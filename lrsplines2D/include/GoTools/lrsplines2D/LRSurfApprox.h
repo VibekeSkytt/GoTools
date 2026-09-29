@@ -45,6 +45,7 @@
 #include "GoTools/creators/Eval1D3DSurf.h"
 #include "GoTools/lrsplines2D/LRSplineSurface.h"
 #include "GoTools/lrsplines2D/LRSurfSmoothLS.h"
+#include "GoTools/lrsplines2D/DefineRefs2D.h"
 #include <vector>
 
 
@@ -531,7 +532,8 @@ class LRSurfApprox
     }
 
     /// Refinement strategy
-    /// category1: 1 = full span, 2 = minimum span l, 3 = minimum span u,
+    /// category1: from DefineRefs2D.h
+    ///            1 = full span, 2 = minimum span l, 3 = minimum span u,
     ///            4 = minimum span c, 5 = structured mesh, 6 = restricted mesh
     ///            7 = restricted mesh with element extension
     /// alter: 0 = refine in both parameter directions, 1 = refine in alternating directions
@@ -539,8 +541,8 @@ class LRSurfApprox
     ///            category exist, if non-existing threshold is set to 0
     /// swap: Change category to category2 when approximation efficiency is below this level
     /// category2, threshold2: after swap, as above
-    void setRefinementStrategy(int category1, int alter, int threshold1,
-			       double swap, int category2, int threshold2)
+    void setRefinementStrategy(RefineStrategy category1, int alter, int threshold1,
+			       double swap, RefineStrategy category2, int threshold2)
     {
       category1_ = category1;
       category2_ = category2;
@@ -551,8 +553,8 @@ class LRSurfApprox
     }
 
   /// Return informaion on applied refinement strategy
-    void getRefinementStrategy(int& category1, int& alter, int& threshold1,
-			       double& swap, int& category2, int& threshold2)
+    void getRefinementStrategy(RefineStrategy& category1, int& alter, int& threshold1,
+			       double& swap, RefineStrategy& category2, int& threshold2)
     {
       category1 = category1_;
       category2 = category2_;
@@ -672,7 +674,8 @@ private:
     std::vector<TolBox> tolerances_;
 
     // Refinement strategy
-  int category1_, category2_, alter_, threshold1_, threshold2_;
+  RefineStrategy category1_, category2_;
+  int alter_, threshold1_, threshold2_;
   double swap_;
   std::vector<TolBox> refpri_;
    

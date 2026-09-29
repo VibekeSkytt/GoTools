@@ -307,6 +307,16 @@ class LRBSpline2D : public Streamable
     return bspline_v_->max();
   }
 
+  double pmin(Direction2D d)
+  {
+    return (d == XFIXED) ? bspline_u_->min() : bspline_v_->min();
+  }
+  
+  double pmax(Direction2D d)
+  {
+    return (d == XFIXED) ? bspline_u_->max() : bspline_v_->max();
+  }
+  
   double knotval(Direction2D d, int kn) const
   {
     return (d == XFIXED) ? bspline_u_->knotval(kn) : bspline_v_->knotval(kn);

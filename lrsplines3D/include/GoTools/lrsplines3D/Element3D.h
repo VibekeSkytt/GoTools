@@ -269,6 +269,17 @@ class Element3D
   double vmax() const         { return stop_v_;  }
    /// End parameter in the third parameter direction
   double wmax() const         { return stop_w_;  }
+
+  double pmin(Direction3D d) const
+  {
+    return (d == XDIR) ? start_u_ : ((d == YDIR) ? start_v_ : start_w_);
+  }
+  
+  double pmax(Direction3D d) const
+  {
+    return (d == XDIR) ? stop_u_ : ((d == YDIR) ? stop_v_ : stop_w_);
+  }
+  
   /// Volume of element domain
   double volume() const         { return (stop_w_-start_w_)*(stop_v_-start_v_)*(stop_u_-start_u_);  }
    /// Start iterator to B-splines with this element in their support

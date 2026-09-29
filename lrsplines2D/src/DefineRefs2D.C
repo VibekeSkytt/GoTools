@@ -294,6 +294,34 @@ void DefineRefs2D::appendRef(vector<LRSplineSurface::Refinement2D>& refs,
 }
 
 //==============================================================================
+//  Structured mesh refinement given bspline
+//
+void DefineRefs2D::refineStructuredMesh(const LRSplineSurface& surf,
+					LRBSpline2D* bspline, Direction2D fixdir,
+					int mult,
+					vector<LRSplineSurface::Refinement2D>& refs)
+//==============================================================================
+{
+  double tol = surf.getKnotTol();
+  Direction2D d2 = flip(fixdir);
+  int size = bspline->degree(fixdir)+1;
+  const Mesh2D* mesh = bspline->getMesh();
+  double pmin = bspline->pmin(d2);
+  double pmax = bspline->pmax(d2);
+  const vector<int>& kvec = bspline->kvec(fixdir);
+  for (int kj=0; kj<size; ++kj)
+    {
+      double p1 = mesh->kval(fixdir, kvec[kj]);
+      double p2 = mesh->kval(fixdir, kvec[kj+1]);
+      if (p2-p1 <= tol)
+	continue;
+      LRSplineSurface::Refinement2D curr_ref;
+      curr_ref.setVal(0.5*(p1+p2), pmin, pmax, fixdir, mult);
+      appendRef(refs, curr_ref, tol);
+    }
+}
+
+//==============================================================================
 //  Full span refinement given parameter at which to refine
 //
 void DefineRefs2D::refineFullSpan(const LRSplineSurface& surf,
@@ -302,10 +330,13 @@ void DefineRefs2D::refineFullSpan(const LRSplineSurface& surf,
 				  LRSplineSurface::Refinement2D& refs)
 //==============================================================================
 {
+  Direction2D d2 = flip(fixdir);
 
   Element2D *elem = surf.coveringElement(upar, vpar);
-  double pmin = (fixdir == XFIXED) ? elem->vmin() : elem->umin();
-  double pmax = (fixdir == XFIXED) ? elem->vmax() : elem->umax();
+  if (!elem)
+    return;
+  double pmin = elem->pmin(d2);
+  double pmax = elem->pmax(d2);
 
   const vector<LRBSpline2D*>& bsplines = elem->getSupport();
   size_t nmb = bsplines.size();
@@ -313,10 +344,8 @@ void DefineRefs2D::refineFullSpan(const LRSplineSurface& surf,
   // All overlapping B-splines
   for (size_t ki=0; ki<nmb; ++ki)
     {
-      double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
-	bsplines[ki]->umin();
-      double bmax = (fixdir == XFIXED) ? bsplines[ki]->vmax() :
-	bsplines[ki]->umax();
+      double bmin = bsplines[ki]->pmin(d2);
+      double bmax = bsplines[ki]->pmax(d2);
       pmin = std::min(pmin, bmin);
       pmax = std::max(pmax, bmax);
     }
@@ -335,65 +364,62 @@ void DefineRefs2D::refineFromElement(const LRSplineSurface& surf,
 				     LRSplineSurface::Refinement2D& refs)
 //==============================================================================
 {
+  Direction2D d2 = flip(fixdir);
+  
   // Fetch B-splines
   const vector<LRBSpline2D*>& bsplines = elem->getSupport();
   size_t nmb = bsplines.size();
 
   double ppar = (fixdir == XFIXED) ? 0.5*(elem->umin() + elem->umax()) :
     0.5*(elem->vmin() + elem->vmax());
-  double pmin = (fixdir == XFIXED) ? elem->vmin() : elem->umin();
-  double pmax = (fixdir == XFIXED) ? elem->vmax() : elem->umax();
+  double pmin = elem->pmin(d2);
+  double pmax = elem->pmax(d2);
   double par2 = 0.5*(pmin + pmax); 
   if (strategy == fullSpan)
     {
       // All overlapping B-splines
       for (size_t ki=0; ki<nmb; ++ki)
 	{
-	  double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
-	    bsplines[ki]->umin();
-	  double bmax = (fixdir == XFIXED) ? bsplines[ki]->vmax() :
-	    bsplines[ki]->umax();
+	  double bmin = bsplines[ki]->pmin(d2);
+	  double bmax = bsplines[ki]->pmax(d2);
 	  pmin = std::min(pmin, bmin);
 	  pmax = std::max(pmax, bmax);
 	}
     }
   else if (strategy == minSpanSize)
     {
-      // Largest overlapping B-spline
+      // "Largest" overlapping B-spline. Weighted with mid split
       double tol = surf.getKnotTol();
       double max_size = 0.0;
-      double min_frac = 0.0;
       int ix = -1;
       for (size_t ki=0; ki<nmb; ++ki)
 	{
 	  // Compute size of B-spline
-	  double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
-	    bsplines[ki]->umin();
-	  double bmax = (fixdir == XFIXED) ? bsplines[ki]->vmax() :
-	    bsplines[ki]->umax();
-	  double bsize = bmax - bmin;
-	  double bdel1 = par2 - bmin;
-	  double bdel2 = bmax - par2;
-	  double frac = std::min(bdel1, bdel2)/std::max(bdel1,bdel2);
-	  if ((fabs(max_size-bsize) < tol && frac < min_frac) ||
-	      bsize > max_size)
+	  double bmin0 = bsplines[ki]->pmin(fixdir);
+	  double bmax0 = bsplines[ki]->pmax(fixdir);
+	  double bmin = bsplines[ki]->pmin(d2);
+	  double bmax = bsplines[ki]->pmax(d2);
+
+	  double bsize = 2.0*(bmax0 - bmin0) + bmax - bmin;
+	  double frac0 = std::min(ppar-bmin0, bmax0-ppar)/std::max(ppar-bmin0, bmax0-ppar);
+	  double frac1 = std::min(par2-bmin, bmax-par2)/std::max(par2-bmin, bmax-par2);
+	  double frac = 2.0*frac0 + frac1;
+
+	  if (frac*bsize > max_size)
 	    {
-	      max_size = bsize;
-	      min_frac = frac;
+	      max_size = frac*bsize;
 	      ix = (int)ki;
 	    }
 	}
-      pmin = (fixdir == XFIXED) ? bsplines[ix]->vmin() :
-	bsplines[ix]->umin();
-      pmax = (fixdir == XFIXED) ? bsplines[ix]->vmax() :
-	bsplines[ix]->umax();
+      pmin = bsplines[ix]->pmin(d2);
+      pmax = bsplines[ix]->pmax(d2);
     }
   else if (strategy == minSpanError)
     {
       // "Best" overlapping B-spline
       double tol = 0.1;
       double max_wgt = 0.0;
-      double min_frac = 0.0;
+      double max_frac = 0.0;
       int ix = -1;
      for (size_t ki=0; ki<nmb; ++ki)
 	{
@@ -402,10 +428,8 @@ void DefineRefs2D::refineFromElement(const LRSplineSurface& surf,
 	  const vector<Element2D*>& curr_el = bsplines[ki]->supportedElements();
 	  for (size_t kj=0; kj<curr_el.size(); ++kj)
 	    {
-	      double emin = (fixdir == XFIXED) ?
-		curr_el[kj]->umin() : curr_el[kj]->vmin();
-	      double emax = (fixdir == XFIXED) ?
-		curr_el[kj]->umax() : curr_el[kj]->vmax();
+	      double emin = curr_el[kj]->pmin(fixdir);
+	      double emax = curr_el[kj]->pmax(fixdir);
 	      if (emax < ppar || emin > ppar)
 		continue;  // Element not affected
 
@@ -422,25 +446,25 @@ void DefineRefs2D::refineFromElement(const LRSplineSurface& surf,
 		}
 	    }
 
-	  double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
-	    bsplines[ki]->umin();
-	  double bmax = (fixdir == XFIXED) ? bsplines[ki]->vmax() :
-	    bsplines[ki]->umax();
-	  double bdel1 = par2 - bmin;
-	  double bdel2 = bmax - par2;
-	  double frac = std::min(bdel1, bdel2)/std::max(bdel1,bdel2);
-	  if ((fabs(max_wgt-curr_wgt) < tol && frac < min_frac) ||
+	  double bmin0 = bsplines[ki]->pmin(fixdir);
+	  double bmax0 = bsplines[ki]->pmax(fixdir);
+	  double bmin = bsplines[ki]->pmin(d2);
+	  double bmax = bsplines[ki]->pmax(d2);
+
+	  double frac0 = std::min(ppar-bmin0, bmax0-ppar)/std::max(ppar-bmin0, bmax0-ppar);
+	  double frac1 = std::min(par2-bmin, bmax-par2)/std::max(par2-bmin, bmax-par2);
+	  double frac = 2.0*frac0 + frac1;
+
+	  if ((fabs(max_wgt-curr_wgt) < tol && frac > max_frac) ||
 	      curr_wgt > max_wgt)
 	    {
 	      max_wgt = curr_wgt;
-	      min_frac = frac;
+	      max_frac = frac;
 	      ix = (int)ki;
 	    }
 	}
-      pmin = (fixdir == XFIXED) ? bsplines[ix]->vmin() :
-	bsplines[ix]->umin();
-      pmax = (fixdir == XFIXED) ? bsplines[ix]->vmax() :
-	bsplines[ix]->umax();
+      pmin = bsplines[ix]->pmin(d2);
+      pmax = bsplines[ix]->pmax(d2);
     }
   else  if (strategy == minSpanCombined)
     {
@@ -448,7 +472,7 @@ void DefineRefs2D::refineFromElement(const LRSplineSurface& surf,
       double tol = 0.1;
       double max_wgt = 0.0;
       double max_size = 0.0;
-      double min_frac = 0.0;
+      double max_frac = 0.0;
       double maxfrac_combined = 0.0;
       int ix = -1;
       for (size_t ki=0; ki<nmb; ++ki)
@@ -458,10 +482,8 @@ void DefineRefs2D::refineFromElement(const LRSplineSurface& surf,
 	  const vector<Element2D*>& curr_el = bsplines[ki]->supportedElements();
 	  for (size_t kj=0; kj<curr_el.size(); ++kj)
 	    {
-	      double emin = (fixdir == XFIXED) ?
-		curr_el[kj]->umin() : curr_el[kj]->vmin();
-	      double emax = (fixdir == XFIXED) ?
-		curr_el[kj]->umax() : curr_el[kj]->vmax();
+	      double emin = curr_el[kj]->pmin(fixdir);
+	      double emax = curr_el[kj]->pmax(fixdir);
 	      if (emax < ppar || emin > ppar)
 		continue;  // Element not affected
 
@@ -478,30 +500,31 @@ void DefineRefs2D::refineFromElement(const LRSplineSurface& surf,
 		}
 	    }
 
-	  double bmin = (fixdir == XFIXED) ? bsplines[ki]->vmin() :
-	    bsplines[ki]->umin();
-	  double bmax = (fixdir == XFIXED) ? bsplines[ki]->vmax() :
-	    bsplines[ki]->umax();
-	  double bsize = bmax - bmin;
-	  double bdel1 = par2 - bmin;
-	  double bdel2 = bmax - par2;
-	  double frac = std::min(bdel1, bdel2)/std::max(bdel1,bdel2);
+	  // Compute size of B-spline
+	  double bmin0 = bsplines[ki]->pmin(fixdir);
+	  double bmax0 = bsplines[ki]->pmax(fixdir);
+	  double bmin = bsplines[ki]->pmin(d2);
+	  double bmax = bsplines[ki]->pmax(d2);
+
+	  double bsize = 2.0*(bmax0 - bmin0) + bmax - bmin;
+	  double frac0 = std::min(ppar-bmin0, bmax0-ppar)/std::max(ppar-bmin0, bmax0-ppar);
+	  double frac1 = std::min(par2-bmin, bmax-par2)/std::max(par2-bmin, bmax-par2);
+	  double frac = 2.0*frac0 + frac1;
+
 	  double frac_combined = (ix < 0) ? 1.0 : curr_wgt/max_wgt + bsize/max_size;
-	  if ((fabs(maxfrac_combined-frac_combined) < tol && frac < min_frac) ||
+	  if ((fabs(maxfrac_combined-frac_combined) < tol && frac > max_frac) ||
 	      frac_combined > maxfrac_combined)
 	    {
 	      maxfrac_combined = frac_combined;
 	      max_wgt = curr_wgt;
 	      max_size = bsize;
-	      min_frac = frac;
+	      max_frac = frac;
 	      ix = (int)ki;
 	    }
 	}
       
-      pmin = (fixdir == XFIXED) ? bsplines[ix]->vmin() :
-	bsplines[ix]->umin();
-      pmax = (fixdir == XFIXED) ? bsplines[ix]->vmax() :
-	bsplines[ix]->umax();
+      pmin = bsplines[ix]->pmin(d2);
+      pmax = bsplines[ix]->pmax(d2);
    }
   
   refs.setVal(ppar, pmin, pmax, fixdir, mult);
