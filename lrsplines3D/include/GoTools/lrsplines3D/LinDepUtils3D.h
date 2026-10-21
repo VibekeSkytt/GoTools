@@ -48,7 +48,7 @@ namespace Go
 {
   /// Utilities for checking an LR B-spline volume for potential linear
   /// dependency
-  namespace LinDepUtils
+  namespace LinDepUtils3D
   {
   //============================================================================
   /// Tests for potential linear dependence among the LR B-splines of a

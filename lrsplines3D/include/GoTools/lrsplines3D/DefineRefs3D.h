@@ -72,7 +72,7 @@ namespace Go
     /// \param reduced if true: skip some mesh lines if a complete structured mesh
     ///                         would lead to close mesh lines
     void refineStructuredMesh(const LRSplineVolume& vol,
-			      std::vector<LRBSpline2D*>& source,
+			      std::vector<LRBSpline3D*>& source,
 			      std::vector<LRSplineVolume::Refinement3D>& refs_x,
 			      std::vector<LRSplineVolume::Refinement3D>& refs_y,
 			      std::vector<LRSplineVolume::Refinement3D>& refs_z,
@@ -85,7 +85,7 @@ namespace Go
 		   LRSplineVolume::Refinement3D& curr_ref, double tol);
 
     void refineStructuredMesh(const LRSplineVolume& vol,
-			      LRBSpline2D* bspline, Direction3D fixdir,
+			      LRBSpline3D* bspline, Direction3D fixdir,
 			      int mult,
 			      std::vector<LRSplineVolume::Refinement3D>& refs);
 
@@ -96,7 +96,7 @@ namespace Go
 
     void refineFromElement(const LRSplineVolume& vol,
 			   Element3D *elem, Direction3D fixdir,
-			   RefineStrategy strategy, int mult,
+			   RefineStrategy3D strategy, int mult,
 			   LRSplineVolume::Refinement3D& refs);
 
     

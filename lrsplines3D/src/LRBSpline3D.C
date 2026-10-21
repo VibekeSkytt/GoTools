@@ -126,6 +126,7 @@ LRBSpline3D::LRBSpline3D(const LRBSpline3D& rhs)
   rational_ = (rat == 1);
   object_from_stream(is, coef_times_gamma_);
   object_from_stream(is, gamma_);
+  object_from_stream(is, weight_);
   // if (gamma_ < 1.0)
   // {
   //     MESSAGE("DEBUGGING: Changing gamma from " << gamma_ << " to 1.0!");
@@ -268,6 +269,9 @@ LRBSpline3D::LRBSpline3D(const LRBSpline3D& rhs)
 				bool w_at_end) const
 //==============================================================================
 {
+  int dim = coef_times_gamma_.dimension();
+  ALWAYS_ERROR_IF(rational_ && (der[0].dimension() != dim + 1), "Dimension mismatch for rational");
+  
   double eps = 1.0e-12;
   u_at_end = (u >= umax()-eps);
   v_at_end = (v >= vmax()-eps);
@@ -285,30 +289,16 @@ LRBSpline3D::LRBSpline3D(const LRBSpline3D& rhs)
    int ki, kj, kk, kr, kh;
    if (rational_)
      {
-       THROW("evalder_add for volumes and rationals not implemented");
-       // int dim = coef_times_gamma_.dimension();
-       // int nmb = (deriv+1)*(deriv+2)/2;
-       // double tmp[(int)((MAX_DER+1)*(MAX_DER+2)*(MAX_DIM+1))];
-       // double *tmpder = tmp;
-       // double val;
-       // Point tmppt(dim);
-       // kh = 0;
-       // for (ki=0; ki<=deriv; ++ki)
-       // 	 for (kj=0; kj<=ki; ++kj, ++kh)
-       // 	   {
-       // 	     val = weight_*bder1[ki-kj]*bder2[kj];
-       // 	     for (kr=0; kr<dim; ++kr)
-       // 	       tmpder[kh*(dim+1)+kr] = coef_times_gamma_[kr]*val;
-       // 	     tmpder[kh*(dim+1)+dim] = val;
-       // 	   }
-       // double *tmpder2 = tmpder+nmb*(dim+1);
-       // SplineUtils::surface_ratder(tmpder, dim, deriv, tmpder2);
-       // for (kh=0; kh<nmb; ++kh)
-       // 	 {
-       // 	   for (kr=0; kr<dim; ++kr)
-       // 	     tmppt[kr] = tmpder2[kh*dim+kr];
-       // 	   der[kh] = tmppt;
-       // 	 }
+      kh = 0;
+       for (ki=0; ki<=deriv; ++ki)
+	 for (kj=0; kj<=ki; ++kj)
+	   for (kk=0; kk<=kj; ++kk, ++kh)
+	     {
+	     for (kr=0; kr<dim; ++kr)
+	       der[kh][kr] += weight_*coef_times_gamma_[kr]*bder1[ki-kj]*
+		 bder2[kj-kk]*bder3[kk];
+	     der[kh][dim] += weight_*bder1[ki-kj]*bder2[kj-kk]*bder3[kk];
+	     }
      }
    else
      {

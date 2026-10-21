@@ -209,6 +209,8 @@ class LRBSpline2D : public Streamable
   /// \param deriv number of derivative to evaluate (0 = only position)
   /// \param der array of length (deriv+1)*(deriv+2)/2 for accumulated storage of
   /// derivatives. Sequence: p, du, dv, duu, duv, dvv, ...
+  /// Note that for rational the output points are in homogenous space, i.e.
+  /// the dimension is eqal to dim+1
  void evalder_add(double u, double v, 
 		  int deriv,
 		  Point der[],

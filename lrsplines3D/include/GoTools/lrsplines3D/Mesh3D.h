@@ -138,7 +138,9 @@ public:
 
   /// Construct a triviarate mesh from a bivariate (Mesh2D) mesh and a given
   /// knot vector in the third parameter direction
-  Mesh3D(const Mesh2D& mesh2d, std::vector<double>& zknots);
+  /// Parameter direction corresponding to the curve
+  /// cvdir=1 : XDIR, cvdir=2: YDIR, cvdir=3: ZDIR
+  Mesh3D(const Mesh2D& mesh2d, std::vector<double>& cvknots, int cvdir);
   
   /// Read the mesh from a stream
   virtual void read(std::istream& is);        

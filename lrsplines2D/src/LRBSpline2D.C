@@ -282,6 +282,9 @@ double LRBSpline2D::evalBasisFunction(double u,
 				bool u_at_end, bool v_at_end) const
 //==============================================================================
 {
+  int dim = coef_times_gamma_.dimension();
+  ALWAYS_ERROR_IF(rational_ && (der[0].dimension() != dim + 1), "Dimension mismatch for rational");
+  
   double eps = 1.0e-12;
    u_at_end = (u >= umax()-eps);
    v_at_end = (v >= vmax()-eps);
@@ -294,36 +297,16 @@ double LRBSpline2D::evalBasisFunction(double u,
    bspline_v_->evalBasisFunctions(v, deriv, bder2, v_at_end);
 
    int ki, kj, kr, kh;
-   // vector<double> bb((deriv+1)*(deriv+2)/2);
-   // for (kj=0, kr=0; kj<=deriv; ++kj)
-   //   for (ki=0; ki<=kj; ++ki, ++kr)
-   //     bb[kr] = evalBasisFunction(u, v, kj-ki, ki, u_at_end, v_at_end);
-
    if (rational_)
      {
-       int dim = coef_times_gamma_.dimension();
-       int nmb = (deriv+1)*(deriv+2)/2;
-       double tmp[(int)((MAX_DER+1)*(MAX_DER+2)*(MAX_DIM+1))];
-       double *tmpder = tmp;
-       double val;
-       Point tmppt(dim);
        kh = 0;
        for (ki=0; ki<=deriv; ++ki)
 	 for (kj=0; kj<=ki; ++kj, ++kh)
 	   {
-	     val = weight_*bder1[ki-kj]*bder2[kj];
 	     for (kr=0; kr<dim; ++kr)
-	       tmpder[kh*(dim+1)+kr] = coef_times_gamma_[kr]*val;
-	     tmpder[kh*(dim+1)+dim] = val;
+	       der[kh][kr] +=  weight_*coef_times_gamma_[kr]*bder1[ki-kj]*bder2[kj];
+	     der[kh][dim] += weight_*bder1[ki-kj]*bder2[kj];
 	   }
-       double *tmpder2 = tmpder+nmb*(dim+1);
-       SplineUtils::surface_ratder(tmpder, dim, deriv, tmpder2);
-       for (kh=0; kh<nmb; ++kh)
-	 {
-	   for (kr=0; kr<dim; ++kr)
-	     tmppt[kr] = tmpder2[kh*dim+kr];
-	   der[kh] = tmppt;
-	 }
      }
    else
      {
@@ -332,17 +315,8 @@ double LRBSpline2D::evalBasisFunction(double u,
 	 for (kj=0; kj<=ki; ++kj, ++kh)
 	   {
 	     der[kh] += coef_times_gamma_*bder1[ki-kj]*bder2[kj];
-	     // Point bb2 = eval(u, v, ki-kj, kj, u_at_end, v_at_end);
-	     // int stop_break = 1;
 	   }
      }
-
-
-   // return 
-  //   compute_univariate_spline(degree(XFIXED), u, kvec(XFIXED), mesh_->knotsBegin(XFIXED), 
-  // 			      u_deriv, u_at_end) *
-  //   compute_univariate_spline(degree(YFIXED), v, kvec(YFIXED), mesh_->knotsBegin(YFIXED),  
-  // 			      v_deriv, v_at_end);
 }
 
 

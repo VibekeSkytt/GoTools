@@ -76,49 +76,79 @@ bool mrvec_is_correct(const vector<GPos2D>& vec);
 };
 
 // =============================================================================
-Mesh3D::Mesh3D(const Mesh2D& mesh2d, vector<double>& zknots)
+  Mesh3D::Mesh3D(const Mesh2D& mesh2d, vector<double>& cvknots, int cvdir)
 // =============================================================================
 {
+  std::vector<int> mult; // will be used to store multiplicities
+  vector<double> knots1, knots2, knots3;
+  vector<vector<GPos2D> > mrects1, mrects2, mrects3;
+  
   // Fetch knotvectors in the x- and y-direction
-  knotvals_x_ = vector<double>(mesh2d.knotsBegin(XFIXED), mesh2d.knotsEnd(XFIXED));
-  knotvals_y_ = vector<double>(mesh2d.knotsBegin(YFIXED), mesh2d.knotsEnd(YFIXED));
+  knots1 = vector<double>(mesh2d.knotsBegin(XFIXED), mesh2d.knotsEnd(XFIXED));
+  knots2 = vector<double>(mesh2d.knotsBegin(YFIXED), mesh2d.knotsEnd(YFIXED));
 		       
   // saving the knotvals in the z-direction
   // (NB: multiplicities should not be saved here, so sequence
   // should be strictly increasing).
-  std::vector<int> mult_z; // will be used to store multiplicities
-  knotvals_z_ = compactify_knotvec_(zknots.begin(), zknots.end(), mult_z); 
+  knots3 = compactify_knotvec_(cvknots.begin(), cvknots.end(), mult); 
 
   // Collect mesh rectangles in x and extend to trivariate
-  mrects_x_.resize(knotvals_x_.size()); 
-  for (size_t ki=0; ki<knotvals_x_.size(); ++ki)
+  mrects1.resize(knots1.size()); 
+  for (size_t ki=0; ki<knots1.size(); ++ki)
     {
       vector<tuple<int,int,int> > segms = mesh2d.segments_mult(XFIXED, (int)ki);
-      mrects_x_[ki].resize(segms.size());
+      mrects1[ki].resize(segms.size());
       for (size_t kj=0; kj<segms.size(); ++kj)
-	mrects_x_[ki][kj] = GPos2D(get<0>(segms[kj]), 0, get<1>(segms[kj]),
-				   knotvals_z_.size()-1, get<2>(segms[kj]));
+	mrects1[ki][kj] = GPos2D(get<0>(segms[kj]), 0, get<1>(segms[kj]),
+				 knots3.size()-1, get<2>(segms[kj]));
     }
   
   // Collect mesh rectangles in y and extend to trivariate
-  mrects_y_.resize(knotvals_y_.size()); 
-  for (size_t ki=0; ki<knotvals_y_.size(); ++ki)
+  mrects2.resize(knots2.size()); 
+  for (size_t ki=0; ki<knots2.size(); ++ki)
     {
       vector<tuple<int,int,int> > segms = mesh2d.segments_mult(YFIXED, (int)ki);
-      mrects_y_[ki].resize(segms.size());
+      mrects2[ki].resize(segms.size());
       for (size_t kj=0; kj<segms.size(); ++kj)
-	mrects_y_[ki][kj] = GPos2D(0, get<0>(segms[kj]), knotvals_z_.size()-1,
+	mrects2[ki][kj] = GPos2D(0, get<0>(segms[kj]), knots3.size()-1,
 				   get<1>(segms[kj]), get<2>(segms[kj]));
     }
 
-  // Define mesh rectangles along the z-direction
-  mrects_z_.resize(knotvals_z_.size()); 
-  for (size_t ki = 0; ki < knotvals_z_.size(); ++ki)
-    if (mult_z[ki] > 0)
-      mrects_z_[ki].push_back(GPos2D(0, 0, knotvals_x_.size() - 1, knotvals_y_.size() - 1, mult_z[ki]));
+  // Define mesh rectangles along the curve direction
+  mrects3.resize(knots3.size()); 
+  for (size_t ki = 0; ki < knots3.size(); ++ki)
+    if (mult[ki] > 0)
+      mrects3[ki].push_back(GPos2D(0, 0, knots1.size() - 1,
+				   knots2.size() - 1, mult[ki]));
 
-  
-  
+  if (cvdir == 1)
+    {
+      std::swap(knotvals_y_, knots1);
+      std::swap(knotvals_z_, knots2);
+      std::swap(knotvals_x_, knots3);
+      std::swap(mrects_y_, mrects1); 
+      std::swap(mrects_z_, mrects2); 
+      std::swap(mrects_x_, mrects3);
+    }
+  else if (cvdir == 2)
+    {
+      std::swap(knotvals_z_, knots1);
+      std::swap(knotvals_x_, knots2);
+      std::swap(knotvals_y_, knots3);
+      std::swap(mrects_z_, mrects1); 
+      std::swap(mrects_x_, mrects2); 
+      std::swap(mrects_y_, mrects3);
+    }
+  else
+    {
+      std::swap(knotvals_x_, knots1);
+      std::swap(knotvals_y_, knots2);
+      std::swap(knotvals_z_, knots3);
+      std::swap(mrects_x_, mrects1); 
+      std::swap(mrects_y_, mrects2); 
+      std::swap(mrects_z_, mrects3);
+    }
+    
 }
   
 // =============================================================================

@@ -58,6 +58,7 @@
 #include "GoTools/geometry/SplineCurve.h"
 #include "GoTools/geometry/SplineSurface.h"
 #include "GoTools/lrsplines2D/LRSplinePlotUtils.h" // @@ only for debug
+#include "GoTools/geometry/SplineUtils.h"
 #include "GoTools/geometry/Utils.h"
 
 //#define DEBUG
@@ -1825,76 +1826,91 @@ Point LRSplineSurface::operator()(double u, double v, int u_deriv, int v_deriv) 
     }
   else
     {
-      double denom_pos = 0.0;
-      double denom_der = 0.0;
-      Point nom_pos(this->dimension());
-      nom_pos.setValue(0.0);
-      Point nom_der(this->dimension());
-      nom_der.setValue(0.0);
-      for (auto b = covering_B_functions.begin(); 
-	   b != covering_B_functions.end(); ++b, ++ki) 
-	{
-	  const bool u_on_end = (u >= (*b)->umax()-eps);
-	  const bool v_on_end = (v >= (*b)->vmax()-eps);
+      // Rational
 
-	  // The b-function contains the coefficient.
-	  double basis_val_pos = (*b)->evalBasisFunction(u, 
-							 v, 
-							 0, 
-							 0, 
-							 u_on_end, 
-							 v_on_end);
-	  //double gamma = (*b)->gamma();
-	  double weight = (*b)->weight();
-	  Point coef = (*b)->coefTimesGamma();
-	  
-	  // This is the nominator-position.
-	  nom_pos += coef*weight*basis_val_pos;
-	  
-	  denom_pos += weight*basis_val_pos;
-	  
-	  if (u_deriv > 0 || v_deriv > 0)
+      if (u_deriv + v_deriv <= 1)
+	{
+	  double denom_pos = 0.0;
+	  double denom_der = 0.0;
+	  int dim = this->dimension();
+	  Point nom_pos(this->dimension());
+	  nom_pos.setValue(0.0);
+	  Point nom_der(this->dimension());
+	  nom_der.setValue(0.0);
+	  for (auto b = covering_B_functions.begin(); 
+	       b != covering_B_functions.end(); ++b, ++ki) 
 	    {
-	      double basis_val_der = (*b)->evalBasisFunction(u, 
+	      const bool u_on_end = (u >= (*b)->umax()-eps);
+	      const bool v_on_end = (v >= (*b)->vmax()-eps);
+
+	      // The b-function contains the coefficient.
+	      double basis_val_pos = (*b)->evalBasisFunction(u, 
 							     v, 
-							     u_deriv, 
-							     v_deriv, 
+							     0, 
+							     0, 
 							     u_on_end, 
 							     v_on_end);
+	      //double gamma = (*b)->gamma();
+	      double weight = (*b)->weight();
+	      Point coef = (*b)->coefTimesGamma();
+	  
+	      // This is the nominator-position.
+	      nom_pos += coef*weight*basis_val_pos;
+	  
+	      denom_pos += weight*basis_val_pos;
+	  
+	      if (u_deriv > 0 || v_deriv > 0)
+		{
+		  double basis_val_der = (*b)->evalBasisFunction(u, 
+								 v, 
+								 u_deriv, 
+								 v_deriv, 
+								 u_on_end, 
+								 v_on_end);
 
-	      // This is the nominator-deriv.
-	      nom_der += coef*weight*basis_val_der;
+		  // This is the nominator-deriv.
+		  nom_der += coef*weight*basis_val_der;
 	      
-	      denom_der += weight*basis_val_der;
-	    }
+		  denom_der += weight*basis_val_der;
+		}
 
 #ifndef NDEBUG
-	  if (u_deriv > 0 || v_deriv > 0)
-	    {
-	      ;//MESSAGE("Do not think that rational derivs are supported yet.");
-	      //	      denom = 1.0;
-	    }
-	  //	  std::cout << "denom: " << denom << std::endl;
-	  // if (rat_den == 0.0)
-	  //   rat_den = 1.0;
+	      if (u_deriv > 0 || v_deriv > 0)
+		{
+		  ;//MESSAGE("Do not think that rational derivs are supported yet.");
+		  //	      denom = 1.0;
+		}
+	      //	  std::cout << "denom: " << denom << std::endl;
+	      // if (rat_den == 0.0)
+	      //   rat_den = 1.0;
 #endif
 	  
-	}
+	    }
 
-      if (u_deriv == 0 && v_deriv == 0)
-	{
-	  result = nom_pos/denom_pos;
-	}
-      else if (u_deriv + v_deriv == 1)
-	{
-	  result = (nom_der*denom_pos - denom_der*nom_pos)/(denom_pos*denom_pos);
+	  if (u_deriv == 0 && v_deriv == 0)
+	    {
+	      result = nom_pos/denom_pos;
+	    }
+	  else if (u_deriv + v_deriv == 1)
+	    {
+	      result = (nom_der*denom_pos - denom_der*nom_pos)/(denom_pos*denom_pos);
+	    }
 	}
       else
 	{
-	  std::cout << "Not supported." << std::endl;
+	  int deriv = (u_deriv+1)*(v_deriv+1); 
+	  int totpts = (deriv + 1)*(deriv + 2)/2;
+	  vector<Point> pts(totpts);
+	  point(pts, u, v, deriv);
+
+	  int nder = u_deriv + v_deriv;
+	  int ix = 0;
+	  for (int ki=1; ki<=nder; ++ki)
+	    ix += ki;
+	  ix += v_deriv;
+	  result = pts[ix];
 	}
     }
-
   return result;
 }
 
@@ -2502,29 +2518,42 @@ double LRSplineSurface::endparam_v() const
   // const bool u_on_end = (upar >= mesh_.maxParam(XFIXED)-eps); //(u == (*b)->umax());
   // const bool v_on_end = (vpar >= mesh_.maxParam(YFIXED)-eps); // (v == (*b)->vmax());
 
-  for (size_t kr=0; kr<covering_B_functions.size(); ++kr)
+  if (!rational_)
     {
-      covering_B_functions[kr]->evalder_add(upar, vpar, derivs, &pts[0], 
-					    u_from_right, v_from_right);
-      // covering_B_functions[kr]->evalder(upar, vpar, derivs, &tmp[0], 
-      // 					u_from_right, v_from_right);
-      // for (size_t kh=0; kh<pts.size(); ++kh)
-      // 	pts[kh] += tmp[kh];
+      for (size_t kr=0; kr<covering_B_functions.size(); ++kr)
+	{
+	  covering_B_functions[kr]->evalder_add(upar, vpar, derivs, &pts[0], 
+						u_from_right, v_from_right);
+	  // covering_B_functions[kr]->evalder(upar, vpar, derivs, &tmp[0], 
+	  // 					u_from_right, v_from_right);
+	  // for (size_t kh=0; kh<pts.size(); ++kh)
+	  // 	pts[kh] += tmp[kh];
+	}
     }
-  // This is not the most efficient approach, should be faster to
-  // evaluate basis functions once. Only a first implementation.
-  // int cntr = 0;
-  // for (int kj = 0; kj < derivs + 1; ++kj)
-  //   {
-  //     for (int ki = 0; ki < kj + 1; ++ki, ++cntr)
-  // 	{
-  //   	  pts2[cntr] = operator()(upar, vpar, kj-ki, ki, elem);
-  // 	}
-  //   }
-  // if (pts2[0].dist(pts[0]) > 5)
-  //   {
-  //     int stop_break = 1;
-  //   }
+  else
+    {
+      vector<Point> tmppts(totpts);
+      for (int ki=0; ki<totpts; ++ki)
+	{
+	  tmppts[ki].resize(dim+1);
+	  tmppts[ki].setValue(0.0);
+	}
+      for (size_t kr=0; kr<covering_B_functions.size(); ++kr)
+	covering_B_functions[kr]->evalder_add(upar, vpar, derivs, &tmppts[0], 
+					      u_from_right, v_from_right);
+      vector<double> tmpder(tmppts.size()*(dim+1));
+      vector<double> tmpder2(tmppts.size()*(dim+1));
+      for (size_t kr=0; kr<tmppts.size(); ++kr)
+	{
+	  for (int ki=0; ki<=dim; ++ki)
+	    tmpder[kr*(dim+1)+ki] = tmppts[kr][ki];
+	}
+      SplineUtils::surface_ratder(&tmpder[0], dim, derivs, &tmpder2[0]);
+      for (int ki=0; ki<totpts; ++ki)
+	for (int kj=0; kj<dim; ++kj)
+	  pts[ki][kj] = tmpder2[ki*dim+kj];
+    }
+
   }
 
   //===========================================================================

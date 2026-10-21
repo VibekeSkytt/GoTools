@@ -3746,14 +3746,6 @@ int LRSurfApprox::refineSurf3(int iter, int& dir, double threshold)
 	  double vmin = it->second->vmin();
 	  double vmax = it->second->vmax();
 
-	  const vector<LRBSpline2D*>& bsplines = it->second->getSupport();
-	  // std::cout << "Bsplines: " << std::endl;
-	  // for (size_t kr=0; kr<bsplines.size(); ++kr)
-	  //   {
-	  //     std::cout << bsplines[kr]->umin() << " "  << bsplines[kr]->umax() << " ";
-	  //     std::cout << bsplines[kr]->vmin() << " "  << bsplines[kr]->vmax() << std::endl;
-	  //   }
-	  
 	  if ((dir2 == 1 || dir2 == 3) && umax-umin > 2.0*usize_min_)
 	    {
 	      LRSplineSurface::Refinement2D curr_ref1;
@@ -5258,92 +5250,92 @@ void LRSurfApprox::defineRefs(LRBSpline2D* bspline, double average_out,
   double sizefac2 = 0.5; 
   if (dir == 1 || dir == 3)
     {
-  double minsize_u = std::max(2.0*usize_min_, 1.0e-8);
-  for (kj=0; kj<size1; ++kj)
-    {
-      double u1 = vec_u[kj];
-      double u2 = vec_u[kj+1];
-      if (u2-u1 < sizefac2*av_kdiff_v)
-	continue;
-      if (((u_info[kj] >= threshhold || u2-u1 > sizefac*v_elsize[kj]) &&
-	   (u2 - u1) >= minsize_u && 
-	   (u_inside[kj] == 0 || (double)u_outside[kj] > average_out)) ||
-	  u2 - u1 > 1.5*(av_kdiff_u + av_kdiff_v))
+      double minsize_u = std::max(2.0*usize_min_, 1.0e-8);
+      for (kj=0; kj<size1; ++kj)
 	{
-	  // Check if a candidate knot value exists
-	  double knotval = 0.5*(u1+u2);
-	  if (init_knots_u_.size() > 0)
+	  double u1 = vec_u[kj];
+	  double u2 = vec_u[kj+1];
+	  if (u2-u1 < sizefac2*av_kdiff_v)
+	    continue;
+	  if (((u_info[kj] >= threshhold || u2-u1 > sizefac*v_elsize[kj]) &&
+	       (u2 - u1) >= minsize_u && 
+	       (u_inside[kj] == 0 || (double)u_outside[kj] > average_out)) ||
+	      u2 - u1 > 1.5*(av_kdiff_u + av_kdiff_v))
 	    {
-	      int kk1=0, kk2=0;
-	      for (kk1=0; kk1<(int)init_knots_u_.size(); ++kk1)
-		if (init_knots_u_[kk1] > u1)
-		  break;
-	      for (kk2=0; kk2<(int)init_knots_u_.size(); ++kk2)
-		if (init_knots_u_[kk2] > u2)
-		  break;
-	      kk2--;
-	      if (kk2 >= kk1)
-		knotval = init_knots_u_[(kk1+kk2)/2];
-	    }
+	      // Check if a candidate knot value exists
+	      double knotval = 0.5*(u1+u2);
+	      if (init_knots_u_.size() > 0)
+		{
+		  int kk1=0, kk2=0;
+		  for (kk1=0; kk1<(int)init_knots_u_.size(); ++kk1)
+		    if (init_knots_u_[kk1] > u1)
+		      break;
+		  for (kk2=0; kk2<(int)init_knots_u_.size(); ++kk2)
+		    if (init_knots_u_[kk2] > u2)
+		      break;
+		  kk2--;
+		  if (kk2 >= kk1)
+		    knotval = init_knots_u_[(kk1+kk2)/2];
+		}
 
-	  LRSplineSurface::Refinement2D curr_ref;
-	  curr_ref.setVal(knotval, bspline->vmin(), bspline->vmax(), XFIXED, 1);
+	      LRSplineSurface::Refinement2D curr_ref;
+	      curr_ref.setVal(knotval, bspline->vmin(), bspline->vmax(), XFIXED, 1);
 
-	  // Check if the current refinement can be combined with an existing one
-	  appendRef(refs_x, curr_ref, tol);
-	  for (size_t ki=0; ki<elem.size(); ++ki)
-	    {
-	      if (elem[ki]->umin() < knotval && elem[ki]->umax() > knotval)
-		curr_el.insert(elem[ki]);
+	      // Check if the current refinement can be combined with an existing one
+	      appendRef(refs_x, curr_ref, tol);
+	      for (size_t ki=0; ki<elem.size(); ++ki)
+		{
+		  if (elem[ki]->umin() < knotval && elem[ki]->umax() > knotval)
+		    curr_el.insert(elem[ki]);
+		}
+	      refined = true;
 	    }
-	  refined = true;
 	}
-    }
     }
 
   if (dir == 2 || dir == 3)
     {
-  double minsize_v = std::max(2.0*vsize_min_, 1.0e-8);
-  for (kj=0; kj<size2; ++kj)
-    {
-      double v1 = vec_v[kj];
-      double v2 = vec_v[kj+1];
-      if (v2-v1 < sizefac2*av_kdiff_u)
-	continue;
-      if (((v_info[kj] >= threshhold  || v2-v1 > sizefac*u_elsize[kj]) &&
-	  (v2 - v1) >= minsize_v && 
-	  (v_inside[kj] == 0 || (double)v_outside[kj] > average_out)) ||
-	  v2 - v1 > 1.5*(av_kdiff_u + av_kdiff_v))
+      double minsize_v = std::max(2.0*vsize_min_, 1.0e-8);
+      for (kj=0; kj<size2; ++kj)
 	{
-	  // Check if a candidate knot value exists
-	  double knotval = 0.5*(v1+v2);
-	  if (init_knots_v_.size() > 0)
+	  double v1 = vec_v[kj];
+	  double v2 = vec_v[kj+1];
+	  if (v2-v1 < sizefac2*av_kdiff_u)
+	    continue;
+	  if (((v_info[kj] >= threshhold  || v2-v1 > sizefac*u_elsize[kj]) &&
+	       (v2 - v1) >= minsize_v && 
+	       (v_inside[kj] == 0 || (double)v_outside[kj] > average_out)) ||
+	      v2 - v1 > 1.5*(av_kdiff_u + av_kdiff_v))
 	    {
-	      int kk1=0, kk2=0;
-	      for (kk1=0; kk1<(int)init_knots_v_.size(); ++kk1)
-		if (init_knots_v_[kk1] > v1)
-		  break;
-	      for (kk2=0; kk2<(int)init_knots_v_.size(); ++kk2)
-		if (init_knots_v_[kk2] > v2)
-		  break;
-	      kk2--;
-	      if (kk2 >= kk1)
-		knotval = init_knots_v_[(kk1+kk2)/2];
-	    }
+	      // Check if a candidate knot value exists
+	      double knotval = 0.5*(v1+v2);
+	      if (init_knots_v_.size() > 0)
+		{
+		  int kk1=0, kk2=0;
+		  for (kk1=0; kk1<(int)init_knots_v_.size(); ++kk1)
+		    if (init_knots_v_[kk1] > v1)
+		      break;
+		  for (kk2=0; kk2<(int)init_knots_v_.size(); ++kk2)
+		    if (init_knots_v_[kk2] > v2)
+		      break;
+		  kk2--;
+		  if (kk2 >= kk1)
+		    knotval = init_knots_v_[(kk1+kk2)/2];
+		}
 
-	  LRSplineSurface::Refinement2D curr_ref;
-	  curr_ref.setVal(knotval, bspline->umin(), bspline->umax(), YFIXED, 1);
+	      LRSplineSurface::Refinement2D curr_ref;
+	      curr_ref.setVal(knotval, bspline->umin(), bspline->umax(), YFIXED, 1);
 
-	  // Check if the current refinement can be combined with an existing one
-	  appendRef(refs_y, curr_ref, tol);
-	  for (size_t ki=0; ki<elem.size(); ++ki)
-	    {
-	      if (elem[ki]->vmin() < knotval && elem[ki]->vmax() > knotval)
-		curr_el.insert(elem[ki]);
+	      // Check if the current refinement can be combined with an existing one
+	      appendRef(refs_y, curr_ref, tol);
+	      for (size_t ki=0; ki<elem.size(); ++ki)
+		{
+		  if (elem[ki]->vmin() < knotval && elem[ki]->vmax() > knotval)
+		    curr_el.insert(elem[ki]);
+		}
+	      refined = true;
 	    }
-	  refined = true;
 	}
-    }
     }
   if (refined)
     {

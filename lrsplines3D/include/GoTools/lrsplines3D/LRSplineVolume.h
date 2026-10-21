@@ -261,7 +261,7 @@ class LRSplineVolume : public ParamVolume
 		 std::vector<std::unique_ptr<BSplineUniLR> >& uni2,
 		 std::vector<std::unique_ptr<BSplineUniLR> >& uni3,
 		 std::vector<std::unique_ptr<LRBSpline3D> >& bspl,
-		 double knot_tol);
+		 bool rational=false, double knot_tol = 1.0e-8);
   
   /// construct empty, invalid spline
   LRSplineVolume()
@@ -644,7 +644,7 @@ class LRSplineVolume : public ParamVolume
   bool isFullTensorProduct() const;
 
   /// Tolerance for equality of knots
-  double getKnotTol()
+  double getKnotTol() const
   {
     return knot_tol_;
   }

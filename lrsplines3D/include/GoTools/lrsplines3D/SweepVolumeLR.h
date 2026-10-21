@@ -54,6 +54,11 @@ namespace Go
     LRSplineVolume* linearSweptVolume(const LRSplineSurface &surface,
 				      const SplineCurve &curve,
 				      const Point &pt);
+    
+    LRSplineVolume* rotationalSweptVolume(const LRSplineSurface &surface,
+					  double angle,
+					  const Point &pt,
+					  const Point &axis);
   };
 }
 #endif

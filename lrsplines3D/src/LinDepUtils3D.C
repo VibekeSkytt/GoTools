@@ -138,7 +138,7 @@ typedef map<MeshRectangle, Index> MeshRectangleIndexMap;
 // of more than n B-splines
 // Finally the number of candidate B-splines is at least minnmb and these
 //  B-splines have overloaded mesh line segments
-vector<LRBSpline3D*> LinDepUtils::fetchUnpeelable( const LRSplineVolume& vol,
+vector<LRBSpline3D*> LinDepUtils3D::fetchUnpeelable( const LRSplineVolume& vol,
 						   int minnmb)
 //============================================================================
 {
@@ -326,8 +326,8 @@ vector<LRBSpline3D*> LinDepUtils::fetchUnpeelable( const LRSplineVolume& vol,
 // Given a set of non-peelable B-splines, check if they can be combined in
 // linear dependence relations
 //
-void LinDepUtils::checkOverloaded(int minNmb, vector<LRBSpline3D*>& funs,
-				  vector<vector<LRBSpline3D*> >& lindep)
+void LinDepUtils3D::checkOverloaded(int minNmb, vector<LRBSpline3D*>& funs,
+				    vector<vector<LRBSpline3D*> >& lindep)
 //==============================================================================
 {
   // Check input
@@ -619,7 +619,8 @@ bool overloadedMeshRectangles(const LRSplineVolume& vol)
 		{ // Loop: over v-knots
 		  for (unsigned int iku=0; iku!=KU.size(); ++iku)
 		    {// Loop over u-knots
-		      int nmb = kmul[*ixy][(*ixy==XDIR) ? iku : ikv];
+		      int nmb = kmul[*ixy][(*ixy==XDIR) ? iku :
+					   ((*ixy==YDIR) ? ikv : ikw)];
 		      for (int nu=0; nu<=nmb; ++nu)
 			{ // Loop: over multiplicity
 			  MeshRectangle tmprec;

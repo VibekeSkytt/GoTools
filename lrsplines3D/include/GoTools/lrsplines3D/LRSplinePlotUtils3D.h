@@ -57,7 +57,7 @@ namespace Go
   // Extract information from a current LR spline volume in order to
   // visualize the structure of the parameter domain
   // mid - Mid parameters of each element (xmid, ymid, zmid) 
-  // bd - The element corners orginized as corner curves 
+  // bd - The element corners organized as corner curves 
   void extractElementMidAndBoundary(shared_ptr<LRSplineVolume>& vol,
 				    std::vector<double>& mid,
 				    std::vector<double>& bd);

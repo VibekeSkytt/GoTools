@@ -61,15 +61,15 @@ void DefineRefs3D::refineStructuredMesh(const LRSplineVolume& vol,
   if (source.size() == 0)
     return;
   const Mesh3D& mesh = vol.mesh();
-  Direction3D dir[3] = {XDIR, YDIR, ZDIR}
+  Direction3D dir[3] = {XDIR, YDIR, ZDIR};
   for (size_t ki=0; ki<source.size(); ++ki)
     {
       // Refine all knot spans in all parameter directions
       for (int ka=0; ka<3; ++ka)
 	{
-	  int ka1 = (ka+1)%3;
+	  int ka2 = (ka+1)%3;
 	  int ka3 = (ka>0) ? ka-1 : 2;
-	  int size = source[ki]->degree(dir[ka]);
+	  int size = source[ki]->degree(dir[ka]) + 1;
 	  const vector<int>& kvec = source[ki]->kvec(dir[ka]);
 	  double pmin = source[ki]->pmin(dir[ka]);
 	  double pmax = source[ki]->pmax(dir[ka]);
@@ -109,8 +109,8 @@ void DefineRefs3D::refineStructuredMesh(const LRSplineVolume& vol,
 			      int l3 = std::max(ixmin2, mr[kr].ll[1]);
 			      int l4 = std::min(ixmax2, mr[kr].ur[1]);
 
-			      dist += fabs(mesh.kval[dir[ka2],l2] - mesh.kval[dir[ka2],l1]);
-			      dist += fabs(mesh.kval[dir[ka3],l4] - mesh.kval[dir[ka3],l3]);
+			      dist += fabs(mesh.kval(dir[ka2],l2) - mesh.kval(dir[ka2],l1));
+			      dist += fabs(mesh.kval(dir[ka3],l4) - mesh.kval(dir[ka3],l3));
 			    }
 			}
 
@@ -148,7 +148,7 @@ void DefineRefs3D::refineStructuredMesh(const LRSplineVolume& vol,
 	      else if (ka == 1)
 		appendRef(refs_y, curr_ref, tol);
 	      else
-		appendRef(refs_<, curr_ref, tol);
+		appendRef(refs_z, curr_ref, tol);
 	    }
 	}
       
@@ -214,14 +214,6 @@ void DefineRefs3D::refineStructuredMesh(const LRSplineVolume& vol,
   double pmax1 = bspline->pmax(d2);
   double pmin2 = bspline->pmin(d3);
   double pmax2 = bspline->pmax(d3);
-  double pmin1 = (fixdir == XDIR) ? bspline->vmin() :
-    ((fixdir == YDIR) ? bspline->wmin() : bspline->umin());
-  double pmax1 = (fixdir == XDIR) ? bspline->vmax() :
-    ((fixdir == YDIR) ? bspline->wmax() : bspline->umax());
-  double pmin2 = (fixdir == XDIR) ? bspline->wmin() :
-    ((fixdir == YDIR) ? bspline->umin() : bspline->vmin());
-  double pmax2 = (fixdir == XDIR) ? bspline->wmax() :
-    ((fixdir == YDIR) ? bspline->umax() : bspline->vmax());
   const vector<int>& kvec = bspline->kvec(fixdir);
   for (int kj=0; kj<size; ++kj)
     {
@@ -249,6 +241,8 @@ void DefineRefs3D::refineFullSpan(const LRSplineVolume& vol,
   Element3D *elem = vol.coveringElement(upar, vpar, wpar);
   if (!elem)
     return;
+
+  double ppar = (fixdir == XDIR) ? upar : ((fixdir == YDIR) ? vpar : wpar);
   double pmin1 = elem->pmin(d2);
   double pmax1 = elem->pmax(d2);
   double pmin2 = elem->pmin(d3);
@@ -281,7 +275,7 @@ void DefineRefs3D::refineFullSpan(const LRSplineVolume& vol,
 //  minSpanCombined (minimum span based on combination fof size and error)
 void DefineRefs3D::refineFromElement(const LRSplineVolume& vol,
 				     Element3D *elem, Direction3D fixdir,
-				     RefineStrategy strategy, int mult,
+				     RefineStrategy3D strategy, int mult,
 				     LRSplineVolume::Refinement3D& refs)
 //==============================================================================
 {
@@ -370,9 +364,8 @@ void DefineRefs3D::refineFromElement(const LRSplineVolume& vol,
 
 	      // Compute weight for importance of refinement
 	      double max_err, av_err;
-	      int nmb_outside, nmb_out_sign;
-	      curr_el[kj]->getAccuracyInfo(av_err, max_err, nmb_outside, 
-					   nmb_out_sign);
+	      int nmb_outside;
+	      curr_el[kj]->getAccuracyInfo(av_err, max_err, nmb_outside);
 	      int nmb_pts = curr_el[kj]->nmbDataPoints();
 	      if (nmb_pts > 0)
 		{
@@ -429,9 +422,8 @@ void DefineRefs3D::refineFromElement(const LRSplineVolume& vol,
 
 	      // Compute weight for importance of refinement
 	      double max_err, av_err;
-	      int nmb_outside, nmb_out_sign;
-	      curr_el[kj]->getAccuracyInfo(av_err, max_err, nmb_outside, 
-					   nmb_out_sign);
+	      int nmb_outside;
+	      curr_el[kj]->getAccuracyInfo(av_err, max_err, nmb_outside);
 	      int nmb_pts = curr_el[kj]->nmbDataPoints();
 	      if (nmb_pts > 0)
 		{
@@ -470,5 +462,5 @@ void DefineRefs3D::refineFromElement(const LRSplineVolume& vol,
       pmax2 = bsplines[ix]->pmax(d3);
    }
   
-  refs.setVal(ppar, pmin, pmax, fixdir, mult);
+  refs.setVal(ppar, pmin1, pmax1, pmin2, pmax2, fixdir, mult);
 }

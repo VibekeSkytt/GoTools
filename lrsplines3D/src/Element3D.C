@@ -209,14 +209,22 @@ void Element3D::updateBasisPointers(std::vector<LRBSpline3D*> &basis) {
 
 bool Element3D::isOverloaded()  const {
   int n = (int)support_.size();
-	if(n > 0) {
-		int p1 = support_.front()->degree(ZDIR) + 1;
-		int p2 = support_.front()->degree(YDIR) + 1;
-		int p3 = support_.front()->degree(XDIR) + 1;
-		if(n > p1*p2*p3)
-			return true;
-	}
-	return false;
+  if(n > 0) {
+    int p1 = support_.front()->degree(ZDIR) + 1;
+    int p2 = support_.front()->degree(YDIR) + 1;
+    int p3 = support_.front()->degree(XDIR) + 1;
+    if(n > p1*p2*p3)
+      return true;
+  }
+  return false;
+}
+
+bool Element3D::isOverloaded(int lowest_nmb)  {
+  int n = (int)support_.size();
+  if(n > lowest_nmb)
+    return true;
+  else
+    return false;
 }
 
 int Element3D::nmbDataPoints()

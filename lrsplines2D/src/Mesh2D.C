@@ -541,8 +541,8 @@ vector<tuple<int, int, int> > Mesh2D::segments_mult(Direction2D d, int ix) const
 	mult = i->mult;
       }
     else if (i->mult < threshold && start != BLANK) {
-      result.emplace_back(tuple<int, int, int>(start, i->ix-1, mult));
-      start = (i->mult < threshold) ? i->ix-1 : BLANK;
+      result.emplace_back(tuple<int, int, int>(start, i->ix, mult));
+      start = (i->mult >= threshold) ? i->ix : BLANK;
     }
 
   if (start != BLANK) 
@@ -562,8 +562,8 @@ vector<pair<int, int> > Mesh2D::segments(Direction2D d, int ix, int threshold) c
   for (auto i = mvec.begin(); i != mvec.end(); ++i)
     if (i->mult >= threshold && start == BLANK) start = i->ix;
     else if (i->mult < threshold && start != BLANK) {
-      result.emplace_back(pair<int, int>(start, i->ix-1));
-      start = (i->mult < threshold) ? i->ix-1 : BLANK;
+      result.emplace_back(pair<int, int>(start, i->ix));
+      start = (i->mult >= threshold) ? i->ix : BLANK;
     }
 
   if (start != BLANK) 
