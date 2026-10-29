@@ -228,21 +228,6 @@ LRBSpline3D::LRBSpline3D(const LRBSpline3D& rhs)
       bspline_w_->evalBasisFunc(w);
   }
 
-  // //==============================================================================
-  // double LRBSpline3D::evalBasisFunction(double u, double v, double w,
-  //                                       const double* const kvals_u,
-  //                                       const double* const kvals_v,
-  //                                       const double* const kvals_w,
-  // 					int u_deriv, int v_deriv, int w_deriv,
-  // 					bool u_at_end, bool v_at_end, bool w_at_end) const
-  
-  // //==============================================================================
-  // {
-  //   double bval1 = bspline_u_->evalBasisFunction(u, u_deriv, u_at_end);
-  //   double bval2 = bspline_v_->evalBasisFunction(v, v_deriv, v_at_end);
-  //   double bval3 = bspline_w_->evalBasisFunction(w, w_deriv, w_at_end);
-  //   return bval1*bval2*bval3;
-  // }
 
   //==============================================================================
   double LRBSpline3D::evalBasisFunction(double u, double v, double w,

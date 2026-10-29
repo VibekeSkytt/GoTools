@@ -550,6 +550,25 @@ Element2D*
 LRSplineSurface::coveringElement(double u, double v) const
 //==============================================================================
 {
+  if (curr_element_ && curr_element_->contains(u, v))
+    return curr_element_;
+
+  if (curr_element_)
+    {
+      vector<LRBSpline2D*> bsupp = curr_element_->getSupport();
+      std::set<Element2D*> supp_el;
+      for (size_t ka=0; ka<bsupp.size(); ++ka)
+	{
+	  vector<Element2D*> esupp = bsupp[ka]->supportedElements();
+	  for (size_t ka=0; ka<esupp.size(); ++ka)
+	    if (esupp[ka]->contains(u, v))
+	      {
+		curr_element_ = esupp[ka];
+		return curr_element_;
+	      }
+	}
+    }
+  
   int ucorner, vcorner;
   if (! Mesh2DUtils::identify_patch_lower_left(mesh_, u, v, ucorner, vcorner) ) 
   {
@@ -583,6 +602,7 @@ LRSplineSurface::coveringElement(double u, double v) const
   const auto el = emap_.find(key);
   assert(el != emap_.end());
 //  return *el;
+  curr_element_ = el->second.get();
   return el->second.get();
 }
 
@@ -1725,33 +1745,33 @@ Point LRSplineSurface::operator()(double u, double v, int u_deriv, int v_deriv) 
     elem = curr_element_;
   else
     {
-      bool found = false;
+      // bool found = false;
 
-      // Check neighbours
-      if (curr_element_)
-	{
-	  vector<LRBSpline2D*> bsupp = curr_element_->getSupport();
-	  std::set<Element2D*> supp_el;
-	  for (size_t ka=0; ka<bsupp.size(); ++ka)
-	    {
-	      vector<Element2D*> esupp = bsupp[ka]->supportedElements();
-	      supp_el.insert(esupp.begin(), esupp.end());
-	    }
-	  vector<Element2D*> supp_el2(supp_el.begin(), supp_el.end());
-	  for (size_t ka=0; ka<supp_el2.size(); ++ka)
-	    if (supp_el2[ka]->contains(u, v))
-	      {
-		elem = curr_element_ = supp_el2[ka];
-		found = true;
-		break;
-	      }
-	}
-      if (!found)
-	{
+      // // Check neighbours
+      // if (curr_element_)
+      // 	{
+      // 	  vector<LRBSpline2D*> bsupp = curr_element_->getSupport();
+      // 	  std::set<Element2D*> supp_el;
+      // 	  for (size_t ka=0; ka<bsupp.size(); ++ka)
+      // 	    {
+      // 	      vector<Element2D*> esupp = bsupp[ka]->supportedElements();
+      // 	      supp_el.insert(esupp.begin(), esupp.end());
+      // 	    }
+      // 	  vector<Element2D*> supp_el2(supp_el.begin(), supp_el.end());
+      // 	  for (size_t ka=0; ka<supp_el2.size(); ++ka)
+      // 	    if (supp_el2[ka]->contains(u, v))
+      // 	      {
+      // 		elem = curr_element_ = supp_el2[ka];
+      // 		found = true;
+      // 		break;
+      // 	      }
+      // 	}
+      // if (!found)
+      // 	{
 	  //std::cout << "Finding element for parameter value (" << u << "," << v << ")" << std::endl;
 	  elem = coveringElement(u, v);
 	  curr_element_ = (Element2D*)elem;
-	}
+	// }
     }
   return operator()(u, v, u_deriv, v_deriv, elem);
 }
@@ -1765,32 +1785,32 @@ Point LRSplineSurface::operator()(double u, double v, int u_deriv, int v_deriv) 
   // Check element
   if (!elem || !elem->contains(u, v))
     {
-      bool found = false;
+      // bool found = false;
 
-      // Check neighbours
-      if (elem)
-	{
-	  vector<LRBSpline2D*> bsupp = elem->getSupport();
-	  std::set<Element2D*> supp_el;
-	  for (size_t ka=0; ka<bsupp.size(); ++ka)
-	    {
-	      vector<Element2D*> esupp = bsupp[ka]->supportedElements();
-	      supp_el.insert(esupp.begin(), esupp.end());
-	    }
-	  vector<Element2D*> supp_el2(supp_el.begin(), supp_el.end());
-	  for (size_t ka=0; ka<supp_el2.size(); ++ka)
-	    if (supp_el2[ka]->contains(u, v))
-	      {
-		elem = supp_el2[ka];
-		found = true;
-		break;
-	      }
-	}
-      if (!found)
-	{
+      // // Check neighbours
+      // if (elem)
+      // 	{
+      // 	  vector<LRBSpline2D*> bsupp = elem->getSupport();
+      // 	  std::set<Element2D*> supp_el;
+      // 	  for (size_t ka=0; ka<bsupp.size(); ++ka)
+      // 	    {
+      // 	      vector<Element2D*> esupp = bsupp[ka]->supportedElements();
+      // 	      supp_el.insert(esupp.begin(), esupp.end());
+      // 	    }
+      // 	  vector<Element2D*> supp_el2(supp_el.begin(), supp_el.end());
+      // 	  for (size_t ka=0; ka<supp_el2.size(); ++ka)
+      // 	    if (supp_el2[ka]->contains(u, v))
+      // 	      {
+      // 		elem = supp_el2[ka];
+      // 		found = true;
+      // 		break;
+      // 	      }
+      // 	}
+      // if (!found)
+      // 	{
 	  //std::cout << "Finding element for parameter value (" << u << "," << v << ")" << std::endl;
 	  elem = coveringElement(u, v);
-	}
+	// }
     }
   
   curr_element_ = elem;
@@ -2187,30 +2207,30 @@ const RectDomain& LRSplineSurface::parameterDomain() const
     //pt = operator()(upar, vpar, 0, 0, curr_element_);
     if (!curr_element_ || !curr_element_->contains(upar, vpar))
       {
-      bool found = false;
+      // bool found = false;
 
-      // Check neighbours
-      if (curr_element_)
-	{
-	  vector<LRBSpline2D*> bsupp = curr_element_->getSupport();
-	  std::set<Element2D*> supp_el;
-	  for (size_t ka=0; ka<bsupp.size(); ++ka)
-	    {
-	      vector<Element2D*> esupp = bsupp[ka]->supportedElements();
-	      for (size_t ka=0; ka<esupp.size(); ++ka)
-		if (esupp[ka]->contains(upar, vpar))
-		  {
-		    curr_element_ = esupp[ka];
-		    found = true;
-		    break;
-		  }
-	    }
-	}
-      if (!found)
-	{
+      // // Check neighbours
+      // if (curr_element_)
+      // 	{
+      // 	  vector<LRBSpline2D*> bsupp = curr_element_->getSupport();
+      // 	  std::set<Element2D*> supp_el;
+      // 	  for (size_t ka=0; ka<bsupp.size(); ++ka)
+      // 	    {
+      // 	      vector<Element2D*> esupp = bsupp[ka]->supportedElements();
+      // 	      for (size_t ka=0; ka<esupp.size(); ++ka)
+      // 		if (esupp[ka]->contains(upar, vpar))
+      // 		  {
+      // 		    curr_element_ = esupp[ka];
+      // 		    found = true;
+      // 		    break;
+      // 		  }
+      // 	    }
+      // 	}
+      // if (!found)
+      // 	{
 	  //std::cout << "Finding element for parameter value (" << u << "," << v << ")" << std::endl;
 	  curr_element_ = coveringElement(upar, vpar);
-	}
+	// }
       }
 
     if (rational_)
@@ -2323,16 +2343,6 @@ void LRSplineSurface::point(Point& pt, double upar, double vpar,
     int dim = dimension();
     points.reserve(num_u*num_v*dim);
 
-    // // Make intermediate tensor product spline surface to speed up the
-    // // grid evaluation
-    // shared_ptr<LRSplineSurface> tmp = shared_ptr<LRSplineSurface>(this->clone());;
-    // shared_ptr<SplineSurface> tpsf =
-    //   shared_ptr<SplineSurface>(tmp->asSplineSurface());
-
-    // vector<double> param_u;
-    // vector<double> param_v;
-    // tpsf->gridEvaluator(num_u, num_v, points, param_u, param_v,
-    // 			umin, umax, vmin, vmax);
   // Construct mesh of element pointers
     vector<Element2D*> elements;
     constructElementMesh(elements);
@@ -2480,32 +2490,32 @@ double LRSplineSurface::endparam_v() const
   //   elem = coveringElement(upar, vpar);
   if (!elem || !elem->contains(upar, vpar))
     {
-      bool found = false;
+      // bool found = false;
 
-      // Check neighbours
-      if (elem)
-	{
-	  vector<LRBSpline2D*> bsupp = elem->getSupport();
-	  std::set<Element2D*> supp_el;
-	  for (size_t ka=0; ka<bsupp.size(); ++ka)
-	    {
-	      vector<Element2D*> esupp = bsupp[ka]->supportedElements();
-	      supp_el.insert(esupp.begin(), esupp.end());
-	    }
-	  vector<Element2D*> supp_el2(supp_el.begin(), supp_el.end());
-	  for (size_t ka=0; ka<supp_el2.size(); ++ka)
-	    if (supp_el2[ka]->contains(upar, vpar))
-	      {
-		elem = supp_el2[ka];
-		found = true;
-		break;
-	      }
-	}
-      if (!found)
-	{
+      // // Check neighbours
+      // if (elem)
+      // 	{
+      // 	  vector<LRBSpline2D*> bsupp = elem->getSupport();
+      // 	  std::set<Element2D*> supp_el;
+      // 	  for (size_t ka=0; ka<bsupp.size(); ++ka)
+      // 	    {
+      // 	      vector<Element2D*> esupp = bsupp[ka]->supportedElements();
+      // 	      supp_el.insert(esupp.begin(), esupp.end());
+      // 	    }
+      // 	  vector<Element2D*> supp_el2(supp_el.begin(), supp_el.end());
+      // 	  for (size_t ka=0; ka<supp_el2.size(); ++ka)
+      // 	    if (supp_el2[ka]->contains(upar, vpar))
+      // 	      {
+      // 		elem = supp_el2[ka];
+      // 		found = true;
+      // 		break;
+      // 	      }
+      // 	}
+      // if (!found)
+      // 	{
 	  //std::cout << "Finding element for parameter value (" << u << "," << v << ")" << std::endl;
 	  elem = coveringElement(upar, vpar);
-	}
+	// }
     }
   
   curr_element_ = elem;
@@ -2776,35 +2786,7 @@ double LRSplineSurface::endparam_v() const
      
     return surf;
   }
-#if 0
-  //===========================================================================
-  void LRSplineSurface::refineBasisFunction(int index)
-  //===========================================================================
-  {
-    MESSAGE("LRSplineSurface::refineBasisFunction() not implemented yet");
-  }
 
-  //===========================================================================
-  void LRSplineSurface::refineBasisFunction(const std::vector<int> &indices)
-  //===========================================================================
-  {
-    MESSAGE("LRSplineSurface::refineBasisFunction() not implemented yet");
-  }
-
-  //===========================================================================
-  void LRSplineSurface::refineElement(int index)
-  //===========================================================================
-  {
-    MESSAGE("LRSplineSurface::refineElement() not implemented yet");
-  }
-
-  //===========================================================================
-  void LRSplineSurface::refineElement(const std::vector<int> &indices)
-  //===========================================================================
-  {
-    MESSAGE("LRSplineSurface::refineElement() not implemented yet");
-  }
-#endif
   //===========================================================================
   vector<shared_ptr<ParamSurface> >
     LRSplineSurface::subSurfaces(double from_upar, double from_vpar,

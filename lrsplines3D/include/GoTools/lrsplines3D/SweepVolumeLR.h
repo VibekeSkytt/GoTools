@@ -51,10 +51,12 @@ namespace Go
   /// Namespace for sweeping methods to create LR spline volume
   namespace SweepVolumeLR
   {
+    /// Sweeps the surface along the curve 
     LRSplineVolume* linearSweptVolume(const LRSplineSurface &surface,
 				      const SplineCurve &curve,
 				      const Point &pt);
-    
+
+    /// Rotational sweep around the given axis
     LRSplineVolume* rotationalSweptVolume(const LRSplineSurface &surface,
 					  double angle,
 					  const Point &pt,

@@ -153,7 +153,7 @@ LRSplineVolume::LRSplineVolume(SplineVolume *vol, double knot_tol)
     : rational_(rational), knot_tol_(knot_tol)
 //==============================================================================
   {
-    std::cout << "Define swept volume" << std::endl;
+    //std::cout << "Define swept volume" << std::endl;
     mesh_.swap(mesh);
 
     bsplinesuni1_.resize(uni1.size());
@@ -1200,20 +1200,6 @@ DirectionCone LRSplineVolume::tangentCone(int pardir) const
    THROW("");
 }
 
-// //==============================================================================
-//      void LRSplineVolume::closestPoint(const Point& pt,
-// 			      double&        clo_u,
-// 			      double&        clo_v, 
-// 			      double&        clo_w, 
-// 			      Point&         clo_pt,
-// 			      double&        clo_dist,
-// 			      double         epsilon,
-// 			      double   *seed) const
-// //==============================================================================
-// {
-//    MESSAGE("LRSplineVolume:: Not implemented yet.");
-//    THROW("");
-// }
 
 #if 0
 //==============================================================================
@@ -1965,53 +1951,6 @@ Point LRSplineVolume::operator()(double u, double v, double w, int u_deriv, int 
     return result;
 }
 
-#if 0
-//==============================================================================
-  void LRSplineVolume::computeBasis (double param_u, double param_v, double param_w,
-				     BasisPtsSf& result, int iEl ) const
-//==============================================================================
-{
-   MESSAGE("LRSplineVolume:: Not implemented yet.");
-   throw;
-}
-
-//==============================================================================
-  void LRSplineVolume::computeBasis (double param_u, double param_v, double param_w,
-				     BasisDerivsSf& result, int iEl ) const
-//==============================================================================
-{
-  MESSAGE("LRSplineVolume:: Not implemented yet.");
-  throw;
-}
-
-//==============================================================================
-  void LRSplineVolume::computeBasis (double param_u, double param_v, double param_w,
-				     BasisDerivsSf2& result, int iEl ) const
-//==============================================================================
-{
-  MESSAGE("LRSplineVolume:: Not implemented yet.");
-  throw;
-}
-
-//==============================================================================
-  void LRSplineVolume::computeBasis (double param_u, double param_v, double param_w,
-				     std::vector<std::vector<double> >& result,
-				     int derivs,
-				     int iEl ) const
-//==============================================================================
-{
-  MESSAGE("LRSplineVolume:: Not implemented yet.");
-  throw;
-}
-
-//==============================================================================
-  int LRSplineVolume::getElementContaining(double u, double v, double w) const
-//==============================================================================
-{
-  MESSAGE("LRSplineVolume:: Not implemented yet.");
-  throw;
-}
-#endif
 
 //==============================================================================
 Go::Element3D* LRSplineVolume::coveringElement(double u, double v, double w) const

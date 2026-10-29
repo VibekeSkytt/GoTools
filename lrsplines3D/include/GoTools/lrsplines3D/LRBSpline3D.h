@@ -78,7 +78,7 @@ class LRBSpline3D : public Streamable
 
   //template<typename Iterator>
   /// Constructor
-  /// \param c_g coefficient multiplied with the scaling factor
+  /// \param c_g coefficient multiplied with the scaling factor. The rational weight is not expected to be multiplied with the coefficient
   /// \param weight rational weight (1 if non-rational volume)
   /// \param bspline_u univariate B-spline in first parameter direction
   /// \param bspline_v univariate B-spline in second second direction
@@ -155,8 +155,6 @@ class LRBSpline3D : public Streamable
   // --- EVALUATION FUNCTION ---
   // ---------------------------
 
-  /// Read the LRBSpline2D from a stream
-  /// Do not use this function. Will create memory loss
   double evalBasisFunc(double u, double v, double w) const;
 
   /// Similar to 'eval' below, but returns the value of the
@@ -166,15 +164,6 @@ class LRBSpline3D : public Streamable
   /// before it is returned.) If u_deriv = n1, v_deriv = n2 and
   /// w_deriv = n3, the function returns the partial derivative
   /// d^(n1+n2+n3) B / du^n1 dv^n2 dw^n3
-  // @@@ VSK. Appropriate for rationals?
-  /* double evalBasisFunction(double u, double v, double w, */
-  /*                          const double* const kvals_u, */
-  /*                          const double* const kvals_v, */
-  /*                          const double* const kvals_w, */
-  /* 			   int u_deriv = 0, int v_deriv = 0, int w_deriv = 0, */
-  /* 			   bool u_at_end = false, bool v_at_end = false,  */
-  /* 			   bool w_at_end = false) const; */
-
   double evalBasisFunction(double u, double v, double w,
                            int u_deriv = 0, int v_deriv = 0, int w_deriv = 0,
                            bool u_at_end = false, bool v_at_end = false, 
@@ -191,20 +180,18 @@ class LRBSpline3D : public Streamable
   /// the domain. The basis function itself has no knowledge of the
   /// underlying mesh, so this information has to be given explicitly
   /// using the 'u_at_end', 'v_at_end' and 'w_at_end' parameters.
-  // @@@ VSK. I am not sure if I like the way of distributing position and
-  // derivatives, but it is not top level. What about mixed derivatives?
-  // What about rationals? Should maybe look at SplineSurface for interface.
-
-
+  /// Note that the the B-spline stores the rational parameter, but is not
+  /// responsible for involving it in computations. To compute the value
+  /// of the B-spline times the coefficient in the rational case call
+  /// evalBasisFunction and fetch the weight and the coefficient. See also
+  /// point() and operator() in LRSplineVolume.
   Point eval(double u, double v, double w,
              int u_deriv = 0, int v_deriv = 0, int w_deriv = 0,
              bool u_at_end = false, bool v_at_end = false, bool w_at_end = false) const
   {
     if (rational_)
       {
-        //MESSAGE("Rational case under construction!");
-        if (u_deriv > 0 || v_deriv > 0 || w_deriv > 0)
-          MESSAGE("Rational case with derivs not yet supported!");
+        MESSAGE("Rational case not expected!");
       }
 
     Point geom_pos =
@@ -215,29 +202,10 @@ class LRBSpline3D : public Streamable
 
   }
 
-  /* Point eval(double u, double v, double w, */
-  /* 	     const double* const kvals_u, const double* const kvals_v, const double* const kvals_w, */
-  /* 	     int u_deriv = 0, int v_deriv = 0, int w_deriv = 0, */
-  /* 	     bool u_at_end = false, bool v_at_end = false, bool w_at_end = false) const */
-  /* {  */
-  /*   if (rational_) */
-  /*     { */
-  /* 	MESSAGE("Rational case under construction!"); */
-  /* 	if (u_deriv > 0 || v_deriv > 0 || w_deriv > 0) */
-  /* 	  MESSAGE("Rational case with derivs not yet supported!"); */
-  /*     } */
-
-
-  /*   Point geom_pos = */
-  /*     evalBasisFunction(u, v, w, kvals_u, kvals_v, kvals_w, u_deriv, v_deriv, w_deriv, u_at_end, v_at_end, w_at_end) *  */
-  /*     coefTimesGamma(); */
-
-  /*   return geom_pos; */
-      
-  /* } */
 
   /// Evaluate position only, array of correct size is expected as
   /// input. No size checking
+  /// See eval() for rationals
   void evalpos(double u, double v, double w, double pos[])
   {
     double bb = evalBasisFunc(u, v, w);

@@ -76,7 +76,7 @@ class LRBSpline2D : public Streamable
     { }; 
 
   /// Constructor
-  /// \param c_g coefficient
+  /// \param c_g coefficient multiplied with the scaling factor. The rational weight is not expected to be multiplied with the coefficient
   /// \param weight rational weight (1 if non-rational surface)
   /// \param bspline_u univariate B-spline in first parameter direction
   /// \param bspline_v univariate B-spline in second parameter direction
@@ -169,18 +169,18 @@ class LRBSpline2D : public Streamable
   /// the domain. The basis function itself has no knowledge of the
   /// underlying mesh, so this information has to be given explicitly
   /// using the 'u_at_end' and 'v_at_end' parameters.
-  // @@@ VSK. I am not sure if I like the way of distributing position and
-  // derivatives, but it is not top level. What about mixed derivatives?
-  // What about rationals? Should maybe look at SplineSurface for interface.
+  /// Note that the the B-spline stores the rational parameter, but is not
+  /// responsible for involving it in computations. To compute the value
+  /// of the B-spline times the coefficient in the rational case call
+  /// evalBasisFunction and fetch the weight and the coefficient. See also
+  /// point() and operator() in LRSplineSurface.
   Point eval(double u, double v, 
 	     int u_deriv = 0, int v_deriv = 0,
 	     bool u_at_end = false, bool v_at_end = false) const
   { 
     if (rational_)
       {
-	//MESSAGE("Rational case under construction!");
-	if (u_deriv > 0 || v_deriv > 0)
-	  MESSAGE("Rational case with derivs not yet supported!");
+	MESSAGE("Rational case not expected!");
       }
 
 
@@ -194,6 +194,7 @@ class LRBSpline2D : public Streamable
 
   /// Evaluate position only, array of correct size is expected as
   /// input. No size checking
+  /// See eval() for rationals
   void evalpos(double u, double v, double pos[])
   {
     double bb = evalBasisFunc(u, v);
